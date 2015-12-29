@@ -58,8 +58,8 @@
   File
   (as-file [f] f)
   (as-url [f] (.to-url f))
-  Uri ;formerly URL. ,
-  (as-url [u] (.getPath u)) ;???
+  Uri
+  (as-url [u] (.getPath u))
   (as-file [u]
     (if (= "file" (.getScheme u))
       (as-file (.getPath u)) ;goog.Uri handles decoding woohoo
@@ -80,17 +80,13 @@
 
 
 (defn file-dispatch
-
-  ([x] :arg) ; string || Uri.
-
+  ([x] (get-type x)) ; string || Uri.
   ([x y] ; [string string]  || [File string]
    (case (mapv get-type [x y])
-    ;  [:string :string] "got [:string :string]"
-     [:file :string] :p-c
+     [:string :string] :string-string
+     [:file :string] :file-string
      "default"))
-
-
-  )
+  ([x y & more] :p-c-m))
 
 
 
@@ -103,9 +99,11 @@
    children relative to the parent."
   file-dispatch)
 
-(defmethod file :arg [arg] (as-file arg))
-; (defmethod file :p-c [parent child] (File. ^File (as-file parent) ^String (as-relative-path child)))
-(defmethod file :p-c-a [parent child & more] (reduce file (file parent child) more))
+(defmethod file :string [s] (as-file s))
+(defmethod file :uri [u] (as-file u))
+(defmethod file :string-string [parent child] nil) ;(File. ^File (as-file parent) ^String (as-relative-path child))
+(defmethod file :file-string [parent child] nil)
+(defmethod file :p-c-m [parent child & more] (reduce file (file parent child) more))
 
 
 
