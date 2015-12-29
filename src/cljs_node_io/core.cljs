@@ -80,7 +80,7 @@
 
 
 (defn file-dispatch
-  ([x] (get-type x)) ; string || Uri.
+  ([x] :arg) ; string || Uri.
   ([x y] ; [string string]  || [File string]
    (case (mapv get-type [x y])
      [:string :string] :string-string
@@ -99,29 +99,10 @@
    children relative to the parent."
   file-dispatch)
 
-(defmethod file :string [s] (as-file s))
-(defmethod file :uri [u] (as-file u))
+(defmethod file :arg [x] (as-file x))
 (defmethod file :string-string [parent child] nil) ;(File. ^File (as-file parent) ^String (as-relative-path child))
 (defmethod file :file-string [parent child] nil)
 (defmethod file :p-c-m [parent child & more] (reduce file (file parent child) more))
-
-
-
-; (defn ^File file
-;
-;   {:added "1.2"}
-;   ([arg]
-;    (as-file arg))
-;   ([parent child]
-;    (File. ^File (as-file parent) ^String (as-relative-path child)))
-
-
-
-
-
-
-
-
 
 
 
