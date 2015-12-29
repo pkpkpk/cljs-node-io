@@ -4,8 +4,7 @@
             [cljs.reader :refer [read-string]]
             [goog.uri.utils :as uri-utils]
             [clojure.string :as st]
-            [goog.string :as gstr]
-            [cljs-node-io.jio :as jio])
+            [goog.string :as gstr])
   (:import goog.Uri))
 
 #_(comment
