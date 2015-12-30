@@ -12,6 +12,7 @@
     2. cookbook io examples)
 ; error handling can be better, move away from generic js/Error.
 ; consolidated URL & URI
+; java.io.File's  constructor is problematic
 ; gcl node-object-stream support
 
 (nodejs/enable-util-print!)
@@ -19,12 +20,12 @@
 (def path (require "path"))
 (def Buffer (.-Buffer (require "buffer")))
 
+
+
 (defprotocol Coercions
   "Coerce between various 'resource-namish' things."
   (^{:tag :File} as-file [x] "Coerce argument to a file.")
   (^{:tag :URL} as-url [x] "Coerce argument to a URL."))
-
-
 
 (defprotocol IGetType
   (get-type [this] "type helper for dispatch"))
@@ -38,15 +39,81 @@
   (get-type [u] :string))
 
 
-(defrecord File [pathstring]
-  IGetType
-  (get-type [f] :file)
-  ; IFile
-  ; (setup-ctor [this] (set! (.-constructor this) :file))
-  Object
-  (to-url [f] (Uri. pathstring))
-  (getPath [f] pathstring)
-  (isAbsolute [_] (.isAbsolute path pathstring)))
+(defn File*-dispatch
+  ([x] (get-type x)) ; string || Uri.
+  ([x y] ; [string string]  || [File string]
+   (case (try (mapv get-type [x y]) (catch js/Object e (.log js/console e))) ;pre post instead?
+     [:string :string] :string-string
+     [:file :string] :file-string
+     "default")))
+
+(defmulti  File* "signature->File" File*-dispatch)
+
+(defmethod File* :uri [u]
+  (let [pathstring (.getPath u)]
+    (reify
+     IEquiv;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+     (-equiv [_ other] (= pathstring (.getPath other)));;;;;;;;;;;;;;;;;;;;;;;;;;;
+     IGetType
+     (get-type [f] :file)
+     Coercions
+     (as-file [f] f)
+     (as-url [f] (.to-url f))
+     Object
+     (to-url [f] (Uri. pathstring))
+     (getPath [f] pathstring)
+     (isAbsolute [_] (.isAbsolute path pathstring)))))
+
+(defmethod File* :string  [pathstring]
+  (reify
+   IEquiv;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   (-equiv [_ other] (= pathstring (.getPath other)));;;;;;;;;;;;;;;;;;;;;;;;;;;
+   IGetType
+   (get-type [f] :file)
+   Coercions
+   (as-file [f] f)
+   (as-url [f] (.to-url f))
+   Object
+   (to-url [f] (Uri. pathstring))
+   (getPath [f] pathstring)
+   (isAbsolute [_] (.isAbsolute path pathstring))))
+
+(defmethod File* :string-string [parent-str child-str]
+  (let [pathstring (str parent-str "/" child-str)]
+    (reify
+     IEquiv;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+     (-equiv [_ other] (= pathstring (.getPath other)));;;;;;;;;;;;;;;;;;;;;;;;;;;
+     IGetType
+     (get-type [f] :file)
+     Coercions
+     (as-file [f] f)
+     (as-url [f] (.to-url f))
+     Object
+     (to-url [f] (Uri. pathstring))
+     (getPath [f] pathstring)
+     (isAbsolute [_] (.isAbsolute path pathstring)))))
+
+
+(defmethod File* :file-string [parent-file child-str]
+  (let [pathstring (str (.getPath parent-file) "/" child-str)]
+    (reify
+     IEquiv;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+     (-equiv [_ other] (= pathstring (.getPath other)));;;;;;;;;;;;;;;;;;;;;;;;;;;
+     IGetType
+     (get-type [f] :file)
+     Coercions
+     (as-file [f] f)
+     (as-url [f] (.to-url f))
+     Object
+     (to-url [f] (Uri. pathstring))
+     (getPath [f] pathstring)
+     (isAbsolute [_] (.isAbsolute path pathstring)))))
+
+
+(defn File
+  ([a] (File* a))
+  ([a b] (File* a b))
+  ([a b c] (File* a b c)))
 
 (extend-protocol Coercions
   nil
@@ -55,9 +122,6 @@
   string
   (as-file [s] (File. s))
   (as-url [s] (.getPath (Uri. s)))
-  File
-  (as-file [f] f)
-  (as-url [f] (.to-url f))
   Uri
   (as-url [u] (.getPath u))
   (as-file [u]
@@ -76,35 +140,17 @@
       (.getPath f))))
 
 
-
-
-
-(defn file-dispatch
-  ([x] :arg) ; string || Uri.
-  ([x y] ; [string string]  || [File string]
-   (case (mapv get-type [x y])
-     [:string :string] :string-string
-     [:file :string] :file-string
-     "default"))
-  ([x y & more] :p-c-m))
-
-
-
-
-
-
-(defmulti file
-  "Returns a File record, passing each arg to as-file.  Multiple-arg
+(defn ^File file
+  "Returns a java.io.File, passing each arg to as-file.  Multiple-arg
    versions treat the first argument as parent and subsequent args as
    children relative to the parent."
-  file-dispatch)
-
-(defmethod file :arg [x] (as-file x))
-(defmethod file :string-string [parent child] nil) ;(File. ^File (as-file parent) ^String (as-relative-path child))
-(defmethod file :file-string [parent child] nil)
-(defmethod file :p-c-m [parent child & more] (reduce file (file parent child) more))
-
-
+  {:added "1.2"}
+  ([arg]
+   (as-file arg))
+  ([parent child]
+   (File. ^File (as-file parent) ^String (as-relative-path child)))
+  ([parent child & more]
+   (reduce file (file parent child) more)))
 
 
 
