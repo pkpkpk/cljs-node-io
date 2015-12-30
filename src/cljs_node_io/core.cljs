@@ -5,7 +5,7 @@
             ; [goog.uri.utils :as uri-utils]
 
             [cljs-node-io.file :refer [File]]
-            [cljs-node-io.util :refer [IGetType get-type  Coercions as-url as-file]]
+            [cljs-node-io.util :refer [Coercions as-url as-file]]
 
             [clojure.string :as st]
             [goog.string :as gstr])
