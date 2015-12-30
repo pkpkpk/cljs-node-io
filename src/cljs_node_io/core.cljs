@@ -24,6 +24,19 @@
 (def path (require "path"))
 (def Buffer (.-Buffer (require "buffer")))
 
+(extend-protocol Coercions
+  nil
+  (as-file [_] nil)
+  (as-url [_] nil)
+  string
+  (as-file [s] (File. s))
+  (as-url [s] (.getPath (Uri. s)))
+  Uri
+  (as-url [u] (.getPath u))
+  (as-file [u]
+    (if (= "file" (.getScheme u))
+      (as-file (.getPath u)) ;goog.Uri handles decoding woohoo
+      (throw (js/Error. (str "IllegalArgumentException : Not a file: " u))))))
 
 (defn ^String as-relative-path
   "Take an as-file-able thing and return a string if it is
