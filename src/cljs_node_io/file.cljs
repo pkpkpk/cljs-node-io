@@ -1,7 +1,19 @@
 (ns cljs-node-io.file "a bunch of nonsense for mocking java.io.File's polymoprhic constructor"
   (:import goog.Uri)
   (:require [cljs.nodejs :as nodejs :refer [require]]
-            [cljs-node-io.util :refer [IGetType get-type  Coercions as-url as-file]] ))
+            [cljs-node-io.util :refer [append?
+                                       IGetType get-type
+                                       Coercions as-url as-file
+                                       IOFactory make-reader make-writer make-input-stream make-output-stream]] ))
+
+
+; try making a generic reified object that has all common methods
+; and use specify! to tailor each object to specific types to reduce repetitive code
+
+(deftype FileInputStream [x])
+(deftype FileOutputStream [x y])
+
+
 
 
 (def fs (require "fs"))
@@ -49,6 +61,11 @@
    Coercions
    (as-file [f] f)
    (as-url [f] (.to-url f))
+   IOFactory
+   (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
+   (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
+   (make-input-stream [^File x opts] (make-input-stream (FileInputStream. x) opts))
+   (make-output-stream [^File x opts] (make-output-stream (FileOutputStream. x (append? opts)) opts))
    Object
    (to-url [f] (Uri. pathstring))
    (getPath [f] pathstring)
@@ -86,7 +103,19 @@
      (isAbsolute [_] (.isAbsolute path pathstring)))))
 
 
+
+; (defn file-default-obj [])
+
+
+
 (defn File
   ([a] (File* a))
   ([a b] (File* a b))
   ([a b c] (File* a b c)))
+
+
+
+; :make-reader (fn [x opts] (make-reader (make-input-stream x opts) opts))
+; :make-writer (fn [x opts] (make-writer (make-output-stream x opts) opts))
+; :make-input-stream (fn [^File x opts] (make-input-stream (FileInputStream. x) opts))
+; :make-output-stream (fn [^File x opts] (make-output-stream (FileOutputStream. x (append? opts)) opts)))

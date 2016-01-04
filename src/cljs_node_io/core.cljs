@@ -5,7 +5,8 @@
             ; [goog.uri.utils :as uri-utils]
 
             [cljs-node-io.file :refer [File]]
-            [cljs-node-io.util :refer [Coercions as-url as-file]]
+            [cljs-node-io.util :refer [Coercions as-url as-file
+                                       IOFactory make-reader make-writer make-input-stream make-output-stream]]
 
             [clojure.string :as st]
             [goog.string :as gstr])
@@ -15,6 +16,7 @@
     1. convert tests
     2. cookbook io examples)
 ; error handling can be better, move away from generic js/Error.
+; biased towards sync calls,
 ; consolidated URL & URI
 ; java.io.File's  constructor is problematic
 ; gcl node-object-stream support
@@ -59,22 +61,6 @@
   ([parent child & more]
    (reduce file (file parent child) more)))
 
-
-
-(defprotocol ^{:added "1.2"} IOFactory
-  "Factory functions that create ready-to-use, buffered versions of
-   the various Java I/O stream types, on top of anything that can
-   be unequivocally converted to the requested kind of stream.
-   Common options include
-
-     :append    true to open stream in append mode
-     :encoding  string name of encoding to use, e.g. \"UTF-8\".
-   Callers should generally prefer the higher level API provided by
-   reader, writer, input-stream, and output-stream."
-  (make-reader [x opts] "Creates a BufferedReader. See also IOFactory docs.")
-  (make-writer [x opts] "Creates a BufferedWriter. See also IOFactory docs.")
-  (make-input-stream [x opts] "Creates a BufferedInputStream. See also IOFactory docs.")
-  (make-output-stream [x opts] "Creates a BufferedOutputStream. See also IOFactory docs."))
 
 
 
@@ -155,96 +141,6 @@
    :make-output-stream (fn [x opts]
                          (throw (js/Error.
                                  (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream."))))})
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-(def foo (reify Object (close [_] (println "closing"))))
-
-
-(defn sslurp
-  "augmented slurp for convenience. edn|json => clj data-structures"
-  [filename]
-  (let [contents (.readFileSync fs filename "utf8")]
-    (condp = (.extname path filename)
-      ".edn"  (read-string contents)
-      ".json" (js->clj (js/JSON.parse contents) :keywordize-keys true)
-      ;xml, csv, disable-auto-reading?
-      (throw (js/Error. "sslurp was given an unrecognized file format.
-                         The file's extension must be json or edn")))))
-
-
-
-; clj uses protocols for all kinds of types, see clojure.java.io/writer
-; https://github.com/clojure/clojure/blob/clojure-1.7.0/src/clj/clojure/java/io.clj
-; writer, bufferedwriter, outstream, bufferedoutstream, url, uri, file, byte-array, socket,
-; other opts: encoding, flags, mode, buffer-size, sync vs async, others?
-; flags: w=overwrite, a=append. FS.appendFileSync is just wrapper over
-(defn spit [filename content & opts]
-  (let [opts (apply hash-map opts)]
-    (if (:append? opts) ;should check encoding, mode, sync too?
-      (.writeFileSync fs filename content  #js{"flag" "a"}) ;{ encoding: 'utf8', mode: 0o666, flag: 'a' }
-      (.writeFileSync fs filename content  #js{"flag" "w"}))))
-
-
-
-
-
-
-
-
-
-
-; takes path returns file descriptor?
-;null checks  on path
-
-(defn open-file [path flag mode]
-  (.openSync fs path flag mode))
-
-
-
-
-;node is polymorphic on path, can be string or file-descriptor,
-;if path => call fs.open on it
-;if fd => leave as is
-
-(defn read-file ;sync
-  [^String path & {:keys [encoding flag]  :or {encoding nil flag "r"}  :as opts}]
-  (let [mode  (js/parseInt "0o666" 8)
-
-
-        fd    (open-file path flag nil)
-        st    (.fstatSync fs fd)
-        size  (if (.isFile st) (.size st) 0)
-
-        ;; setup buffers
-        pos   0
-        buffers (if (zero? size) #js[] )
-        buffer  (if-not (zero? size) (Buffer. size))
-
-        ;; read bytes into buffer
-
-      ]
-    nil))
-
-
-
-
-
-
-
-
-
 
 
 

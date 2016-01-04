@@ -13,3 +13,4 @@ pom.xml
 file.js
 fs.js
 clj-java-io*
+moops*

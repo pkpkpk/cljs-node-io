@@ -30,32 +30,6 @@
        "foo/bar/baz" ["foo" "bar" "baz"]))
 
 
-; (deftest test-as-relative-path
-;   (testing "strings"
-;     (is (= "foo" (as-relative-path "foo"))))
-;   (testing "absolute path strings are forbidden"
-;     (is (thrown? js/Error (as-relative-path (.getAbsolutePath (File. "baz"))))))
-;   (testing "relative File paths"
-;     (is (= "bar" (as-relative-path (File. "bar")))))
-;   (testing "absolute File paths are forbidden"
-;     (is (thrown? js/Error (as-relative-path (File. (.getAbsolutePath (File. "quux"))))))))
-
-
-
-
-; (deftest test-resources-with-spaces
-;   (let [file-with-spaces (temp-file "test resource 2" "txt")
-;         url (as-url (.getParentFile file-with-spaces))
-;         loader (java.net.URLClassLoader. (into-array [url]))
-;         r (resource (.getName file-with-spaces) loader)]
-;     (is (= r (as-url file-with-spaces)))
-;     (spit r "foobar")
-;     (is (= "foobar" (slurp r)))))
-
-
-;
-
-
 
 
 (run-tests)
