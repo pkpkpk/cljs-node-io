@@ -2,8 +2,6 @@
   ; (:require-macros [cljs-node-io.macros :refer []])
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs.reader :refer [read-string]]
-            ; [goog.uri.utils :as uri-utils]
-
             [cljs-node-io.file :refer [File]]
             [cljs-node-io.util :refer [Coercions as-url as-file
                                        IOFactory make-reader make-writer make-input-stream make-output-stream]]
@@ -11,16 +9,6 @@
             [clojure.string :as st]
             [goog.string :as gstr])
   (:import goog.Uri))
-
-#_(comment
-    1. convert tests
-    2. cookbook io examples
-    3. clojure.data.csv port, m3u example?)
-; error handling can be better, move away from generic js/Error.
-; biased towards sync calls,
-; consolidated URL & URI
-; java.io.File's  constructor is problematic
-; gcl node-object-stream support
 
 (nodejs/enable-util-print!)
 (def fs (require "fs"))
