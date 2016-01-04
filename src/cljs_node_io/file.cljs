@@ -1,17 +1,11 @@
 (ns cljs-node-io.file "a bunch of nonsense for mocking java.io.File's polymoprhic constructor"
   (:import goog.Uri)
   (:require [cljs.nodejs :as nodejs :refer [require]]
+            [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
             [cljs-node-io.util :refer [append?
                                        IGetType get-type
                                        Coercions as-url as-file
                                        IOFactory make-reader make-writer make-input-stream make-output-stream]] ))
-
-
-
-(deftype FileInputStream [x])
-(deftype FileOutputStream [x y])
-
-
 
 
 (def fs (require "fs"))
