@@ -14,7 +14,8 @@
 
 #_(comment
     1. convert tests
-    2. cookbook io examples)
+    2. cookbook io examples
+    3. clojure.data.csv port, m3u example?)
 ; error handling can be better, move away from generic js/Error.
 ; biased towards sync calls,
 ; consolidated URL & URI
@@ -60,9 +61,6 @@
    (File. ^File (as-file parent) ^String (as-relative-path child)))
   ([parent child & more]
    (reduce file (file parent child) more)))
-
-
-
 
 (defn ^Reader reader
   "Attempts to coerce its argument into an open java.io.Reader.
@@ -141,31 +139,6 @@
    :make-output-stream (fn [x opts]
                          (throw (js/Error.
                                  (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream."))))})
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 (defn -main [& args] nil)
