@@ -7,8 +7,6 @@
                                        IOFactory make-reader make-writer make-input-stream make-output-stream]] ))
 
 
-; try making a generic reified object that has all common methods
-; and use specify! to tailor each object to specific types to reduce repetitive code
 
 (deftype FileInputStream [x])
 (deftype FileOutputStream [x y])
@@ -28,8 +26,8 @@
   (get-type [u] :string))
 
 (defn File*-dispatch
-  ([x] (get-type x)) ; string || Uri.
-  ([x y] ; [string string]  || [File string]
+  ([o x] (get-type x)) ; string || Uri.
+  ([o x y] ; [string string]  || [File string]
    (case (try (mapv get-type [x y]) (catch js/Object e (.log js/console e))) ;pre post instead?
      [:string :string] :string-string
      [:file :string] :file-string
@@ -37,85 +35,58 @@
 
 (defmulti  File* "signature->File" File*-dispatch)
 
-(defmethod File* :uri [u]
+(defmethod File* :uri [o u]
   (let [pathstring (.getPath u)]
-    (reify
-     IEquiv;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-     (-equiv [_ other] (= pathstring (.getPath other)));;;;;;;;;;;;;;;;;;;;;;;;;;;
-     IGetType
-     (get-type [f] :file)
-     Coercions
-     (as-file [f] f)
-     (as-url [f] (.to-url f))
-     Object
-     (to-url [f] (Uri. pathstring))
-     (getPath [f] pathstring)
-     (isAbsolute [_] (.isAbsolute path pathstring)))))
+    (specify! o
+      Object
+      (to-url [f] (Uri. pathstring))
+      (getPath [f] pathstring)
+      (isAbsolute [_] (.isAbsolute path pathstring)))))
 
-(defmethod File* :string  [pathstring]
-  (reify
-   IEquiv;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-   (-equiv [_ other] (= pathstring (.getPath other)));;;;;;;;;;;;;;;;;;;;;;;;;;;
-   IGetType
-   (get-type [f] :file)
-   Coercions
-   (as-file [f] f)
-   (as-url [f] (.to-url f))
-   IOFactory
-   (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
-   (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-   (make-input-stream [^File x opts] (make-input-stream (FileInputStream. x) opts))
-   (make-output-stream [^File x opts] (make-output-stream (FileOutputStream. x (append? opts)) opts))
-   Object
-   (to-url [f] (Uri. pathstring))
-   (getPath [f] pathstring)
-   (isAbsolute [_] (.isAbsolute path pathstring))))
+(defmethod File* :string  [o pathstring]
+  (specify! o
+    Object
+    (to-url [f] (Uri. pathstring))
+    (getPath [f] pathstring)
+    (isAbsolute [_] (.isAbsolute path pathstring))))
 
-(defmethod File* :string-string [parent-str child-str]
+(defmethod File* :string-string [o parent-str child-str]
   (let [pathstring (str parent-str "/" child-str)]
-    (reify
-     IEquiv;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-     (-equiv [_ other] (= pathstring (.getPath other)));;;;;;;;;;;;;;;;;;;;;;;;;;;
-     IGetType
-     (get-type [f] :file)
-     Coercions
-     (as-file [f] f)
-     (as-url [f] (.to-url f))
-     Object
-     (to-url [f] (Uri. pathstring))
-     (getPath [f] pathstring)
-     (isAbsolute [_] (.isAbsolute path pathstring)))))
+    (specify! o
+      Object
+      (to-url [f] (Uri. pathstring))
+      (getPath [_] pathstring)
+      (isAbsolute [_] (.isAbsolute path pathstring)))))
 
 
-(defmethod File* :file-string [parent-file child-str]
+(defmethod File* :file-string [o parent-file child-str]
   (let [pathstring (str (.getPath parent-file) "/" child-str)]
-    (reify
-     IEquiv;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-     (-equiv [_ other] (= pathstring (.getPath other)));;;;;;;;;;;;;;;;;;;;;;;;;;;
-     IGetType
-     (get-type [f] :file)
-     Coercions
-     (as-file [f] f)
-     (as-url [f] (.to-url f))
-     Object
-     (to-url [f] (Uri. pathstring))
-     (getPath [f] pathstring)
-     (isAbsolute [_] (.isAbsolute path pathstring)))))
+    (specify! o
+      Object
+      (to-url [_] (Uri. pathstring))
+      (getPath [_] pathstring)
+      (isAbsolute [_] (.isAbsolute path pathstring)))))
 
 
 
-; (defn file-default-obj [])
+(defn file-default-obj []
+  (reify
+    IEquiv
+    (-equiv [this other] (= (.getPath this) (.getPath other))) ;is this the best way?
+    IGetType
+    (get-type [f] :file)
+    Coercions
+    (as-file [f] f)
+    (as-url [f] (.to-url f))
+    IOFactory
+    (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
+    (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
+    (make-input-stream [^File x opts] (make-input-stream (FileInputStream. x) opts))
+    (make-output-stream [^File x opts] (make-output-stream (FileOutputStream. x (append? opts)) opts))))
 
 
 
 (defn File
-  ([a] (File* a))
-  ([a b] (File* a b))
-  ([a b c] (File* a b c)))
-
-
-
-; :make-reader (fn [x opts] (make-reader (make-input-stream x opts) opts))
-; :make-writer (fn [x opts] (make-writer (make-output-stream x opts) opts))
-; :make-input-stream (fn [^File x opts] (make-input-stream (FileInputStream. x) opts))
-; :make-output-stream (fn [^File x opts] (make-output-stream (FileOutputStream. x (append? opts)) opts)))
+  ([a] (File* (file-default-obj)  a))
+  ([a b] (File* (file-default-obj) a b))
+  ([a b c] (File* (file-default-obj) a b c)))
