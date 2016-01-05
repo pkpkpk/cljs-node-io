@@ -73,12 +73,14 @@
     (as-file [f] f)
     (as-url [f] (.to-url f))
     IOFactory
-    (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
-    (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-    (make-input-stream [^File x opts] (make-input-stream (FileInputStream. x) opts))
+    (make-reader [this opts] (make-reader (make-input-stream this opts) opts))
+    (make-writer [this opts] (make-writer (make-output-stream this opts) opts))
+    (make-input-stream [^File file opts] (make-input-stream (FileInputStream. file) opts))
     (make-output-stream [^File x opts] (make-output-stream (FileOutputStream. x (append? opts)) opts))))
 
 
+
+;java.io.File API
 
 (defn File
   ([a] (File* (file-default-obj)  a))
