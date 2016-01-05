@@ -2,9 +2,10 @@
   * convert tests
   * clj tests rely on correctness of java classes, so mock java
      stuff all needs appropriate tests and full api
-  * with-open
   * error handling can be better, move away from generic js/Error.
   * gcl node-object-stream support
+  * object streams, duplex streams, transform streams
+  * support other runtimes? JSC, nashorn
   * cookbook io examples
   * clojure.data.csv port, m3u example?
 
