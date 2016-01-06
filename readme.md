@@ -7,6 +7,7 @@
   * object streams, duplex streams, transform streams
   * support other runtimes? JSC, nashorn
   * cookbook io examples
+  * streaming mp3 through websocket
   * clojure.data.csv port, m3u example?
 
 
