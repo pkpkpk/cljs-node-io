@@ -4,7 +4,10 @@
             [cljs.reader :refer [read-string]]
             [cljs-node-io.file :refer [File]]
             ; [cljs-node-io.reader :refer [reader]]
-            [cljs-node-io.util :refer [Coercions as-url as-file
+            [cljs-node-io.streams :refer [FileInputStream]]
+
+            [cljs-node-io.util :refer [get-type
+                                       Coercions as-url as-file
                                        IOFactory make-reader make-writer make-input-stream make-output-stream]]
 
             [clojure.string :as st]
@@ -122,27 +125,11 @@
 (defn- buffer-size [opts]
   (or (:buffer-size opts) 1024)) ;<==?
 
-
-
-
-  ; (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
-  ; (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  ; (make-input-stream [x opts]
-  ;                     (throw (js/Error.
-  ;                             (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an InputStream."))))
-  ; (make-output-stream [x opts]
-  ;                      (throw (js/Error.
-  ;                              (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream."))))
-
-
-
-
 (deftype char-array-type [])
 (deftype CharArrayReader [x])
 (deftype byte-array-type [])
 (deftype ByteArrayInputStream [x])
 (deftype Socket [])
-(deftype FileInputStream [x])
 (deftype BufferedOutputStream [x])
 (deftype OutputStreamWriter [x y])
 (deftype OutputStream [x])
@@ -205,41 +192,7 @@
                        (throw (js/Error.
                                (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream."))))
 
-  Writer
-  (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
-  (make-writer [x opts] (BufferedWriter. x))
-  (make-input-stream [x opts]
-                      (throw (js/Error.
-                              (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an InputStream."))))
-  (make-output-stream [x opts]
-                       (throw (js/Error.
-                               (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream."))))
 
-  BufferedWriter
-  (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
-  (make-writer [x opts] x)
-  (make-input-stream [x opts]
-                      (throw (js/Error.
-                              (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an InputStream."))))
-  (make-output-stream [x opts]
-                      (throw (js/Error.
-                               (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream."))))
-
-  OutputStream
-  (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
-  (make-writer [x opts] (outputstream->writer x opts))
-  (make-input-stream [x opts]
-                        (throw (js/Error.
-                                (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an InputStream."))))
-  (make-output-stream [x opts] (BufferedOutputStream. x))
-
-  BufferedOutputStream
-  (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
-  (make-writer [x opts] (outputstream->writer x opts))
-  (make-input-stream [x opts]
-                      (throw (js/Error.
-                              (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an InputStream."))))
-  (make-output-stream [x opts] x)
 
   Uri
   (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
@@ -258,44 +211,15 @@
   (make-input-stream [^String x opts](try
                                         (make-input-stream (Uri. x) opts)
                                         (catch js/Error e ;MalformedURLException
+                                          ; (println "malformed URL, trying string as file...")
                                           (make-input-stream (File. x) opts))))
   (make-output-stream [^String x opts] (try
                                         (make-output-stream (Uri. x) opts)
                                           (catch js/Error err ;MalformedURLException
                                               (make-output-stream (File. x) opts))))
 
-  Socket
-  (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
-  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  (make-input-stream [^Socket x opts] (make-input-stream (.getInputStream x) opts))
-  (make-output-stream [^Socket x opts] (make-output-stream (.getOutputStream x) opts))
 
-  byte-array-type
-  (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
-  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  (make-input-stream [x opts] (make-input-stream (ByteArrayInputStream. x) opts))
-  (make-output-stream [x opts]
-                       (throw (js/Error.
-                               (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream."))))
-
-  char-array-type
-  (make-reader [x opts] (make-reader (CharArrayReader. x) opts))
-  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  (make-input-stream [x opts]
-                        (throw (js/Error.
-                                (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an InputStream."))))
-  (make-output-stream [x opts]
-                         (throw (js/Error.
-                                 (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream."))))
-  object
-  (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
-  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  (make-input-stream [x opts]
-                      (throw (js/Error.
-                              (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an InputStream."))))
-  (make-output-stream [x opts]
-                       (throw (js/Error.
-                               (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream.")))))
+)
 
 
 
@@ -315,11 +239,11 @@
      (let [opts (normalize-slurp-opts opts)
            sb (StringBuffer.)]
        (with-open [r (apply reader f opts)]
-         (loop [c (.read r)]
-           (if (neg? c);;;????? should be null for nodejs?
+         (loop [c (.read r 1)]
+           (if (nil? c);;;????? should be null for nodejs?
              (.toString sb)
              (do
-               (.append sb (char c))
+               (.append sb c)
                (recur (.read r)))))))))
 
 (defn spit
