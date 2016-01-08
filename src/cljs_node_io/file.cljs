@@ -2,13 +2,10 @@
   (:import goog.Uri)
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
-            [cljs-node-io.util :refer [append?]]
             [cljs-node-io.protocols
               :refer [IGetType get-type
                       Coercions as-url as-file
-                      IOFactory make-reader make-writer make-input-stream make-output-stream]] )
-  )
-
+                      IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
 (def fs (require "fs"))
 (def path (require "path"))
@@ -20,6 +17,8 @@
 (extend-type string
   IGetType
   (get-type [u] :string))
+
+(defn ^Boolean append? [opts] (boolean (:append opts)))
 
 (defn File*-dispatch
   ([o x] (get-type x)) ; string || Uri.
