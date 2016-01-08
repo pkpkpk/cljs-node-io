@@ -17,3 +17,26 @@
   * polymorphic java constructors (ie java.io.File)
     necessitate alot of indirection
   * default-impl-obj + specify! is a cool pattern
+
+
+;File readstream events:
+; open,
+; readable
+; data
+; error
+; end
+; close
+
+
+
+
+;java.io.FileInputStream API
+; available
+; close
+; finalize
+; getChannel
+; getFD
+
+; read [] => int , reads a byte of data from this inputstream
+; read [^byteArray b] => int ,  Reads up to b.length bytes of data from this input stream into an array of bytes.
+; read [^byteArray b, ^int off, ^int len] => int ,   Reads up to len bytes of data from this input stream into an array of bytes.
