@@ -1,11 +1,13 @@
-(ns cljs-node-io.file "a bunch of nonsense for mocking java.io.File's polymoprhic constructor"
+(ns cljs-node-io.file "a bunch of nonsense for mocking java.io.File's polymorphic constructor"
   (:import goog.Uri)
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
-            [cljs-node-io.util :refer [append?
-                                       IGetType get-type
-                                       Coercions as-url as-file
-                                       IOFactory make-reader make-writer make-input-stream make-output-stream]] ))
+            [cljs-node-io.util :refer [append?]]
+            [cljs-node-io.protocols
+              :refer [IGetType get-type
+                      Coercions as-url as-file
+                      IOFactory make-reader make-writer make-input-stream make-output-stream]] )
+  )
 
 
 (def fs (require "fs"))
@@ -75,8 +77,8 @@
     IOFactory
     (make-reader [this opts] (make-reader (make-input-stream this opts) opts))
     (make-writer [this opts] (make-writer (make-output-stream this opts) opts))
-    (make-input-stream [^File file opts] (make-input-stream (FileInputStream. file) opts))
-    (make-output-stream [^File x opts] (make-output-stream (FileOutputStream. x (append? opts)) opts))))
+    (make-input-stream [^File file opts] (FileInputStream. file ))
+    (make-output-stream [^File x opts] (FileOutputStream. x (append? opts)) opts)))
 
 
 
@@ -84,5 +86,4 @@
 
 (defn File
   ([a] (File* (file-default-obj)  a))
-  ([a b] (File* (file-default-obj) a b))
-  ([a b c] (File* (file-default-obj) a b c)))
+  ([a b] (File* (file-default-obj) a b)))
