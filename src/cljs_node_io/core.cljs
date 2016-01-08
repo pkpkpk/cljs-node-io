@@ -1,23 +1,20 @@
 (ns cljs-node-io.core
-  (:require-macros [cljs-node-io.macros :refer [with-open]])
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs.reader :refer [read-string]]
             [cljs-node-io.file :refer [File]]
             ; [cljs-node-io.reader :refer [reader]]
             [cljs-node-io.streams :refer [FileInputStream]]
-
-            [cljs-node-io.util :refer [get-type
-                                       Coercions as-url as-file
-                                       IOFactory make-reader make-writer make-input-stream make-output-stream]]
-
+            [cljs-node-io.protocols
+              :refer [get-type
+                      Coercions as-url as-file
+                      IOFactory make-reader make-writer make-input-stream make-output-stream]]
             [clojure.string :as st]
             [goog.string :as gstr])
   (:import goog.Uri
-           [goog.string StringBuffer] ))
-
+           [goog.string StringBuffer] )
+  )
 
 (nodejs/enable-util-print!)
-
 
 (def fs (require "fs"))
 (def path (require "path"))
@@ -69,7 +66,6 @@
    local file names.
    Should be used inside with-open to ensure the Reader is properly
    closed."
-  {:added "1.2"}
   [x & opts]
   (make-reader x (when opts (apply hash-map opts))))
 
@@ -83,7 +79,6 @@
    local file names.
    Should be used inside with-open to ensure the Writer is properly
    closed."
-  {:added "1.2"}
   [x & opts]
   (make-writer x (when opts (apply hash-map opts))))
 
@@ -97,7 +92,6 @@
    local file names.
    Should be used inside with-open to ensure the InputStream is properly
    closed."
-  {:added "1.2"}
   [x & opts]
   (make-input-stream x (when opts (apply hash-map opts))))
 
@@ -120,80 +114,14 @@
   (boolean (:append opts)))
 
 (defn- ^String encoding [opts]
-  (or (:encoding opts) "UTF-8")) ;<=== utf8?
+  (or (:encoding opts) "utf8")) ;<=== utf8?
 
 (defn- buffer-size [opts]
   (or (:buffer-size opts) 1024)) ;<==?
 
-(deftype char-array-type [])
-(deftype CharArrayReader [x])
-(deftype byte-array-type [])
-(deftype ByteArrayInputStream [x])
-(deftype Socket [])
-(deftype BufferedOutputStream [x])
-(deftype OutputStreamWriter [x y])
-(deftype OutputStream [x])
-(deftype InputStreamReader [x y])
-(deftype BufferedWriter [x])
-(deftype Writer [])
-(deftype BufferedReader [x])
-(deftype Reader [])
-(deftype InputStream [])
-(deftype BufferedInputStream [x])
-
-(defn- inputstream->reader
-  [^InputStream is opts]
-  (make-reader (InputStreamReader. is (encoding opts)) opts))
-
-(defn- outputstream->writer
-  [^OutputStream os opts]
-  (make-writer (OutputStreamWriter. os (encoding opts)) opts))
-
-
-
-
 
 
 (extend-protocol IOFactory
-
-  BufferedInputStream
-  (make-reader [x opts] (inputstream->reader x opts))
-  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  (make-input-stream [x opts] x)
-  (make-output-stream [x opts]
-                       (throw (js/Error.
-                               (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream."))))
-
-  InputStream
-  (make-reader [x opts] (inputstream->reader x opts))
-  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  (make-input-stream [x opts] (BufferedInputStream. x))
-  (make-output-stream [x opts]
-                       (throw (js/Error.
-                               (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream."))))
-
-  Reader
-  (make-reader [x opts] (BufferedReader. x))
-  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  (make-input-stream [x opts]
-                      (throw (js/Error.
-                              (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an InputStream."))))
-  (make-output-stream [x opts]
-                       (throw (js/Error.
-                               (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream."))))
-
-  BufferedReader
-  (make-reader [x opts] x)
-  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  (make-input-stream [x opts]
-                      (throw (js/Error.
-                              (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an InputStream."))))
-  (make-output-stream [x opts]
-                       (throw (js/Error.
-                               (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str x) "> as an OutputStream."))))
-
-
-
   Uri
   (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
   (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
@@ -204,54 +132,23 @@
   (make-output-stream [x opts] (if (= "file" (.getScheme x))
                                  (make-output-stream (as-file x) opts)
                                  (throw (js/Error. (str "IllegalArgumentException: Can not write to non-file URL <" x ">")))))
-
   string
   (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
   (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
   (make-input-stream [^String x opts](try
                                         (make-input-stream (Uri. x) opts)
                                         (catch js/Error e ;MalformedURLException
-                                          ; (println "malformed URL, trying string as file...")
+                                          ; (println "malformed URL string, trying string as file...")
                                           (make-input-stream (File. x) opts))))
   (make-output-stream [^String x opts] (try
                                         (make-output-stream (Uri. x) opts)
                                           (catch js/Error err ;MalformedURLException
-                                              (make-output-stream (File. x) opts))))
-
-
-)
+                                              (make-output-stream (File. x) opts)))))
 
 
 
-(defn- normalize-slurp-opts
-  [opts]
-  (if (string? (first opts))
-    (do
-      (println "WARNING: (slurp f enc) is deprecated, use (slurp f :encoding enc).")
-      [:encoding (first opts)])
-    opts))
 
-(defn slurp
-  "Opens a reader on f and reads all its contents, returning a string.
-  See clojure.java.io/reader for a complete list of supported arguments."
-  {:added "1.0"}
-  ([f & opts]
-     (let [opts (normalize-slurp-opts opts)
-           sb (StringBuffer.)]
-       (with-open [r (apply reader f opts)]
-         (loop [c (.read r 1)]
-           (if (nil? c);;;????? should be null for nodejs?
-             (.toString sb)
-             (do
-               (.append sb c)
-               (recur (.read r)))))))))
 
-(defn spit
-  "Opposite of slurp.  Opens f with writer, writes content, then
-  closes f. Options passed to clojure.java.io/writer."
-  [f content & options]
-  (with-open [w (apply writer f options)]
-    (.write w (str content))))
 
 (defn -main [& args] nil)
 (set! *main-cli-fn* -main)
