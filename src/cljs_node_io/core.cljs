@@ -1,6 +1,5 @@
 (ns cljs-node-io.core
-  (:require [cljs.nodejs :as nodejs :refer [require]]
-            [cljs.reader :refer [read-string]]
+  (:require [cljs.nodejs :as nodejs :refer [require]]          
             [cljs-node-io.file :refer [File]]
             ; [cljs-node-io.reader :refer [reader]]
             [cljs-node-io.streams :refer [FileInputStream]]
