@@ -1,14 +1,26 @@
 # todo
   * convert tests
+   * fs.stats wrapper in util ns
+  * file copying
+  * sockets
   * clj tests rely on correctness of java classes, so mock java
      stuff all needs appropriate tests and full api
   * error handling can be better, move away from generic js/Error.
   * gcl node-object-stream support
   * object streams, duplex streams, transform streams
   * support other runtimes? JSC, nashorn
-  * cookbook io examples
-  * streaming mp3 through websocket
-  * clojure.data.csv port, m3u example?
+  * sugar for native streams, duplex + transform too
+  * https://github.com/Raynes/fs
+
+
+
+## examples to do
+* streaming mp3 through websocket
+* clojure.data.csv port, m3u example?
+* cookbook io examples
+* large csv file reading via streamsk
+
+
 
 
 ### Notes
