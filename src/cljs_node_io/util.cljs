@@ -10,9 +10,6 @@
 (def path (require "path"))
 
 
-(defn ^Boolean isFd? "is File-descriptor?" ;file descriptors are represented as ints?
-  [path]
-  (zero? (unsigned-bit-shift-right path 0)))
 
 
 (defn slurp-stream??
@@ -54,6 +51,11 @@
                          The file's extension must be json or edn")))))
 
 
+(defn spit' [filename content & opts] ;pprint opt? spit-edn? encoding?
+  (let [opts (apply hash-map opts)]
+    (if (:append? opts) ;should check encoding, mode, sync too?
+      (.writeFileSync fs filename content  #js{"flag" "a"})
+      (.writeFileSync fs filename content  #js{"flag" "w"}))))
 
 
 ; (defn spit
