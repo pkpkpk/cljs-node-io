@@ -20,51 +20,30 @@
 
 (defn ^Boolean append? [opts] (boolean (:append opts)))
 
-(defn File*-dispatch
-  ([o x] (get-type x)) ; string || Uri.
-  ([o x y] ; [string string]  || [File string]
-   (case (try (mapv get-type [x y]) (catch js/Object e (.log js/console e))) ;pre post instead?
+(defn filepath-dispatch
+  ([x] (try (get-type x) (catch js/Object e :default)) ) ; string || Uri.
+  ([x y] ; [string string]  || [File string]
+   (case (try (mapv get-type [x y]) (catch js/Object e nil)) ;pre post instead?
      [:string :string] :string-string
      [:file :string] :file-string
-     "default")))
+     :default)))
 
-(defmulti  File* "signature->File" File*-dispatch)
+(defmulti  filepath "signature->File" filepath-dispatch)
+(defmethod filepath :uri [u] (.getPath u))
+(defmethod filepath :string  [pathstring] pathstring)
+(defmethod filepath :string-string [parent-str child-str] (str parent-str "/" child-str))
+(defmethod filepath :file-string [parent-file child-str] (str (.getPath parent-file) "/" child-str))
+(defmethod filepath :default [x] (throw (js/Error.
+                                         (str "\nUnrecognized path configuration passed to File constructor."
+                                              "\nYou passed " (pr-str x)
+                                              "\nYou must pass a [string], [uri], [string string], or [file string].\n" ))))
 
-(defmethod File* :uri [o u]
-  (let [pathstring (.getPath u)]
-    (specify! o
-      Object
-      (to-url [f] (Uri. pathstring))
-      (getPath [f] pathstring)
-      (isAbsolute [_] (.isAbsolute path pathstring)))))
+(defn file-reader [f opts]
+  (if (:stream? opts)
+    (make-reader (make-input-stream f opts) opts)
+    (.readFileSync fs (.getPath f) (or (:encoding opts) "utf8"))))
 
-(defmethod File* :string  [o pathstring]
-  (specify! o
-    Object
-    (to-url [f] (Uri. pathstring))
-    (getPath [f] pathstring)
-    (isAbsolute [_] (.isAbsolute path pathstring))))
-
-(defmethod File* :string-string [o parent-str child-str]
-  (let [pathstring (str parent-str "/" child-str)]
-    (specify! o
-      Object
-      (to-url [f] (Uri. pathstring))
-      (getPath [_] pathstring)
-      (isAbsolute [_] (.isAbsolute path pathstring)))))
-
-
-(defmethod File* :file-string [o parent-file child-str]
-  (let [pathstring (str (.getPath parent-file) "/" child-str)]
-    (specify! o
-      Object
-      (to-url [_] (Uri. pathstring))
-      (getPath [_] pathstring)
-      (isAbsolute [_] (.isAbsolute path pathstring)))))
-
-
-
-(defn file-default-obj []
+(defn File* [pathstring]
   (reify
     IEquiv
     (-equiv [this other] (= (.getPath this) (.getPath other))) ;is this the best way?
@@ -74,15 +53,17 @@
     (as-file [f] f)
     (as-url [f] (.to-url f))
     IOFactory
-    (make-reader [this opts] (make-reader (make-input-stream this opts) opts))
+    (make-reader [this opts] (file-reader this opts))
     (make-writer [this opts] (make-writer (make-output-stream this opts) opts))
     (make-input-stream [^File file opts] (FileInputStream. file ))
-    (make-output-stream [^File x opts] (FileOutputStream. x (append? opts)) opts)))
-
-
-
-;java.io.File API
+    (make-output-stream [^File x opts] (FileOutputStream. x (append? opts)) opts)
+    Object
+    (delete [this] (.unlinkSync fs (.getPath this)))
+    (deleteOnExit [this] (.on js/process "exit" #(.delete this)))
+    (to-url [f] (Uri. pathstring))
+    (getPath [f] pathstring)
+    (isAbsolute [_] (.isAbsolute path pathstring))))
 
 (defn File
-  ([a] (File* (file-default-obj)  a))
-  ([a b] (File* (file-default-obj) a b)))
+  ([a] (File*  (filepath a)))
+  ([a b] (File*  (filepath a b))))
