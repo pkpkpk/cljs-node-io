@@ -34,14 +34,37 @@
 (defmethod filepath :string-string [parent-str child-str] (str parent-str "/" child-str))
 (defmethod filepath :file-string [parent-file child-str] (str (.getPath parent-file) "/" child-str))
 (defmethod filepath :default [x] (throw (js/Error.
-                                         (str "\nUnrecognized path configuration passed to File constructor."
+                                         (str "Unrecognized path configuration passed to File constructor."
                                               "\nYou passed " (pr-str x)
                                               "\nYou must pass a [string], [uri], [string string], or [file string].\n" ))))
 
+(defn file-stream-reader [filestream opts]
+  (make-reader filestream opts)) ;just defering to file stream object for now
+
+(defn file-stream-writer [filestream opts]
+  (make-writer filestream opts)) ;just defering to file stream object for now
+
+(defn file-sync-writer [file opts]
+  (reify Object
+    (write [this content]
+      (let [filename (.getPath file)]
+        (if (:append? opts) ;should check encoding, mode, sync too?
+          (.writeFileSync fs filename content  #js{"flag" "a"})
+          (.writeFileSync fs filename content  #js{"flag" "w"}))))))
+
+
+
 (defn file-reader [f opts]
   (if (:stream? opts)
-    (make-reader (make-input-stream f opts) opts)
-    (.readFileSync fs (.getPath f) (or (:encoding opts) "utf8"))))
+    (file-stream-reader (make-input-stream f opts) opts)
+    (.readFileSync fs (.getPath f) (or (:encoding opts) "utf8")))) ;hide inside a .read method?
+
+(defn file-writer [f opts]
+  (if (:stream? opts)
+    (file-stream-writer (make-output-stream f opts) opts)
+    (file-sync-writer f opts)))
+
+
 
 (defn File* [pathstring]
   (reify
@@ -53,10 +76,10 @@
     (as-file [f] f)
     (as-url [f] (.to-url f))
     IOFactory
-    (make-reader [this opts] (file-reader this opts))
-    (make-writer [this opts] (make-writer (make-output-stream this opts) opts))
-    (make-input-stream [^File file opts] (FileInputStream. file ))
-    (make-output-stream [^File x opts] (FileOutputStream. x (append? opts)) opts)
+    (make-reader [^File this opts] (file-reader this opts))
+    (make-writer [^File this opts] (file-writer this opts))
+    (make-input-stream [^File this opts] (FileInputStream. this opts))
+    (make-output-stream [^File this opts] (FileOutputStream. this (append? opts)) opts);?????????
     Object
     (delete [this] (.unlinkSync fs (.getPath this)))
     (deleteOnExit [this] (.on js/process "exit" #(.delete this)))
