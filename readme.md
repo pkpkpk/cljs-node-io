@@ -10,8 +10,11 @@
   * object streams, duplex streams, transform streams
   * support other runtimes? JSC, nashorn
   * sugar for native streams, duplex + transform too
-  * https://github.com/Raynes/fs
+  * ###### https://github.com/Raynes/fs
 
+  * ###### java URL has unique set of methods that should be extended to goog.Uri
+    * openStream => opens connection to this URL and returns an input stream for reading
+      https://docs.oracle.com/javase/7/docs/api/java/net/URL.html#openStream()
 
 
 ## examples to do
@@ -30,16 +33,6 @@
   * polymorphic java constructors (ie java.io.File)
     necessitate alot of indirection
   * default-impl-obj + specify! is a cool pattern
-
-
-;File readstream events:
-; open,
-; readable
-; data
-; error
-; end
-; close
-
 
 
 
