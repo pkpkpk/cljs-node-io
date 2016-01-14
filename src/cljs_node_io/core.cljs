@@ -1,5 +1,5 @@
 (ns cljs-node-io.core
-  (:require [cljs.nodejs :as nodejs :refer [require]]          
+  (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs-node-io.file :refer [File]]
             ; [cljs-node-io.reader :refer [reader]]
             [cljs-node-io.streams :refer [FileInputStream]]
@@ -125,15 +125,16 @@
   (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
   (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
   (make-input-stream [x opts] (make-input-stream
-                                (if (= "file" (.getScheme x))
+                                (if (= "file" (.getScheme x)) ;move this to make-reader?
                                   (FileInputStream. (as-file x))
                                   (.openStream x)) opts))
   (make-output-stream [x opts] (if (= "file" (.getScheme x))
                                  (make-output-stream (as-file x) opts)
                                  (throw (js/Error. (str "IllegalArgumentException: Can not write to non-file URL <" x ">")))))
+
   string
-  (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
-  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
+  (make-reader [x opts] (make-reader (File. x) opts)); choice to make stream is handled by opts passed to reader
+  (make-writer [x opts] (make-writer (File. x) opts))
   (make-input-stream [^String x opts](try
                                         (make-input-stream (Uri. x) opts)
                                         (catch js/Error e ;MalformedURLException
