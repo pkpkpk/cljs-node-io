@@ -35,13 +35,13 @@
   * default-impl-obj + specify! is a cool pattern
 
 
+#### slurp
+ NOT bufferedFileReader+FileStream as in clojure. Nodejs's streams are created
+ asynchronously and would require slurp to return a channel. This uses
+ FS.readFileSync, fine for small files. Use FileInputStream for more flexibility
 
-;java.io.FileInputStream API
-; available
-; close
-; finalize
-; getChannel
-; getFD
+
+
 
 ; read [] => int , reads a byte of data from this inputstream
 ; read [^byteArray b] => int ,  Reads up to b.length bytes of data from this input stream into an array of bytes.
