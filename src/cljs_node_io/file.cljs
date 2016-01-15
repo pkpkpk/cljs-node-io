@@ -69,7 +69,9 @@
 (defn File* [pathstring]
   (reify
     IEquiv
-    (-equiv [this other] (= (.getPath this) (.getPath other))) ;is this the best way?
+    (-equiv [this that]
+      (letfn [pathntype (juxt #(.-getPath ) get-type)]
+        (= (pathntype this) (pathntype that))))
     IGetType
     (get-type [f] :file)
     Coercions
