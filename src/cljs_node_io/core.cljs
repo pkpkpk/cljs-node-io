@@ -2,6 +2,7 @@
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs-node-io.file :refer [File]]
             ; [cljs-node-io.reader :refer [reader]]
+            [cljs.reader :refer [read-string]]
             [cljs-node-io.streams :refer [FileInputStream]]
             [cljs-node-io.protocols
               :refer [get-type
@@ -10,8 +11,7 @@
             [clojure.string :as st]
             [goog.string :as gstr])
   (:import goog.Uri
-           [goog.string StringBuffer] )
-  )
+           [goog.string StringBuffer]))
 
 (nodejs/enable-util-print!)
 
@@ -113,7 +113,7 @@
   (boolean (:append opts)))
 
 (defn- ^String encoding [opts]
-  (or (:encoding opts) "utf8")) ;<=== utf8?
+  (or (:encoding opts) "utf8"))
 
 (defn- buffer-size [opts]
   (or (:buffer-size opts) 1024)) ;<==?
@@ -133,12 +133,11 @@
                                  (throw (js/Error. (str "IllegalArgumentException: Can not write to non-file URL <" x ">")))))
 
   string
-  (make-reader [x opts] (make-reader (File. x) opts)); choice to make stream is handled by opts passed to reader
-  (make-writer [x opts] (make-writer (File. x) opts))
+  (make-reader [x opts] (make-reader (as-file x) opts)); choice to make stream is handled by opts passed to reader
+  (make-writer [x opts] (make-writer (as-file x) opts))
   (make-input-stream [^String x opts](try
                                         (make-input-stream (Uri. x) opts)
                                         (catch js/Error e ;MalformedURLException
-                                          ; (println "malformed URL string, trying string as file...")
                                           (make-input-stream (File. x) opts))))
   (make-output-stream [^String x opts] (try
                                         (make-output-stream (Uri. x) opts)
@@ -146,8 +145,57 @@
                                               (make-output-stream (File. x) opts)))))
 
 
+(defn slurp
+  "Opens a reader on f and reads all its contents, returning a string.
+  See reader for a complete list of supported arguments."
+  ([f] (apply reader f nil)))
+  ; ([f & opts] ;should select on :stream? true in opts somehow
+  ;    ;needs to return a chan containing async results
+  ;    (let [r (apply reader f opts)
+  ;          sb (StringBuffer.)]
+  ;        (loop [c (.read r)]
+  ;          (if (neg? c)
+  ;            (.toString sb)
+  ;            (do
+  ;              (.append sb c)
+  ;              (recur (.read r))))))))
+
+(defn sslurp
+  "augmented 'super' slurp for convenience. edn|json => clj data-structures"
+  [filepath]
+  (let [contents (slurp filepath)]
+    (condp = (.extname path filepath)
+      ".edn"  (read-string contents)
+      ".json" (js->clj (js/JSON.parse contents) :keywordize-keys true)
+      ;xml, csv, disable-auto-reading?
+      (throw (js/Error. "sslurp was given an unrecognized file format.
+                         The file's extension must be json or edn")))))
 
 
+(defn spit
+  "Opposite of slurp.  Opens f with writer, writes content.
+   Options passed to a file/file-writer."
+  [f content & options]
+  (let [w (apply writer f options)]
+    (.write w (str content))))
+
+; (defn line-seq
+;   "Returns the lines of text from rdr as a lazy sequence of strings.
+;   rdr must implement java.io.BufferedReader."
+;   {:added "1.0"
+;    :static true}
+;   [^java.io.BufferedReader rdr]
+;   (when-let [line (.readLine rdr)]
+;     (cons line (lazy-seq (line-seq rdr)))))
+
+
+(defn file-seq
+  "taken from clojurescript/examples/nodels.cljs"
+  [dir]
+  (tree-seq
+    (fn [f] (.isDirectory (.statSync fs f) ()))
+    (fn [d] (map #(.join path d %) (.readdirSync fs d)))
+    dir))
 
 
 (defn -main [& args] nil)

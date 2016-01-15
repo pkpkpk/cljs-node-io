@@ -2,7 +2,7 @@
   ; (:require-macros [cljs-node-io.macros :refer [with-open]])
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs.reader :refer [read-string]]
-            [cljs-node-io.core :refer [reader]])
+            [cljs-node-io.core :refer [reader writer]])
   (:import [goog.string StringBuffer] )
   )
 
@@ -30,12 +30,24 @@
                   (.append sb chunk)
                   (recur (.read r)))))))) res))
 
+
+
 (defn slurp
-  "NOT bufferedFileReader+FileStream as in clojure. Nodejs's streams are created
-   asynchronously and would require slurp to return a channel. This uses
-   FS.readFileSync, fine for small files. Use FileInputStream for more flexibility"
-  [filepath]
-  (.readFileSync fs filepath "utf8"))
+  "Opens a reader on f and reads all its contents, returning a string.
+  See clojure.java.io/reader for a complete list of supported arguments."
+  {:added "1.0"}
+  ([f] (apply reader f nil))
+  ([f & opts] ;should select on :stream? true in opts somehow
+     ;needs to return a chan containing async results
+     (let [r (apply reader f opts)
+           sb (StringBuffer.)]
+         (loop [c (.read r)]
+           (if (neg? c)
+             (.toString sb)
+             (do
+               (.append sb c)
+               (recur (.read r))))))))
+
 
 
 
@@ -51,19 +63,14 @@
                          The file's extension must be json or edn")))))
 
 
-(defn spit' [filename content & opts] ;pprint opt? spit-edn? encoding?
-  (let [opts (apply hash-map opts)]
-    (if (:append? opts) ;should check encoding, mode, sync too?
-      (.writeFileSync fs filename content  #js{"flag" "a"})
-      (.writeFileSync fs filename content  #js{"flag" "w"}))))
+(defn spit
+  "Opposite of slurp.  Opens f with writer, writes content, then
+  closes f. Options passed to clojure.java.io/writer."
+  [f content & options]
+  (let [w (apply writer f options)]
+    (.write w (str content))))
 
 
-; (defn spit
-;   "Opposite of slurp.  Opens f with writer, writes content, then
-;   closes f. Options passed to clojure.java.io/writer."
-;   [f content & options]
-;   (with-open [w (apply writer f options)]
-;     (.write w (str content))))
 
 ; (defn line-seq
 ;   "Returns the lines of text from rdr as a lazy sequence of strings.
