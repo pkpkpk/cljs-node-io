@@ -12,8 +12,10 @@
   (= path (unsigned-bit-shift-right path 0)))
 
 
-(defn file-stream-dispatch [f opts]
-  (if (or (isFd? f) (isFd? (:fd opts)))
+
+(defn file-stream-dispatch [f {:keys [fd]}]
+  (if (or (and (integer? f)  (isFd? f))
+          (and (integer? fd) (isFd? fd)))
     :file-descriptor
     (get-type f)))
 
@@ -31,6 +33,9 @@
    :fd nil ;if specified, will ignore path argument, therefore no 'open' event
    :autoClose true})
 
+(defn stream-reader [st opts] st) ; good place to setup async handlers?
+
+
 (defn attach-input-impls! [filestreamobj]
   (let [filedesc      (atom nil)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
@@ -38,7 +43,7 @@
       IGetType
       (get-type [_] :FileInputStream)
       IOFactory
-      (make-reader [this _] this)
+      (make-reader [this opts] (stream-reader this opts))
       (make-input-stream [this _] this)
       (make-writer [this _] (throw (js/Error. (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str this) "> as an OutputStream."))))
       (make-output-stream [this _] (throw (js/Error. (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str this) "> as an OutputStream."))))
