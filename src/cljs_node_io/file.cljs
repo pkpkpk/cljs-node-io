@@ -99,5 +99,6 @@
   ([prefix suffix content]
     (let [tmpd (.tmpdir os)
           path (str tmpd (.-sep path) prefix "." suffix)
-          f    (File. path)]
+          f    (File. path)
+          _    (.deleteOnExit f)]
       f)))
