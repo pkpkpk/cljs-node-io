@@ -9,6 +9,7 @@
 
 (def fs (require "fs"))
 (def path (require "path"))
+(def os (require "os"))
 
 (extend-type Uri
   IGetType
@@ -92,3 +93,14 @@
 (defn File
   ([a] (File*  (filepath a)))
   ([a b] (File*  (filepath a b))))
+
+(defn temp-file
+  ([prefix suffix] (temp-file prefix suffix nil))
+  ([prefix suffix content]
+    (let [tmpd (.tmpdir os)
+          path (str tmpd (.-sep path) prefix "." suffix)
+          f    (File. path)
+          _    (.deleteOnExit f)
+          w    (make-writer f nil)
+          _    (.write w (str content))]
+      f)))
