@@ -10,11 +10,23 @@
   * object streams, duplex streams, transform streams
   * support other runtimes? JSC, nashorn
   * sugar for native streams, duplex + transform too
-  * ###### https://github.com/Raynes/fs
+  * https://github.com/Raynes/fs
+  * Iequiv should check path AND get-type impl
 
   * ###### java URL has unique set of methods that should be extended to goog.Uri
     * openStream => opens connection to this URL and returns an input stream for reading
       https://docs.oracle.com/javase/7/docs/api/java/net/URL.html#openStream()
+
+  * test isFd?
+
+  * file reader needs a read, readline methods.
+    * line-seq needs stream, probably must be async (breaking from clj)
+
+  * copy
+
+
+
+
 
 
 ## examples to do
