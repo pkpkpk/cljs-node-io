@@ -2,7 +2,7 @@
   (:require [cljs.test :refer-macros [deftest is testing run-tests are]]
             [cljs-node-io.file :refer [File temp-file]]
             [cljs-node-io.protocols :refer [Coercions as-file as-url ]]
-            [cljs-node-io.core :refer [file as-relative-path spit slurp]]) ;file File
+            [cljs-node-io.core :refer [file as-relative-path spit slurp delete-file]]) ;file File
   (:import goog.Uri))
 
 
@@ -40,6 +40,15 @@
       (spit f content :encoding enc)
       (is (= content (slurp f :encoding enc))))))
 
+(deftest test-delete-file
+  (let [f (temp-file "test" "deletion")
+        _ (spit f "")
+        not-file (File. (goog.string.getRandomString))]
+    ; (delete-file (.getAbsolutePath f))
+    (delete-file  f)
+    (is (not (.exists f)))
+    (is (thrown? js/Error (delete-file not-file)))
+    (is (= :silently (delete-file not-file :silently)))))
 
 
 (run-tests)

@@ -54,6 +54,13 @@
   ([parent child & more]
    (reduce file (file parent child) more)))
 
+(defn delete-file
+  "Delete file f. Raise an exception if it fails unless silently is true."
+  [f & [silently]]
+  (or (.delete (file f))
+      silently
+      (throw (js/Error. (str "Couldn't delete " f)))))
+
 (defn ^Reader reader
   "Attempts to coerce its argument into an open java.io.Reader.
    Default implementations always return a java.io.BufferedReader.
@@ -148,7 +155,7 @@
 (defn slurp
   "Opens a reader on f and reads all its contents, returning a string.
   See reader for a complete list of supported arguments."
-  ([f] (apply reader f nil)))
+  ([f & opts] (apply reader f opts)))
   ; ([f & opts] ;should select on :stream? true in opts somehow
   ;    ;needs to return a chan containing async results
   ;    (let [r (apply reader f opts)

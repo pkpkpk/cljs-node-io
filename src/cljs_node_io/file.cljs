@@ -84,9 +84,15 @@
     (make-input-stream [^File this opts] (FileInputStream. this opts))
     (make-output-stream [^File this opts] (FileOutputStream. this (append? opts)) opts);?????????
     Object
-    (delete [this] (.unlinkSync fs (.getPath this)))
+    (delete [this] (try
+                     (do
+                       (.unlinkSync fs pathstring)
+                       true)
+                     (catch js/Error e false)))
     (deleteOnExit [this] (.on js/process "exit" #(.delete this)))
-    (to-url [f] (Uri. pathstring))
+    (exists [this] (.existsSync fs pathstring)) ;deprecated buts stats docs are shit so im using it
+    (toURI [f] (Uri. pathstring))
+    (getAbsolutePath [f] (.resolve path pathstring))
     (getPath [f] pathstring)
     (isAbsolute [_] (.isAbsolute path pathstring))))
 
