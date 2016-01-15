@@ -1,8 +1,8 @@
 (ns ^:figwheel-always cljs-node-io.tests
   (:require [cljs.test :refer-macros [deftest is testing run-tests are]]
-            [cljs-node-io.file :refer [File]]
+            [cljs-node-io.file :refer [File temp-file]]
             [cljs-node-io.protocols :refer [Coercions as-file as-url ]]
-            [cljs-node-io.core :refer [file as-relative-path]]) ;file File
+            [cljs-node-io.core :refer [file as-relative-path spit slurp]]) ;file File
   (:import goog.Uri))
 
 
@@ -29,6 +29,16 @@
        "foo/bar" ["foo" "bar"]
        "foo/bar/baz" ["foo" "bar" "baz"]))
 
+
+(deftest test-spit-and-slurp
+  (let [f (temp-file "cljs.node.io" "test")
+        content (apply str (concat "a" (repeat 500 "\u226a\ud83d\ude03")))]
+    (spit f content)
+    (is (= content (slurp f)))
+    ; UTF-16 must be last for the following test
+   (doseq [enc [ "utf8"]] ;"utf16le" should work but doesn't
+      (spit f content :encoding enc)
+      (is (= content (slurp f :encoding enc))))))
 
 
 
