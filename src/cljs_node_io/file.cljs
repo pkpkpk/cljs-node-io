@@ -99,8 +99,5 @@
   ([prefix suffix content]
     (let [tmpd (.tmpdir os)
           path (str tmpd (.-sep path) prefix "." suffix)
-          f    (File. path)
-          _    (.deleteOnExit f)
-          w    (make-writer f nil)
-          _    (.write w (str content))]
+          f    (File. path)]
       f)))
