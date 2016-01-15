@@ -70,7 +70,7 @@
   (reify
     IEquiv
     (-equiv [this that]
-      (letfn [pathntype (juxt #(.-getPath ) get-type)]
+      (let [pathntype (juxt #(.-getPath %) get-type)]
         (= (pathntype this) (pathntype that))))
     IGetType
     (get-type [f] :file)
