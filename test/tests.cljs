@@ -44,7 +44,6 @@
   (let [f (temp-file "test" "deletion")
         _ (spit f "")
         not-file (File. (goog.string.getRandomString))]
-    ; (delete-file (.getAbsolutePath f))
     (delete-file  f)
     (is (not (.exists f)))
     (is (thrown? js/Error (delete-file not-file)))
