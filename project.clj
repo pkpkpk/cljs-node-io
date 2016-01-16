@@ -1,11 +1,9 @@
-(defproject cljs-node-io "0.1.0-SNAPSHOT"
-  :description "FIXME: write this!"
+(defproject cljs-node-io "0.1.0"
+  :description "A ClojureScript IO Library for NodeJS"
   :url "http://example.com/FIXME"
 
-  ; :min-lein-version "2.5.3"
 
   :dependencies [[org.clojure/clojure "1.7.0"]
-                ;  [org.clojure/clojurescript "1.7.170"]
                  [org.clojure/clojurescript "1.7.228"]]
 
   :plugins [[lein-cljsbuild "1.1.1"]
