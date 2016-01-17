@@ -49,5 +49,14 @@
     (is (thrown? js/Error (delete-file not-file)))
     (is (= :silently (delete-file not-file :silently)))))
 
+(deftest test-as-relative-path
+  (testing "strings"
+    (is (= "foo" (as-relative-path "foo"))))
+  (testing "absolute path strings are forbidden"
+    (is (thrown? js/Error (as-relative-path (.getAbsolutePath (File. "baz"))))))
+  (testing "relative File paths"
+    (is (= "bar" (as-relative-path (File. "bar")))))
+  (testing "absolute File paths are forbidden"
+    (is (thrown? js/Error (as-relative-path (File. (.getAbsolutePath (File. "quux"))))))))
 
 (run-tests)
