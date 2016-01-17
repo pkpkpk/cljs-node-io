@@ -94,7 +94,14 @@
     (toURI [f] (Uri. pathstring))
     (getAbsolutePath [f] (.resolve path pathstring))
     (getPath [f] pathstring)
-    (isAbsolute [_] (.isAbsolute path pathstring))))
+    (isAbsolute [_] (.isAbsolute path pathstring))
+
+    (isDirectory [_] ;=> Boolean, true iff file denoted by this abstract pathname exists and is a directory
+     (let [stats (try (.statSync fs pathstring) (catch js/Error e false))]
+       (if stats
+         (.isDirectory stats)
+         false)))))
+
 
 (defn File
   ([a] (File*  (filepath a)))
