@@ -1,8 +1,34 @@
+# clojure.java.io
+
+  * __~~as-relative-path~~__
+  * __copy__
+  * __~~delete-file~~__
+  * __~~file~~ __
+  * __make-parents__
+  * __reader__
+  * __writer__
+  * __resource__ (??)
+  * __~~spit~~__
+  * __~~slurp~~__
+  * __~~file-seq~~__  
+  * __line-seq__  
+  * __input-stream__
+    * inputstream
+    * File
+    * URI, URL
+    * Socket
+    * byteArray
+    * string
+  * __output-stream__
+    * inputstream
+    * File
+    * URI, URL
+    * Socket
+    * byteArray
+    * string
+  * #### tests
+
 # todo
-  * convert tests
-   * fs.stats wrapper in util ns
-  * file copying
-  * sockets
   * clj tests rely on correctness of java classes, so mock java
      stuff all needs appropriate tests and full api
   * error handling can be better, move away from generic js/Error.
@@ -19,12 +45,12 @@
 
   * test isFd?
 
+  *slurp + spit encodings are broken
+
+  * delete-file should handle absolute paths, not just file objects
+
   * file reader needs a read, readline methods.
     * line-seq needs stream, probably must be async (breaking from clj)
-
-  * copy
-
-
 
 
 
@@ -35,6 +61,8 @@
 * cookbook io examples
 * large csv file reading via streamsk
 * transit
+* encodings
+* webcrawler?
 
 
 
