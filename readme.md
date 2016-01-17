@@ -20,7 +20,7 @@
     * byteArray
     * string
   * __output-stream__
-    * inputstream
+    * outputstream
     * File
     * URI, URL
     * Socket
