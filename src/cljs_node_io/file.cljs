@@ -11,6 +11,23 @@
 (def path (require "path"))
 (def os (require "os"))
 
+(defn get-dirs
+  "returns a long pathname broken down to its components, root first"
+  [^String pathstring]
+  (reverse (take-while #(not= "." %) (iterate #(.dirname path %) pathstring))))
+
+(defn has-ext? ^boolean [^String pathstring] (not= "" (.extname path pathstring)))
+
+(defn directory?
+  "true iff file denoted by this abstract pathname exists and is a directory"
+  ^boolean
+  [^String pathstring]
+  (let [stats (try (.statSync fs pathstring) (catch js/Error e false))]
+    (if stats
+      (.isDirectory stats)
+      false)))
+
+
 (extend-type Uri
   IGetType
   (get-type [u] :uri))
@@ -95,12 +112,18 @@
     (getAbsolutePath [f] (.resolve path pathstring))
     (getPath [f] pathstring)
     (isAbsolute [_] (.isAbsolute path pathstring))
+    (isDirectory [_] (directory? pathstring))
+    (getParentFile [_] (.dirname path pathstring)) ;=> File|nil
 
-    (isDirectory [_] ;=> Boolean, true iff file denoted by this abstract pathname exists and is a directory
-     (let [stats (try (.statSync fs pathstring) (catch js/Error e false))]
-       (if stats
-         (.isDirectory stats)
-         false)))))
+    (mkdirs [_] ; Creates the directory named by this abstract pathname, including any necessary but nonexistent parent directories.
+      (let [dirs (get-dirs pathstring)]
+        (try
+          (do
+            (doseq [d dirs]
+              (if (and (not (directory? d)) (not (has-ext? d)))
+                (.mkdirSync fs d)))
+            true); true iff the directory was created, along with all necessary parent directories;
+          (catch js/Error e false)))))) ; if false it may have succeeded in creating some of the necessary parent directories
 
 
 (defn File
