@@ -174,7 +174,7 @@
     (condp = (.extname path filepath)
       ".edn"  (read-string contents)
       ".json" (js->clj (js/JSON.parse contents) :keywordize-keys true)
-      ;xml, csv, disable-auto-reading?
+      ;xml, csv
       (throw (js/Error. "sslurp was given an unrecognized file format.
                          The file's extension must be json or edn")))))
 
@@ -204,6 +204,13 @@
     (fn [d] (map #(.join path d %) (.readdirSync fs d)))
     dir))
 
+
+(defn make-parents
+  "Given the same arg(s) as for file, creates all parent directories of
+   the file they represent."
+  [f & more]
+  (when-let [parent (.getParentFile ^File (apply file f more))]
+    (.mkdirs parent)))
 
 (defn -main [& args] nil)
 (set! *main-cli-fn* -main)

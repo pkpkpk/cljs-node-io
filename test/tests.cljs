@@ -2,7 +2,7 @@
   (:require [cljs.test :refer-macros [deftest is testing run-tests are]]
             [cljs-node-io.file :refer [File temp-file]]
             [cljs-node-io.protocols :refer [Coercions as-file as-url ]]
-            [cljs-node-io.core :refer [file as-relative-path spit slurp delete-file]]) ;file File
+            [cljs-node-io.core :refer [file as-relative-path spit slurp delete-file make-parents]]) ;file File
   (:import goog.Uri))
 
 
@@ -58,5 +58,15 @@
     (is (= "bar" (as-relative-path (File. "bar")))))
   (testing "absolute File paths are forbidden"
     (is (thrown? js/Error (as-relative-path (File. (.getAbsolutePath (File. "quux"))))))))
+
+(def os (js/require "os"))
+
+(deftest test-make-parents
+  (let [tmp (.tmpdir os)
+        a   (file tmp "test-make-parents" "child" "grandchild")]
+    (delete-file a :silently)
+    (make-parents tmp "test-make-parents" "child" "grandchild")
+    (is (.isDirectory (file tmp "test-make-parents" "child")))
+    (is (not (.isDirectory (file tmp "test-make-parents" "child" "grandchild"))))))
 
 (run-tests)

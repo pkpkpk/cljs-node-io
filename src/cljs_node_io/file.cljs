@@ -9,14 +9,9 @@
 
 (def fs (require "fs"))
 (def path (require "path"))
+(def sep (.-sep path))
 (def os (require "os"))
 
-(defn get-dirs
-  "returns a long pathname broken down to its components, root first"
-  [^String pathstring]
-  (reverse (take-while #(not= "." %) (iterate #(.dirname path %) pathstring))))
-
-(defn has-ext? ^boolean [^String pathstring] (not= "" (.extname path pathstring)))
 
 (defn directory?
   "true iff file denoted by this abstract pathname exists and is a directory"
@@ -27,6 +22,13 @@
       (.isDirectory stats)
       false)))
 
+(defn get-dirs
+  "returns sequence of strings representing non-existing directory components
+   of the passed pathstring, root first, in order "
+  [^String pathstring]
+  (reverse (take-while #(not (directory? %)) (iterate #(.dirname path %) pathstring))))
+
+(defn has-ext? ^boolean [^String pathstring] (not= "" (.extname path pathstring)))
 
 (extend-type Uri
   IGetType
@@ -110,17 +112,17 @@
     (exists [this] (.existsSync fs pathstring)) ;deprecated buts stats docs are shit so im using it
     (toURI [f] (Uri. pathstring))
     (getAbsolutePath [f] (.resolve path pathstring))
-    (getPath [f] pathstring)
-    (isAbsolute [_] (.isAbsolute path pathstring))
-    (isDirectory [_] (directory? pathstring))
-    (getParentFile [_] (.dirname path pathstring)) ;=> File|nil
-
-    (mkdirs [_] ; Creates the directory named by this abstract pathname, including any necessary but nonexistent parent directories.
-      (let [dirs (get-dirs pathstring)]
-        (try
+    (getPath [f] (if (.isAbsolute  f) (.getPath (Uri. pathstring))  pathstring))
+    (isDirectory [_] (directory? pathstring)) ;=> Boolean
+    (isAbsolute [_] (.isAbsolute path pathstring)) ;=>Boolean
+    (getParentFile [_] (as-file (.dirname path pathstring))) ;=> File|nil
+    (mkdirs [this] ; Creates the directory named by this abstract pathname, including any necessary but nonexistent parent directories.
+      (let [p  (.getPath this)
+            dirs (get-dirs p)]
+        (try ;MKDIRS SHOULD MAKE EVERYTHING A DIRECTORY
           (do
             (doseq [d dirs]
-              (if (and (not (directory? d)) (not (has-ext? d)))
+              (if (not (directory? d))
                 (.mkdirSync fs d)))
             true); true iff the directory was created, along with all necessary parent directories;
           (catch js/Error e false)))))) ; if false it may have succeeded in creating some of the necessary parent directories
