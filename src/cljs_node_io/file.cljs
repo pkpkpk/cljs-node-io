@@ -119,7 +119,7 @@
     (mkdirs [this] ; Creates the directory named by this abstract pathname, including any necessary but nonexistent parent directories.
       (let [p  (.getPath this)
             dirs (get-dirs p)]
-        (try ;MKDIRS SHOULD MAKE EVERYTHING A DIRECTORY
+        (try
           (do
             (doseq [d dirs]
               (if (not (directory? d))
