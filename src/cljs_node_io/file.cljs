@@ -9,7 +9,6 @@
 
 (def fs (require "fs"))
 (def path (require "path"))
-(def sep (.-sep path))
 (def os (require "os"))
 
 
