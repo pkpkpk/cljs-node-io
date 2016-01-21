@@ -3,11 +3,11 @@
   :url "http://example.com/FIXME"
 
 
-  :dependencies [[org.clojure/clojure "1.7.0"]
+  :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.7.228"]]
 
   :plugins [[lein-cljsbuild "1.1.1"]
-            [lein-figwheel "0.5.0-2"]]
+            [lein-figwheel "0.5.0-3"]]
 
 
   :clean-targets ["server.js"
