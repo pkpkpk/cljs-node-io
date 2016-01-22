@@ -189,8 +189,7 @@
 ; (defn line-seq
 ;   "Returns the lines of text from rdr as a lazy sequence of strings.
 ;   rdr must implement java.io.BufferedReader."
-;   {:added "1.0"
-;    :static true}
+;   {:static true}
 ;   [^java.io.BufferedReader rdr]
 ;   (when-let [line (.readLine rdr)]
 ;     (cons line (lazy-seq (line-seq rdr)))))
@@ -204,6 +203,14 @@
     (fn [d] (map #(.join path d %) (.readdirSync fs d)))
     dir))
 
+(defn xml-seq
+  "A tree seq on the xml elements as per xml/parse"
+  {:static true}
+  [root]
+    (tree-seq
+     (complement string?)
+     (comp seq :content)
+     root))
 
 (defn make-parents
   "Given the same arg(s) as for file, creates all parent directories of
