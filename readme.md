@@ -6,7 +6,17 @@
     - Take an as-file-able thing and return a string if it is a relative path, else IllegalArgumentException.
   * [ ]__copy__
     - ```(copy input output & opts)```
-    - Copies input to output.  Returns nil or throws IOException. Input may be an InputStream, Reader, File, byte[], or String. Output may be an OutputStream, Writer, or File.
+    - Copies input to output.  Returns nil or throws IOException.
+    - __Input__ can be:
+      - [ ] InputStream
+      - [ ] Reader
+      - [ ] File
+      - [ ] byte[]
+      - [ ] String
+    - __Output__ may be:
+      - [ ] OutputStream
+      - [ ] Writer
+      - [ ] File
     - Options are key/value pairs and may be one of
       - __:buffer-size__  buffer size to use, default is 1024.
       - __:encoding__     encoding to use if converting between byte and char streams.  
@@ -17,7 +27,7 @@
     - ```(file arg)```
     - ```(file parent child)```
     - ```(file parent child & more)```
-    - Returns a java.io.File, passing each arg to as-file.  Multiple-arg versions treat the first argument as parent and subsequent args as children relative to the parent.    
+    - Returns a java.io.File, passing each arg to as-file.  Multiple-arg versions treat the first argument as parent and subsequent args as children relative to the parent.      
   * [x]__make-parents__
     - ```(make-parents f & more)```
     - Given the same arg(s) as for file, creates all parent directories of the file they represent.
