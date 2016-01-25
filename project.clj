@@ -17,8 +17,9 @@
               :builds [{:id "dev"
                         :source-paths ["src" "test"]
                         :figwheel true
-                        :parallel-build true
-                        :compiler {:main cljs-node-io.core
+                        :compiler {
+                                   :parallel-build true
+                                   :main cljs-node-io.core
                                    :output-to "target/server_dev/cljs_node_io.js"
                                    :output-dir "target/server_dev"
                                    :target :nodejs
