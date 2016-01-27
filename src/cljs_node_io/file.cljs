@@ -29,29 +29,17 @@
 
 (defn has-ext? ^boolean [^String pathstring] (not= "" (.extname path pathstring)))
 
-(extend-type Uri
-  IGetType
-  (get-type [u] :uri))
-
-(extend-type string
-  IGetType
-  (get-type [u] :string))
-
 (defn ^Boolean append? [opts] (boolean (:append opts)))
 
 (defn filepath-dispatch
-  ([x] (try (get-type x) (catch js/Object e :default)) ) ; string || Uri.
-  ([x y] ; [string string]  || [File string]
-   (case (try (mapv get-type [x y]) (catch js/Object e nil)) ;pre post instead?
-     [:string :string] :string-string
-     [:file :string] :file-string
-     :default)))
+  ([x] (type x)) ; string || Uri.
+  ([x y] (mapv type [x y])))
 
 (defmulti  filepath "signature->File" filepath-dispatch)
-(defmethod filepath :uri [u] (.getPath u))
-(defmethod filepath :string  [pathstring] pathstring)
-(defmethod filepath :string-string [parent-str child-str] (str parent-str "/" child-str))
-(defmethod filepath :file-string [parent-file child-str] (str (.getPath parent-file) "/" child-str))
+(defmethod filepath Uri [u] (.getPath u))
+(defmethod filepath js/String  [pathstring] pathstring)
+(defmethod filepath [js/String js/String] [parent-str child-str] (str parent-str "/" child-str))
+(defmethod filepath [:File js/String] [parent-file child-str] (str (.getPath parent-file) "/" child-str))
 (defmethod filepath :default [x] (throw (js/Error.
                                          (str "Unrecognized path configuration passed to File constructor."
                                               "\nYou passed " (pr-str x)
@@ -89,10 +77,8 @@
   (reify
     IEquiv
     (-equiv [this that]
-      (let [pathntype (juxt #(.-getPath %) get-type)]
+      (let [pathntype (juxt #(.-getPath %) type)]
         (= (pathntype this) (pathntype that))))
-    IGetType
-    (get-type [f] :file)
     Coercions
     (as-file [f] f)
     (as-url [f] (.to-url f))
@@ -128,8 +114,14 @@
 
 
 (defn File
-  ([a] (File*  (filepath a)))
-  ([a b] (File*  (filepath a b))))
+  ([a]
+   (let [f  (File*  (filepath a))]
+     (set! (.-constructor f) :File)
+     f))
+  ([a b]
+   (let [f (File*  (filepath a b))]
+     (set! (.-constructor f) :File)
+     f)))
 
 (defn temp-file
   ([prefix suffix] (temp-file prefix suffix nil))
