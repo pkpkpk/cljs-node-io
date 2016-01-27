@@ -1,9 +1,7 @@
 
 ## clojure.java.io => 'cljs-node-io.core
   - ##### https://clojure.github.io/clojure/clojure.java.io-api.html
-  * [x]__as-relative-path__
-    - ```(as-relative-path x) ```
-    - Take an as-file-able thing and return a string if it is a relative path, else IllegalArgumentException.
+
   * [ ]__copy__
     - ```(copy input output & opts)```
     - Copies input to output.  Returns nil or throws IOException.
@@ -17,9 +15,24 @@
       - [ ] OutputStream
       - [ ] Writer
       - [ ] File
+      * [ ] string (coerced to file, not in clj api)
     - Options are key/value pairs and may be one of
       - __:buffer-size__  buffer size to use, default is 1024.
-      - __:encoding__     encoding to use if converting between byte and char streams.  
+      - __:encoding__     encoding to use if converting between byte and char streams.      
+    * __COMBINATIONS__:
+      * [x] file file sync
+      * [ ] file file stream
+      * [x] file string sync
+      * [ ] file string stream      
+      * [x] string string sync
+      * [ ] string string stream                        
+
+
+
+
+
+
+
   * [x]__delete-file__
     - ```(delete-file f & [silently])```
     - Delete file f. Raise an exception if it fails unless silently is true.
@@ -48,7 +61,9 @@
     * [ ] Socket
     * [ ] byteArray
     * [ ] string
-
+  * [x]__as-relative-path__
+    - ```(as-relative-path x) ```
+    - Take an as-file-able thing and return a string if it is a relative path, else IllegalArgumentException.
 ## extras
   * __spit__
     - [x] sync
