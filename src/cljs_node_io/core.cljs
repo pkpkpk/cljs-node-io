@@ -5,8 +5,7 @@
             [cljs.reader :refer [read-string]]
             [cljs-node-io.streams :refer [FileInputStream]]
             [cljs-node-io.protocols
-              :refer [get-type
-                      Coercions as-url as-file
+              :refer [Coercions as-url as-file
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]
             [clojure.string :as st]
             [goog.string :as gstr])
@@ -154,18 +153,10 @@
 
 (defn slurp
   "Opens a reader on f and reads all its contents, returning a string.
-  See reader for a complete list of supported arguments."
+  See reader for a complete list of supported arguments.
+  Punts reading to file handling of opts. If not :stream? true, simply
+  reads the file synchronously and returns its string contents"
   ([f & opts] (apply reader f opts)))
-  ; ([f & opts] ;should select on :stream? true in opts somehow
-  ;    ;needs to return a chan containing async results
-  ;    (let [r (apply reader f opts)
-  ;          sb (StringBuffer.)]
-  ;        (loop [c (.read r)]
-  ;          (if (neg? c)
-  ;            (.toString sb)
-  ;            (do
-  ;              (.append sb c)
-  ;              (recur (.read r))))))))
 
 (defn sslurp
   "augmented 'super' slurp for convenience. edn|json => clj data-structures"
@@ -218,6 +209,55 @@
   [f & more]
   (when-let [parent (.getParentFile ^File (apply file f more))]
     (.mkdirs parent)))
+
+(defn copy-filestream [input output opts] nil)
+
+(defmulti
+  ^{:doc "Internal helper for copy"
+     :private true
+     :arglists '([input output opts])}
+  do-copy
+  (fn [input output opts] [(type input) (type output)]))
+
+
+(defmethod do-copy [:File js/String] [^File input ^File output opts]
+  (if (:stream? opts)
+    (copy-filestream input output opts)
+    (let [in (slurp input)]
+     (spit output in opts))))
+
+(defmethod do-copy [js/String :File] [^File input ^File output opts]
+  (if (:stream? opts)
+    (copy-filestream input output opts)
+    (let [in (slurp input)]
+     (spit output in opts))))
+
+(defmethod do-copy [js/String js/String] [^File input ^File output opts]
+  (if (:stream? opts)
+    (copy-filestream input output opts)
+    (let [in (slurp input)]
+     (spit output in opts))))
+
+
+(defmethod do-copy [:File :File] [^File input ^File output opts]
+  (if (:stream? opts)
+    (copy-filestream input output opts)
+    (let [in (slurp input)]
+     (spit output in opts))))
+
+(defn copy
+  "Copies input to output.  Returns nil or throws IOException.
+  Input may be an InputStream, Reader, File, byte[], or String.
+  Output may be an OutputStream, Writer, or File.
+  Options are key/value pairs and may be one of
+    :buffer-size  buffer size to use, default is 1024.
+    :encoding     encoding to use if converting between
+                  byte and char streams.
+  Does not close any streams except those it opens itself
+  (on a File)."
+  ; :stream? option to use async stream readers vs sync
+  [input output & opts]
+  (do-copy input output (when opts (apply hash-map opts))))
 
 (defn -main [& args] nil)
 (set! *main-cli-fn* -main)
