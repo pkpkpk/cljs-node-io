@@ -3,8 +3,7 @@
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
             [cljs-node-io.protocols
-              :refer [IGetType get-type
-                      Coercions as-url as-file
+              :refer [Coercions as-url as-file
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
 (def fs (require "fs"))

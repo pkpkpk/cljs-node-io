@@ -1,8 +1,7 @@
 (ns cljs-node-io.streams
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs-node-io.protocols
-              :refer [IGetType get-type
-                      Coercions as-url as-file
+              :refer [Coercions as-url as-file
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
 (def fs (require "fs"))
@@ -17,7 +16,7 @@
   (if (or (and (integer? f)  (isFd? f))
           (and (integer? fd) (isFd? fd)))
     :file-descriptor
-    (get-type f)))
+    (type f)))
 
 
 
@@ -40,8 +39,6 @@
   (let [filedesc      (atom nil)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
     (specify! filestreamobj
-      IGetType
-      (get-type [_] :FileInputStream)
       IOFactory
       (make-reader [this opts] (stream-reader this opts))
       (make-input-stream [this _] this)
@@ -49,6 +46,7 @@
       (make-output-stream [this _] (throw (js/Error. (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str this) "> as an OutputStream."))))
       Object
       (getFd [_] @filedesc)))
+    (set! (.-constructor filestreamobj) :FileInputStream)
     filestreamobj)
 
 (defmulti FileInputStream* file-stream-dispatch)
@@ -87,8 +85,6 @@
   (let [filedesc      (atom nil)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
     (specify! filestreamobj
-      IGetType
-      (get-type [_] :FileOutputStream)
       IOFactory
       (make-reader [this _] (throw (js/Error. (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str this) "> as an InputStream."))))
       (make-input-stream [this _] (throw (js/Error. (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str this) "> as an InputStream."))))
@@ -96,18 +92,19 @@
       (make-output-stream [this _] this)
       Object
       (getFd [_] @filedesc)))
+    (set! (.-constructor filestreamobj) :FileOutputStream)
     filestreamobj)
 
 
-(defmulti FileOutputStream* (fn [f opts] (get-type f)))
+(defmulti FileOutputStream* (fn [f opts] (type f)))
 
 (defmethod FileOutputStream* :string [pathstring opts] ;should never reach this via IOFactor, should be coerced to file or Uri
   (let [filestreamobj (.createWriteStream fs pathstring (clj->js opts)) ] ;should check path validity, URI too
     (attach-output-impls! filestreamobj)))
 
 (defn FileOutputStream
-  ([file] (FileOutputStream* file default-input-options))
-  ([file opts] (FileOutputStream* file (merge default-input-options opts))))
+  ([file] (FileOutputStream* file default-output-options))
+  ([file opts] (FileOutputStream* file (merge default-output-options opts))))
 
 
 
