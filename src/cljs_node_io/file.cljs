@@ -59,12 +59,12 @@
         (specify! file Object
           (read [this opts]
             (let [c (chan) ]
-              (.readFile fs (.getPath file) (or (:encoding opts) "utf8") ;if no encoding, returns buffer
+              (.readFile fs (.getPath this) (or (:encoding opts) "utf8") ;if no encoding, returns buffer
                 (fn [err data] (put! c (or err data))))
               c)))
         (specify! file Object
           (read [this opts]
-            (.readFileSync fs (.getPath file) (or (:encoding opts) "utf8"))))))) ;if no encoding, returns buffer . catch err?
+            (.readFileSync fs (.getPath this) (or (:encoding opts) "utf8"))))))) ;if no encoding, returns buffer . catch err?
 
 
 
