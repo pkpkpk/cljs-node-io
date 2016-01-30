@@ -1,6 +1,7 @@
 (ns cljs-node-io.file "a bunch of nonsense for mocking java.io.File's polymorphic constructor"
   (:import goog.Uri)
   (:require [cljs.nodejs :as nodejs :refer [require]]
+            [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
             [cljs-node-io.protocols
               :refer [Coercions as-url as-file
@@ -50,25 +51,44 @@
 (defn file-stream-writer [filestream opts]
   (make-writer filestream opts)) ;just defering to file stream object for now
 
-(defn file-sync-writer [file opts]
-  (reify Object
-    (write [this content]
-      (let [filename (.getPath file)]
-        (if (:append? opts) ;should check encoding, mode, sync too?
-          (.writeFileSync fs filename content  #js{"flag" "a"})
-          (.writeFileSync fs filename content  #js{"flag" "w"}))))))
-
-
-
 (defn file-reader [f opts]
+  ;hide inside a .read method? channel options?
   (if (:stream? opts)
     (file-stream-reader (make-input-stream f opts) opts)
-    (.readFileSync fs (.getPath f) (or (:encoding opts) "utf8")))) ;hide inside a .read method?
+    (if (:async? opts)
+      (let [c (chan) ]
+        (.readFile fs (.getPath f) (or (:encoding opts) "utf8") ;if no encoding, returns buffer
+          (fn [err data] (put! c (or err data))))
+        c)
+      (.readFileSync fs (.getPath f) (or (:encoding opts) "utf8"))))) ;if no encoding, returns buffer . catch err?
 
-(defn file-writer [f opts]
-  (if (:stream? opts)
-    (file-stream-writer (make-output-stream f opts) opts)
-    (file-sync-writer f opts)))
+
+
+
+(defn file-writer
+  "Builds an appropriate write method given opts and attaches it to the reified file.
+    - TODO: support flags in opts?
+    - encoding, append?, async?, stream?
+    - if content is a Buffer instance, opt encoding is ignored
+    - if :async? true, returns a chan which recieves err|true on success"
+  [file opts]
+  (if (:stream? opts) ;async write option too
+    (file-stream-writer (make-output-stream file opts) opts)
+    (if (:async? opts)
+      (specify! file Object
+        (write [this content]
+          (let [filename (.getPath this)
+                c (chan)
+                cb (fn [err] (put! c (or err true)))] ;mode? more flags?
+            (.writeFile fs filename content  #js{"flag" (if (:append? opts) "a" "w")
+                                                 "encoding" (or (:encoding opts) "utf8")} cb)
+            c)))
+      (specify! file Object ;sync
+        (write [this content]
+          (let [filename (.getPath this)] ;mode? more flags?
+            (.writeFileSync fs filename content
+                            #js{"flag"     (if (:append? opts) "a" "w")
+                                "encoding" (or (:encoding opts) "utf8")})))))))
 
 
 
