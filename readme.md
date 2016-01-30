@@ -3,6 +3,7 @@
   - ##### https://clojure.github.io/clojure/clojure.java.io-api.html
 
   * [ ]__copy__
+    - [ ] Test
     - ```(copy input output & opts)```
     - Copies input to output.  Returns nil or throws IOException.
     - __Input__ can be:
@@ -65,6 +66,7 @@
     - ```(as-relative-path x) ```
     - Take an as-file-able thing and return a string if it is a relative path, else IllegalArgumentException.
 ## extras
+  *  ### aspit, aslurp, asslurp?
   * __spit__
     - [x] sync
     - [ ] async   
@@ -204,7 +206,7 @@
   * delete-file should handle absolute paths, not just file objects
   * file reader needs a read, readline methods.
   * line-seq needs stream, probably must be async (breaking from clj)
-
+  * defrecord SomeError [cause context ....]
 
 
 
