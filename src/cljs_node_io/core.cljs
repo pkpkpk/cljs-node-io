@@ -152,11 +152,20 @@
 
 
 (defn slurp
-  "Opens a reader on f and reads all its contents, returning a string.
-  See reader for a complete list of supported arguments.
-  Punts reading to file handling of opts. If not :stream? true, simply
-  reads the file synchronously and returns its string contents"
-  ([f & opts] (apply reader f opts)))
+  "Returns String synchronously by default
+   If :stream? true, punts to file-stream-reader, havent figured out yet
+   If :async? true, returns channel which will receive err|data specified by encoding via put! cb
+   If :encoding nil (...must be explicitly set), returns raw buffer instead of string."
+  ([f & opts]
+   (let [r (apply reader f opts)]
+     (.read r))))
+
+(defn aslurp
+  "sugar for (slurp f :async? true ...)
+   Returns a channel which will receive err|data specified by encoding via put! cb"
+  [f & opts]
+  (let [r (apply reader f (concat opts '(:async? true)))]
+    (.read r)))
 
 (defn sslurp
   "augmented 'super' slurp for convenience. edn|json => clj data-structures"

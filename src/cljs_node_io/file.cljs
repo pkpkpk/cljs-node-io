@@ -51,16 +51,20 @@
 (defn file-stream-writer [filestream opts]
   (make-writer filestream opts)) ;just defering to file stream object for now
 
-(defn file-reader [f opts]
+(defn file-reader [file opts]
   ;hide inside a .read method? channel options?
   (if (:stream? opts)
-    (file-stream-reader (make-input-stream f opts) opts)
-    (if (:async? opts)
-      (let [c (chan) ]
-        (.readFile fs (.getPath f) (or (:encoding opts) "utf8") ;if no encoding, returns buffer
-          (fn [err data] (put! c (or err data))))
-        c)
-      (.readFileSync fs (.getPath f) (or (:encoding opts) "utf8"))))) ;if no encoding, returns buffer . catch err?
+    (file-stream-reader (make-input-stream file opts) opts)
+      (if (:async? opts)
+        (specify! file Object
+          (read [this opts]
+            (let [c (chan) ]
+              (.readFile fs (.getPath file) (or (:encoding opts) "utf8") ;if no encoding, returns buffer
+                (fn [err data] (put! c (or err data))))
+              c)))
+        (specify! file Object
+          (read [this opts]
+            (.readFileSync fs (.getPath file) (or (:encoding opts) "utf8"))))))) ;if no encoding, returns buffer . catch err?
 
 
 
