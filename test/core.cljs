@@ -1,5 +1,5 @@
-(ns ^:figwheel-always cljs-node-io.tests
-  (:require [cljs.test :refer-macros [deftest is testing run-tests are]]
+(ns ^:figwheel-always cljs-node-io.test.core
+  (:require [cljs.test :refer-macros [deftest is testing run-tests run-all-tests are]]
             [cljs-node-io.file :refer [File temp-file]]
             [cljs-node-io.protocols :refer [Coercions as-file as-url ]]
             [cljs-node-io.core :refer [file as-relative-path spit slurp delete-file make-parents]]) ;file File
@@ -69,4 +69,7 @@
     (is (.isDirectory (file tmp "test-make-parents" "child")))
     (is (not (.isDirectory (file tmp "test-make-parents" "child" "grandchild"))))))
 
-(run-tests)
+; (run-tests 'cljs-node-io.test.core
+;            'cljs-node-io.test.file)
+
+(run-all-tests #"^cljs-node-io\.test.*")
