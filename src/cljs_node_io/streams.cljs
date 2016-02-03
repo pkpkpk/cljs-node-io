@@ -13,7 +13,7 @@
 
 
 (defn file-stream-dispatch [f {:keys [fd]}]
-  (if (or (and (integer? f)  (isFd? f))
+  (if (or (and (integer? f)  (isFd? f)) ;redundant?
           (and (integer? fd) (isFd? fd)))
     :file-descriptor
     (type f)))
@@ -37,6 +37,7 @@
 
 (defn attach-input-impls! [filestreamobj]
   (let [filedesc      (atom nil)
+        _             (set! (.-constructor filestreamobj) :FileInputStream)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
     (specify! filestreamobj
       IOFactory
@@ -45,9 +46,7 @@
       (make-writer [this _] (throw (js/Error. (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str this) "> as an OutputStream."))))
       (make-output-stream [this _] (throw (js/Error. (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str this) "> as an OutputStream."))))
       Object
-      (getFd [_] @filedesc)))
-    (set! (.-constructor filestreamobj) :FileInputStream)
-    filestreamobj)
+      (getFd [_] @filedesc))))
 
 (defmulti FileInputStream* file-stream-dispatch)
 
@@ -83,6 +82,7 @@
 
 (defn attach-output-impls! [filestreamobj]
   (let [filedesc      (atom nil)
+        _             (set! (.-constructor filestreamobj) :FileOutputStream)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
     (specify! filestreamobj
       IOFactory
@@ -91,9 +91,7 @@
       (make-writer [this _] this)
       (make-output-stream [this _] this)
       Object
-      (getFd [_] @filedesc)))
-    (set! (.-constructor filestreamobj) :FileOutputStream)
-    filestreamobj)
+      (getFd [_] @filedesc))))
 
 
 (defmulti FileOutputStream* (fn [f opts] (type f)))
