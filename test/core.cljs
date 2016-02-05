@@ -1,8 +1,9 @@
 (ns ^:figwheel-always cljs-node-io.test.core
   (:require [cljs.test :refer-macros [deftest is testing run-tests run-all-tests are]]
-            [cljs-node-io.file :refer [File temp-file]]
+            [cljs-node-io.file :refer [File createTempFile]]
             [cljs-node-io.protocols :refer [Coercions as-file as-url ]]
-            [cljs-node-io.core :refer [file as-relative-path spit slurp delete-file make-parents]]) ;file File
+            [cljs-node-io.core :refer [file as-relative-path spit slurp delete-file make-parents]]
+            [cljs-node-io.test.file])
   (:import goog.Uri))
 
 
@@ -31,7 +32,7 @@
 
 
 (deftest test-spit-and-slurp
-  (let [f (temp-file "cljs.node.io" "test")
+  (let [f (createTempFile "cljs.node.io" "test")
         content (apply str (concat "a" (repeat 500 "\u226a\ud83d\ude03")))]
     (spit f content)
     (is (= content (slurp f)))
@@ -41,7 +42,7 @@
       (is (= content (slurp f :encoding enc))))))
 
 (deftest test-delete-file
-  (let [f (temp-file "test" "deletion")
+  (let [f (createTempFile "test" "deletion")
         _ (spit f "")
         not-file (File. (goog.string.getRandomString))]
     (delete-file  f)
