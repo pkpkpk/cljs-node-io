@@ -1,4 +1,7 @@
-## Global cljs-node-io.file Functions
+# cljs-node-io.file
+
+
+### Global Functions
 
   * __File(^str path)__  -> File
   * __File(^Uri path)__  -> File  
@@ -21,15 +24,11 @@
     - Returns a file object for the temp file
 
 
-  * [ ] __static File[]	listRoots()__
-    - List the available filesystem roots.
+
+---
 
 
-
-
-
-
-## File Methods
+### File Methods
   * [x] __createNewFile()__ -> boolean
     - [x] Test
     - Atomically creates a new, empty file named by this abstract pathname iff a file with this name does not yet exist.

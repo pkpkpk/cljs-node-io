@@ -28,26 +28,9 @@
       * [x] string string sync
       * [ ] string string stream                        
 
-
-
-
-
-
-
-  * [x]__delete-file__
-    - ```(delete-file f & [silently])```
-    - Delete file f. Raise an exception if it fails unless silently is true.
-  * [x]__file__
-    - ```(file arg)```
-    - ```(file parent child)```
-    - ```(file parent child & more)```
-    - Returns a java.io.File, passing each arg to as-file.  Multiple-arg versions treat the first argument as parent and subsequent args as children relative to the parent.      
-  * [x]__make-parents__
-    - ```(make-parents f & more)```
-    - Given the same arg(s) as for file, creates all parent directories of the file they represent.
   * [ ]__reader__
   * [ ]__writer__
-  * [ ]__resource__ (??)
+  * ~~[ ]__resource__ (??)~~
   * __input-stream__
     * [ ] inputstream
     * [ ] File
@@ -62,9 +45,8 @@
     * [ ] Socket
     * [ ] byteArray
     * [ ] string
-  * [x]__as-relative-path__
-    - ```(as-relative-path x) ```
-    - Take an as-file-able thing and return a string if it is a relative path, else IllegalArgumentException.
+
+
 ## extras
   *  ### aspit, aslurp, asslurp?
   * __spit__
@@ -91,9 +73,15 @@
 ; getFD
 
 
+  * [ ] __static File[]	listRoots()__
+    - List the available filesystem roots.
+
+
 <hr>
 # todo
-  + add file-global toggle for async or separate named methods?
+  + aFile? add file-global toggle for async or separate named methods?
+    - currently you have sync methods but option for async read/write
+  + try/catch=>bool macro, sync vs async
   - add mode to supported opts for reader & writer,  (js/parseInt "0666" 8) , === 0o666 ES6 octal literal
   * verify opts keys through all paths. :append? :async? :stream?
     - should be :append like clojure semantics
@@ -108,7 +96,6 @@
   * support other runtimes? JSC, nashorn
   * sugar for native streams, duplex + transform too
   * https://github.com/Raynes/fs
-  * Iequiv should check path AND get-type impl
   * ###### java URL has unique set of methods that should be extended to goog.Uri
     * openStream -> opens connection to this URL and returns an input stream for reading
       https://docs.oracle.com/javase/7/docs/api/java/net/URL.html#openStream()
