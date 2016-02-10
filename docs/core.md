@@ -20,3 +20,30 @@
   * [x]__as-relative-path__
     - ```(as-relative-path x) ```
     - Take an as-file-able thing and return a string if it is a relative path, else IllegalArgumentException.
+
+
+
+
+
+
+
+  * __spit__
+    - [x] sync
+    - [x] async   
+
+
+
+
+  * __slurp__
+    - [x] sync
+     -  NOT bufferedFileReader+FileStream as in clojure. Nodejs's streams are created
+      asynchronously and would require slurp to return a channel. This uses
+      FS.readFileSync, fine for small files. Use FileInputStream for more flexibility
+    - [x] async
+
+
+
+
+  * [x]__sslurp__
+    - *super* slurp, convenience over slurp
+    - automatically reads edn+json file into clj data-structures

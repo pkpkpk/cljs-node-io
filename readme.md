@@ -48,29 +48,12 @@
 
 
 ## extras
-  *  ### aspit, aslurp, asslurp?
-  * __spit__
-    - [x] sync
-    - [x] async   
-  * __slurp__
-    - [x] sync
-     -  NOT bufferedFileReader+FileStream as in clojure. Nodejs's streams are created
-      asynchronously and would require slurp to return a channel. This uses
-      FS.readFileSync, fine for small files. Use FileInputStream for more flexibility
-    - [x] async
-  * [x]__sslurp__
-    - *super* slurp, convenience over slurp
-    - automatically reads edn+json file into clj data-structures
+
   * [ ]__file-seq + test__  
   * [ ]__line-seq  + test __
   * [ ]__xml-seq  + test __
 
-;java.io.FileInputStream API
-; available
-; close
-; finalize
-; getChannel
-; getFD
+
 
 
   * [ ] __static File[]	listRoots()__
@@ -82,33 +65,52 @@
   + aFile? add file-global toggle for async or separate named methods?
     - currently you have sync methods but option for async read/write
   + try/catch=>bool macro, sync vs async
-  - add mode to supported opts for reader & writer,  (js/parseInt "0666" 8) , === 0o666 ES6 octal literal
+  * jsDoc
+  * verify degenerate cases, type returns
+
   * verify opts keys through all paths. :append? :async? :stream?
     - should be :append like clojure semantics
-  * clj tests rely on correctness of java classes, so mock java
-     stuff all needs appropriate tests and full api
-  * verify degenerate cases, type returns
+
   * refactor streams, ditch specify! pattern, just manage path better?
-  * path type for normalizing across platforms?
-  * error handling can be better, move away from generic js/Error.
-  * gcl node-object-stream support
-  * object streams, duplex streams, transform streams
+
   * support other runtimes? JSC, nashorn
-  * sugar for native streams, duplex + transform too
   * https://github.com/Raynes/fs
   * ###### java URL has unique set of methods that should be extended to goog.Uri
     * openStream -> opens connection to this URL and returns an input stream for reading
       https://docs.oracle.com/javase/7/docs/api/java/net/URL.html#openStream()
-  * test isFd?
-  * slurp + spit encodings are broken
-  * delete-file should handle absolute paths, not just file objects
-  * file reader needs a read, readline methods.
-  * line-seq needs stream, probably must be async (breaking from clj)
-  * defrecord SomeError [cause context ....]
+
+
+  * __Streams__
+    - reader + writer 
+    - object streams, duplex streams, transform streams, gcl node-object-stream ??
+    - java.io.FileInputStream API
+      - available
+      - close
+      - finalize
+      - getChannel
+      - getFD
+
+
+  * __PROBLEMS__
+    * slurp + spit encodings are broken
+    * delete-file should handle absolute paths, not just file objects
+    * add mode to supported opts for reader & writer
+      - (js/parseInt "0666" 8)   ===   0o666 ES6 octal literal
+    * sslurp, saslurp should support custom reader fns.
+    * change file & filestream type to resemble cljs type (currently is keyword)    
+
+
+  * __readline__
+    - line-seq needs readline stream, probably must be async (breaking from clj)
+    - file reader needs a read, readline methods.
+
+
+  * __Improve Error Handling__
+   - defrecord SomeError [cause context ....]
 
 
 
-## examples to do
+## examples
 * streaming mp3 through websocket
 * clojure.data.csv port, m3u example?
 * cookbook io examples
