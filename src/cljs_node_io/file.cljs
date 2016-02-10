@@ -1,6 +1,7 @@
 (ns cljs-node-io.file "a bunch of nonsense for mocking java.io.File's polymorphic constructor"
   (:import goog.Uri)
   (:require [cljs.nodejs :as nodejs :refer [require]]
+            [cljs.reader :refer [read-string]]
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
             [cljs-node-io.protocols
@@ -60,10 +61,27 @@
 (defn file-stream-writer [filestream opts]
   (make-writer filestream opts)) ;just defering to file stream object for now
 
+
+(defn reader-method
+  "Finds an appropriate reader based on the file's extension. ie clojure.reader/read-string
+   for edn files.
+   Should be user extensible?"
+  [filepath]
+  (condp = (.extname path filepath)
+    ".edn"  (fn [contents] (read-string contents))
+    ".json" (fn [contents] (js->clj (js/JSON.parse contents) :keywordize-keys true))
+    ;xml, csv
+    ;; does it make sense to throw here?
+    ; (do (throw (js/Error. "sslurp was given an unrecognized file format.
+    ;                    The file's extension must be json or edn")) nil)
+    nil))
+
+
 (defn file-reader
   "Builds an appropriate read method given opts and attaches it to the reified file.
    Returns the passed file.
     TODO if :stream? true, returns a chan which receives FileInputStream asynchronously?
+    - if :stream true, :async is ignored
     - opts: encoding :async :stream?
     - if :async? true, file.read() returns a chan which receives err|str on successful read "
   [file opts]
@@ -71,14 +89,20 @@
     (file-stream-reader (make-input-stream file opts) opts)
     (if (:async? opts)
       (specify! file Object
-        (read [this opts]
+        (read [this]
           (let [c (chan) ]
             (.readFile fs (.getPath this) (or (:encoding opts) "utf8") ;if no encoding, returns buffer
-              (fn [err data] (put! c (or err data))))
+              (fn [err data]
+                (put! c (if (:reader opts)
+                          ((reader-method (.getPath this)) data)
+                          data))))
             c)))
       (specify! file Object
-        (read [this opts]
-          (.readFileSync fs (.getPath this) (or (:encoding opts) "utf8"))))))) ;if no encoding, returns buffer . catch err?
+        (read [this]
+          (let [res (.readFileSync fs (.getPath this) (or (:encoding opts) "utf8"))]
+            (if (:reader opts)
+              ((reader-method (.getPath this)) res)
+              res))))))) ;if no encoding, returns buffer . catch err?
 
 
 

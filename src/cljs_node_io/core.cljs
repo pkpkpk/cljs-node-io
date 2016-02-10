@@ -1,5 +1,6 @@
 (ns cljs-node-io.core
   (:require [cljs.nodejs :as nodejs :refer [require]]
+            [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.file :refer [File]]
             ; [cljs-node-io.reader :refer [reader]]
             [cljs.reader :refer [read-string]]
@@ -169,15 +170,16 @@
 
 (defn sslurp
   "augmented 'super' slurp for convenience. edn|json => clj data-structures"
-  [filepath]
-  (let [contents (slurp filepath)]
-    (condp = (.extname path filepath)
-      ".edn"  (read-string contents)
-      ".json" (js->clj (js/JSON.parse contents) :keywordize-keys true)
-      ;xml, csv
-      (throw (js/Error. "sslurp was given an unrecognized file format.
-                         The file's extension must be json or edn")))))
+  [f & opts]
+  (let [r (apply reader f (concat opts '(:reader true)))]
+    (.read r)))
 
+(defn saslurp
+  "augmented 'super' aslurp for convenience. edn|json => clj data-structures put into a ch
+    TODO: allow passing custom reader fn in addition to default :reader true"
+  [f & opts]
+  (let [r (apply reader f (concat opts '(:async? true :reader true)))]
+    (.read r)))
 
 (defn spit
   "Opposite of slurp.  Opens f with writer, writes content.
