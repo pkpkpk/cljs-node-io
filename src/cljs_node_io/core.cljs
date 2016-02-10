@@ -1,4 +1,5 @@
 (ns cljs-node-io.core
+  (:require-macros [cljs.core.async.macros :refer [go go-loop alt!]])
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.file :refer [File]]
@@ -151,41 +152,74 @@
                                           (catch js/Error err ;MalformedURLException
                                               (make-output-stream (File. x) opts)))))
 
+(defn error? [e] (instance? js/Error e))
+
 
 (defn slurp
   "Returns String synchronously by default
    If :stream? true, punts to file-stream-reader, havent figured out yet
    If :async? true, returns channel which will receive err|data specified by encoding via put! cb
-   If :encoding nil (...must be explicitly set), returns raw buffer instead of string."
+   If :reader true,  attempts to convert the file content to clj data structures
+   If :encoding \"\" (an explicit empty string), returns raw buffer instead of string.
+   @returns {String|Buffer|Channel}"
   ([f & opts]
    (let [r (apply reader f opts)]
-     (.read r))))
+     (.read r) )))
 
 (defn aslurp
   "sugar for (slurp f :async? true ...)
-   Returns a channel which will receive err|data specified by encoding via put! cb"
+   Returns a channel which will receive err|data specified by encoding via put! cb
+   @returns {Channel}"
   [f & opts]
   (let [r (apply reader f (concat opts '(:async? true)))]
     (.read r)))
 
+(defn reader-method
+  "Finds an appropriate reader based on the file's extension. ie clojure.reader/read-string
+   for edn files.
+   Should be user extensible?"
+  [filepath]
+  (condp = (.extname path filepath)
+    ".edn"  (fn [contents] (read-string contents))
+    ".json" (fn [contents] (js->clj (js/JSON.parse contents) :keywordize-keys true))
+    ;xml, csv
+    ;; does it make sense to throw here?
+    (throw (js/Error. "sslurp was given an unrecognized file format.
+                       The file's extension must be json or edn"))))
+
+
 (defn sslurp
   "augmented 'super' slurp for convenience. edn|json => clj data-structures"
   [f & opts]
-  (let [r (apply reader f (concat opts '(:reader true)))]
-    (.read r)))
+  (let [f    (apply reader f opts)
+        rdr  (reader-method (.getPath f))]
+    (rdr (.read f))))
 
 (defn saslurp
   "augmented 'super' aslurp for convenience. edn|json => clj data-structures put into a ch
-    TODO: allow passing custom reader fn in addition to default :reader true"
+    TODO: allow passing custom reader fn in addition to default :reader true
+   @returns {Channel} which receives edn data or error "
   [f & opts]
-  (let [r (apply reader f (concat opts '(:async? true :reader true)))]
-    (.read r)))
+  (let [file  (apply reader f (concat opts '(:async? true :reader true)))
+        rdr   (reader-method (.getPath file))
+        from  (.read file)
+        to    (chan 1 (map #(if (error? %) % (rdr %))) )
+        _     (pipe from to)]
+    to))
 
 (defn spit
   "Opposite of slurp.  Opens f with writer, writes content.
    Options passed to a file/file-writer."
   [f content & options]
   (let [w (apply writer f options)]
+    (.write w (str content))))
+
+(defn aspit
+  "sugar for (slurp f :async? true ...)
+   returned channels recieves error or true on write success
+  @returns {Channel}"
+  [f content & options]
+  (let [w (apply writer f (concat options '(:async? true)))]
     (.write w (str content))))
 
 ; (defn line-seq
@@ -207,7 +241,6 @@
 
 (defn xml-seq
   "A tree seq on the xml elements as per xml/parse"
-  {:static true}
   [root]
     (tree-seq
      (complement string?)

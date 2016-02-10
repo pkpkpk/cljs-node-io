@@ -61,22 +61,6 @@
 (defn file-stream-writer [filestream opts]
   (make-writer filestream opts)) ;just defering to file stream object for now
 
-
-(defn reader-method
-  "Finds an appropriate reader based on the file's extension. ie clojure.reader/read-string
-   for edn files.
-   Should be user extensible?"
-  [filepath]
-  (condp = (.extname path filepath)
-    ".edn"  (fn [contents] (read-string contents))
-    ".json" (fn [contents] (js->clj (js/JSON.parse contents) :keywordize-keys true))
-    ;xml, csv
-    ;; does it make sense to throw here?
-    ; (do (throw (js/Error. "sslurp was given an unrecognized file format.
-    ;                    The file's extension must be json or edn")) nil)
-    nil))
-
-
 (defn file-reader
   "Builds an appropriate read method given opts and attaches it to the reified file.
    Returns the passed file.
@@ -93,19 +77,12 @@
           (let [c (chan) ]
             (.readFile fs (.getPath this) (or (:encoding opts) "utf8") ;if no encoding, returns buffer
               (fn [err data]
-                (put! c (if (:reader opts)
-                          ((reader-method (.getPath this)) data)
-                          data))))
+                (put! c (if err err data))))
             c)))
+      ;sync reader
       (specify! file Object
         (read [this]
-          (let [res (.readFileSync fs (.getPath this) (or (:encoding opts) "utf8"))]
-            (if (:reader opts)
-              ((reader-method (.getPath this)) res)
-              res))))))) ;if no encoding, returns buffer . catch err?
-
-
-
+          (.readFileSync fs (.getPath this) (or (:encoding opts) "utf8"))))))) ;if no encoding, returns buffer . catch err?
 
 (defn file-writer
   "Builds an appropriate write method given opts and attaches it to the reified file.
