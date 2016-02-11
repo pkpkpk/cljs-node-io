@@ -197,7 +197,7 @@
 
 (defn saslurp
   "augmented 'super' aslurp for convenience. edn|json => clj data-structures put into a ch
-    TODO: allow passing custom reader fn in addition to default :reader true
+    TODO: allow passing custom reader fn
    @returns {Channel} which receives edn data or error "
   [f & opts]
   (let [file  (apply reader f (concat opts '(:async? true :reader true)))
@@ -215,9 +215,9 @@
     (.write w (str content))))
 
 (defn aspit
-  "sugar for (slurp f :async? true ...)
-   returned channels recieves error or true on write success
-  @returns {Channel}"
+  "Async spit. returned chan recieves error or true on write success.
+   Wait for on result before writing again.
+   @returns {Channel}"
   [f content & options]
   (let [w (apply writer f (concat options '(:async? true)))]
     (.write w (str content))))
