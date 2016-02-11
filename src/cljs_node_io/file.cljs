@@ -1,4 +1,4 @@
-(ns cljs-node-io.file "a bunch of nonsense for mocking java.io.File's polymorphic constructor"
+(ns cljs-node-io.file "a port of java.io.File's reified files to node"
   (:import goog.Uri)
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs.reader :refer [read-string]]
