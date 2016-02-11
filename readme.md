@@ -30,7 +30,6 @@
 
   * [ ]__reader__
   * [ ]__writer__
-  * ~~[ ]__resource__ (??)~~
   * __input-stream__
     * [ ] inputstream
     * [ ] File
@@ -81,7 +80,7 @@
 
 
   * __Streams__
-    - reader + writer 
+    - reader + writer
     - object streams, duplex streams, transform streams, gcl node-object-stream ??
     - java.io.FileInputStream API
       - available
