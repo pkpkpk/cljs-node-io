@@ -85,3 +85,7 @@
 
   * __saslurp__
     - *s*uper *a*sync *slurp*
+
+
+  *__file-seq__
+    - A lazy tree seq on files in a directory
