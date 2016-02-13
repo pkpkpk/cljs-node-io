@@ -1,5 +1,6 @@
 (ns cljs-node-io.streams
   (:require [cljs.nodejs :as nodejs :refer [require]]
+            [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.protocols
               :refer [Coercions as-url as-file
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
@@ -9,20 +10,6 @@
 (defn ^Boolean isFd? "is File-descriptor?"
   [path]
   (= path (unsigned-bit-shift-right path 0)))
-
-
-
-(defn file-stream-dispatch [f {:keys [fd]}]
-  (if (or (and (integer? f)  (isFd? f)) ;redundant?
-          (and (integer? fd) (isFd? fd)))
-    :file-descriptor
-    (type f)))
-
-
-
-
-; Note that fd should be blocking; non-blocking fds should be passed to net.Socket.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def default-input-options
   {
@@ -48,19 +35,31 @@
       Object
       (getFd [_] @filedesc))))
 
-(defmulti FileInputStream* file-stream-dispatch)
 
-(defmethod FileInputStream* :file-descriptor [fd opts]
-  (let [filestreamobj (.createReadStream fs nil (clj->js opts))]
-    (attach-input-impls! filestreamobj)))
+; Note that fd should be blocking; non-blocking fds should be passed to net.Socket.
+(defn file-stream-dispatch [f {:keys [fd]}]
+  (if (or (and (integer? f)  (isFd? f)) ;redundant?
+          (and (integer? fd) (isFd? fd)))
+    :file-descriptor
+    (type f)))
 
-(defmethod FileInputStream* :string [pathstring opts] ;should never reach this via IOFactor, should be coerced to file or Uri
-  (let [filestreamobj (.createReadStream fs pathstring (clj->js opts)) ] ;should check path validity, URI too
-    (attach-input-impls! filestreamobj)))
 
-(defmethod FileInputStream* :file [file opts]
-  (let [filestreamobj (.createReadStream fs (.getPath file) (clj->js opts))] ;handle path, URI too
-    (attach-input-impls! filestreamobj)))
+(defmulti filepath file-stream-dispatch)
+; (defmethod filepath :file-descriptor [fd _] fd)
+; (defmethod filepath js/String [pathstring _] pathstring)
+; Uri?
+(defmethod filepath :File [file _] (.getPath file))
+(defmethod filepath :default [p _] p)
+
+
+
+(defn FileInputStream* [src opts]
+  (let [c         (chan)
+        streamobj (.createReadStream fs (filepath src) (clj->js opts))
+        _         (attach-input-impls! streamobj)]
+    (put! c streamobj)
+    c))
+
 
 (defn FileInputStream ; file|string|file-descriptor => stream-object => Buffer
   ([file] (FileInputStream* file default-input-options))
