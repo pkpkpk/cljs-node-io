@@ -54,19 +54,22 @@
   * verify degenerate cases, type returns
   * verify opts keys through all paths. :append? :async? :stream?
     - should be :append like clojure semantics? "?" hints bool though
-  * refactor streams, ditch specify! pattern, just manage path better?
-
-  * support other runtimes? JSC, nashorn
   * https://github.com/Raynes/fs
   * ###### java URL has unique set of methods that should be extended to goog.Uri
     * openStream -> opens connection to this URL and returns an input stream for reading
+      - see IOFactory
       https://docs.oracle.com/javase/7/docs/api/java/net/URL.html#openStream()
   * [ ]__line-seq  + test __
   * [ ]__xml-seq  + test __
 
   * __Streams__
     - reader + writer
-    - object streams, duplex streams, transform streams, gcl node-object-stream ??
+    - types
+        - file
+        - object streams,
+        - duplex streams,
+        - transform streams,
+        - gcl node-object-stream ??
     - java.io.FileInputStream API
       - available
       - close
@@ -80,8 +83,8 @@
     * sslurp assumes file with extension, whereas slurp (should) opens reader variable types
     * delete-file should handle absolute paths, not just file objects
     * add mode to supported opts for reader & writer
+      - streams, file api
       - (js/parseInt "0666" 8)   ===   0o666 ES6 octal literal
-    * sslurp, saslurp should support custom reader fns.
     * change file & filestream type to resemble cljs type (currently is keyword)    
 
 
@@ -97,6 +100,7 @@
 
 ## examples
 * streaming mp3 through websocket
+* streaming video server
 * clojure.data.csv port, m3u example?
 * cookbook io examples
 * large csv file reading via streamsk
@@ -105,17 +109,10 @@
 * webcrawler?
 * cljs-drone
 
-
-
-
-### Notes
+## Notes
   * biased towards sync calls, async makes for poor repl experience
   * consolidated URL & URI, goog.net.Uri is great
   * node streams close themselves, cleanup automatically?
   * polymorphic java constructors (ie java.io.File)
     necessitate alot of indirection
   * default-impl-obj + specify! is a cool pattern
-
-; read [] -> int , reads a byte of data from this inputstream
-; read [^byteArray b] -> int ,  Reads up to b.length bytes of data from this input stream into an array of bytes.
-; read [^byteArray b, ^int off, ^int len] -> int ,   Reads up to len bytes of data from this input stream into an array of bytes.

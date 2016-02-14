@@ -35,3 +35,8 @@
       ; (renameTo [_]) ;=> boolean
       ; (setLastModified [_]) ;=> boolean
       ; (setReadOnly [_]) ;=> boolean
+
+
+; read [] -> int , reads a byte of data from this inputstream
+; read [^byteArray b] -> int ,  Reads up to b.length bytes of data from this input stream into an array of bytes.
+; read [^byteArray b, ^int off, ^int len] -> int ,   Reads up to len bytes of data from this input stream into an array of bytes.
