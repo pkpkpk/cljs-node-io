@@ -235,7 +235,7 @@
   "taken from clojurescript/examples/nodels.cljs"
   [dir]
   (tree-seq
-    (fn [f] (.isDirectory (.statSync fs f) ()))
+    (fn [f] (.isDirectory (.statSync fs f) ))
     (fn [d] (map #(.join path d %) (.readdirSync fs d)))
     dir))
 
@@ -265,29 +265,21 @@
 
 
 (defmethod do-copy [:File js/String] [^File input ^File output opts]
-  (if (:stream? opts)
-    (copy-filestream input output opts)
-    (let [in (slurp input)]
-     (spit output in opts))))
+  (let [in (slurp input)]
+   (spit output in opts)))
 
 (defmethod do-copy [js/String :File] [^File input ^File output opts]
-  (if (:stream? opts)
-    (copy-filestream input output opts)
-    (let [in (slurp input)]
-     (spit output in opts))))
+  (let [in (slurp input)]
+   (spit output in opts)))
 
 (defmethod do-copy [js/String js/String] [^File input ^File output opts]
-  (if (:stream? opts)
-    (copy-filestream input output opts)
-    (let [in (slurp input)]
-     (spit output in opts))))
+  (let [in (slurp input)]
+   (spit output in opts)))
 
 
 (defmethod do-copy [:File :File] [^File input ^File output opts]
-  (if (:stream? opts)
-    (copy-filestream input output opts)
-    (let [in (slurp input)]
-     (spit output in opts))))
+  (let [in (slurp input)]
+   (spit output in opts)))
 
 (defn copy
   "Copies input to output.  Returns nil or throws IOException.
