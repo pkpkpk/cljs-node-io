@@ -55,13 +55,12 @@
   * verify opts keys through all paths. :append? :async? :stream?
     - should be :append like clojure semantics? "?" hints bool though
   * https://github.com/Raynes/fs
-  * ###### java URL has unique set of methods that should be extended to goog.Uri
+  * java URL has unique set of methods that should be extended to goog.Uri
     * openStream -> opens connection to this URL and returns an input stream for reading
       - see IOFactory
-      https://docs.oracle.com/javase/7/docs/api/java/net/URL.html#openStream()
-  * [ ]__line-seq  + test __
-  * [ ]__xml-seq  + test __
-
+      - https://docs.oracle.com/javase/7/docs/api/java/net/URL.html#openStream()
+  * __line-seq  + test __
+  * __xml-seq  + test __
   * __Streams__
     - reader + writer
     - types
@@ -76,7 +75,10 @@
       - finalize
       - getChannel
       - getFD
+  *  __zlib__
+    - zip/unzip files?
 
+  * __transit object stream??__
 
   * __PROBLEMS__
     * slurp + spit encodings are broken
