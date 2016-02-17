@@ -1,5 +1,5 @@
 
-# Readstream
+# Readstream (stream.readable)
   + ### __events__
     * ##### __"readable"__ ()
       - When a chunk of data can be read from the stream, it will emit a 'readable' event.
@@ -74,28 +74,28 @@
       - This method returns whether or not the readable has been explicitly paused by client code (using stream.pause() without a corresponding stream.resume())
 
         ```js
-        var readable = new stream.Readable
-        readable.isPaused() // === false
-        readable.pause()
-        readable.isPaused() // === true
-        readable.resume()
-        readable.isPaused() // === false
+        (def readable (new stream.Readable))
+        (.isPaused readable) // === false
+        (.pause readable)
+        (.isPaused readable) // === true
+        (.resume readable)
+        (.isPaused readable) // === false
         ```
 
     - ##### __pause__ ()->this
       - This method will cause a stream in flowing mode to stop emitting 'data' events, switching out of flowing mode. Any data that becomes available will remain in the internal buffer.
 
         ```js
-        var readable = getReadableStreamSomehow();
-        readable.on('data', (chunk) => {
-          console.log('got %d bytes of data', chunk.length);
-          readable.pause();
-          console.log('there will be no more data for 1 second');
-          setTimeout(() => {
-            console.log('now data will start flowing again');
-            readable.resume();
-          }, 1000);
-        });      
+        (.on readable 'data',
+          (fn [chunk]
+            (println "got" (.-length chunk) "bytes of data")
+            (.pause readable)
+            (println 'there will be no more data for 1 second')
+            (js/setTimeout
+              (fn []
+                (println "now data will start flowing again")
+                (.resume readable))
+              1000)))
         ```
 
     - ##### __pipe__  (dest, ?opts) -> dest stream
@@ -106,15 +106,19 @@
         - ```:end true```
           - End the writer when the reader ends.
       - returns the destination stream, so you can set up pipe chains like so
-            var r = fs.createReadStream('file.txt');
-            var z = zlib.createGzip();
-            var w = fs.createWriteStream('file.txt.gz');
-            r.pipe(z).pipe(w);
+        ```js
+        (let [r (. fs createReadStream "foo.edn")
+              z (. zlib createGzip)
+              w (. fs createWriteStream "foo.edn.gz")]
+          (-> r
+            (.pipe z)
+            (.pipe w)))
+        ```
       - By default stream.end() is called on the destination when the source stream emits 'end', so that destination is no longer writable. Pass ```:end false``` an opt to keep the destination stream open.
-            reader.pipe(writer, { end: false });
-            reader.on('end', () => {
-              writer.end('Goodbye\n');
-            });
+        ```js    
+        (.pipe reader writer {:end false})
+        (.on reader "end" (fn [] (.end writer "Goodbye!\n")))
+        ```
       - emulate UNIX cat:
             process.stdin.pipe(process.stdout);
       - Note that process.stderr and process.stdout are never closed until the process exits, regardless of the specified options.
@@ -138,25 +142,23 @@
       this method is called automatically until the internal buffer is
       drained.
         ```js
-        var readable = getReadableStreamSomehow();
-        readable.on('readable', () => {
-          var chunk;
-          while (null !== (chunk = readable.read())) {
-            console.log('got %d bytes of data', chunk.length);
-          }
-        });
+        (.on r "readable"
+          (fn []
+            (let [chunks (take-while identity (repeatedly  #(.read r 1)))]
+              (doseq [chunk chunks]
+                (println "got " (.-length chunk) " bytes of data" )))))
         ```
 
     - ##### __resume__ () -> this
       - This method will cause the readable stream to resume emitting [`'data'`][] events.
-      - This method will switch the stream into flowing mode. If you do *not* want to consume the data from a stream, but you *do* want to get to its [`'end'`][] event, you can call [`stream.resume()`][stream-resume] to open the flow of data.
+      - __This method will switch the stream into flowing mode.__ If you do *not* want to consume the data from a stream, but you *do* want to get to its [`'end'`][] event, you can call [`stream.resume()`][stream-resume] to open the flow of data.
 
         ```js
-        var readable = getReadableStreamSomehow();
-        readable.resume();
-        readable.on('end', () => {
-          console.log('got to the end, but did not read anything');
-        });
+        ...
+        (.on r "end"
+          (fn [] (println "got to the end, but did not read anything"))
+        ...
+        (.resume r)
         ```      
 
     - ##### __setEncoding__ (^string encoding) -> this
@@ -164,12 +166,11 @@
       - For example, if you do `readable.setEncoding('utf8')`, then the output data will be interpreted as UTF-8 data, and returned as strings. If you do `readable.setEncoding('hex')`, then the data will be encoded in hexadecimal string format.
       - This properly handles multi-byte characters that would otherwise be potentially mangled if you simply pulled the Buffers directly and called [`buf.toString(encoding)`][] on them. If you want to read the data as strings, always use this method.
         ```js
-        var readable = getReadableStreamSomehow();
-        readable.setEncoding('utf8');
-        readable.on('data', (chunk) => {
-          assert.equal(typeof chunk, 'string');
-          console.log('got %d characters of string data', chunk.length);
-        });
+        (.setEncoding r "utf8")
+        (.on r "data"
+          (fn [chunk]
+            (assert (string? (type chunk)))
+            (println "got " (.-length chunk) " characters of string data")))
         ```
 
     - ##### __unpipe__ (?dest)
@@ -179,17 +180,18 @@
       - If the destination is not specified, then all pipes are removed.
       - If the destination is specified, but no pipe is set up for it, then this is a no-op.
         ```js
-        var readable = getReadableStreamSomehow();
-        var writable = fs.createWriteStream('file.txt');
+        (def readable (getReadableStreamSomehow))
+        (def writable (. fs createWriteStream "file.txt")
         // All the data from readable goes into 'file.txt',
         // but only for the first second
-        readable.pipe(writable);
-        setTimeout(() => {
-          console.log('stop writing to file.txt');
-          readable.unpipe(writable);
-          console.log('manually close the file stream');
-          writable.end();
-        }, 1000);
+        (.pipe readable writable)
+        (js/setTimeout
+          (fn []
+            (println 'stop writing to file.txt')
+            (.unpipe readable writable)
+            (println 'manually close the file stream')
+            (.end writable))
+          1000)
         ```
 
     - ##### __unshift__ (chunk)
@@ -250,8 +252,8 @@
   + ```(FileInputStream. fileable {opts} ) ``` -> ch
   + Be aware that, unlike the default value set for highWaterMark on a readable stream (16 kb), the stream returned by this method has a default value of 64 kb for the same parameter.
   + __options__
-    - options can include start and end values to read a range of bytes from the file instead of the entire file.
-      - Both start and end are inclusive and start at 0.
+    - options can include `start` and `end` values to read a range of bytes from the file instead of the entire file.
+      - Both are inclusive and start at 0.
     - The encoding can be any one of those accepted by Buffer.
     - If fd is specified, ReadStream will ignore the path argument and will use the specified file descriptor.
       - this means no 'open' event is emitted
@@ -269,10 +271,10 @@
       - ```:end ???``` ?????      
   + examples
     - read the last 10 bytes of a file which is 100 bytes long:
-          (FileInputStream.  'sample.txt' {start: 90, end: 99})
 
-
-
+        ```clj
+        (FileInputStream.  'sample.txt' {start: 90, end: 99})
+        ```
 
 
 
@@ -280,25 +282,11 @@
 
 
 <hr>
-# WriteStream
-  + __events__
-    - drain
-    - Error
-    - pipe (src)
-    - unpipe
-    - finish
-    - open
-      - filestream only
-  + __methods__
-    -
 
 
 
-
-
-(defn slurp-stream??
-  "Opens a reader on f and reads all its contents, returning a string.
-  See clojure.java.io/reader for a complete list of supported arguments."
+```clj
+(defn slurp-stream
    [f]
    (let [sb  (StringBuffer.)
          r   (apply reader f nil)
@@ -313,12 +301,7 @@
                 (do
                   (.append sb chunk)
                   (recur (.read r)))))))) res))
-
-
-      ; (renameTo [_]) ;=> boolean
-      ; (setLastModified [_]) ;=> boolean
-      ; (setReadOnly [_]) ;=> boolean
-
+```
 
 ; read [] -> int , reads a byte of data from this inputstream
 ; read [^byteArray b] -> int ,  Reads up to b.length bytes of data from this input stream into an array of bytes.
