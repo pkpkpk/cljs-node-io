@@ -81,6 +81,9 @@
   * __transit object stream??__
 
   * __PROBLEMS__
+    - test ns specific temp file that doesnt have delete-on-exit listeners
+    - if file is deleted make sure event listeners are removed? (delete on exit)
+      -find way to manage deletion listeners
     * slurp + spit encodings are broken
     * sslurp assumes file with extension, whereas slurp (should) opens reader variable types
     * delete-file should handle absolute paths, not just file objects
@@ -99,17 +102,6 @@
    - defrecord SomeError [cause context ....]
 
 
-
-## examples
-* streaming mp3 through websocket
-* streaming video server
-* clojure.data.csv port, m3u example?
-* cookbook io examples
-* large csv file reading via streamsk
-* transit
-* encodings
-* webcrawler?
-* cljs-drone
 
 ## Notes
   * biased towards sync calls, async makes for poor repl experience
