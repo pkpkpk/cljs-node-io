@@ -1,73 +1,127 @@
 
 # Readstream (stream.readable)
-  + ### __events__
-    * ##### __"readable"__ ()
-      - When a chunk of data can be read from the stream, it will emit a 'readable' event.
-      - In some cases, listening for a 'readable' event will cause some data to be read into the internal buffer from the underlying system, if it hadn't already.
-      - Once the internal buffer is drained, a 'readable' event will fire again when more data is available.
 
-        ```javascript
-        var readable = getReadableStreamSomehow();
-        readable.on('readable', () => {
-          // there is some data to read now
-        });
-        ```      
-      - The 'readable' event is not emitted in the "flowing" mode with the sole exception of the last one, on end-of-stream.
-      - The 'readable' event indicates that the stream has new information: either new data is available or the end of the stream has been reached. In the former case, stream.read() will return that data. In the latter case, stream.read() will return null. For instance, in the following example, foo.txt is an empty file:
+### Class: stream.Readable
 
-        ```js
-        const fs = require('fs');
-        var rr = fs.createReadStream('foo.txt');
-        rr.on('readable', () => {
-          console.log('readable:', rr.read());
-        });
-        rr.on('end', () => {
-          console.log('end');
-        });
+<!--type=class-->
+
+The Readable stream interface is the abstraction for a *source* of
+data that you are reading from. In other words, data comes *out* of a
+Readable stream.
+
+A Readable stream will not start emitting data until you indicate that
+you are ready to receive it.
+
+Readable streams have two "modes": a **flowing mode** and a **paused
+mode**. When in flowing mode, data is read from the underlying system
+and provided to your program as fast as possible. In paused mode, you
+must explicitly call [`stream.read()`][stream-read] to get chunks of data out.
+Streams start out in paused mode.
+
+**Note**: If no data event handlers are attached, and there are no
+[`stream.pipe()`][] destinations, and the stream is switched into flowing
+mode, then data will be lost.
+
+You can switch to flowing mode by doing any of the following:
+
+* Adding a [`'data'`][] event handler to listen for data.
+* Calling the [`stream.resume()`][stream-resume] method to explicitly open the
+  flow.
+* Calling the [`stream.pipe()`][] method to send the data to a [Writable][].
+
+You can switch back to paused mode by doing either of the following:
+
+* If there are no pipe destinations, by calling the
+  [`stream.pause()`][stream-pause] method.
+* If there are pipe destinations, by removing any [`'data'`][] event
+  handlers, and removing all pipe destinations by calling the
+  [`stream.unpipe()`][] method.
+
+Note that, for backwards compatibility reasons, removing [`'data'`][]
+event handlers will **not** automatically pause the stream. Also, if
+there are piped destinations, then calling [`stream.pause()`][stream-pause] will
+not guarantee that the stream will *remain* paused once those
+destinations drain and ask for more data.
+
+Examples of readable streams include:
+
+* [HTTP responses, on the client][http-incoming-message]
+* [HTTP requests, on the server][http-incoming-message]
+* [fs read streams][]
+* [zlib streams][zlib]
+* [crypto streams][crypto]
+* [TCP sockets][]
+* [child process stdout and stderr][]
+* [`process.stdin`][]
+
+
+
+
+Note: streams are instances of node EventEmitters. See https://nodejs.org/api/events.html#events_class_eventemitter
+
++ ### __events__
+  * ##### __"readable"__ ()
+    - When a chunk of data can be read from the stream, it will emit a 'readable' event.
+    - In some cases, listening for a 'readable' event will cause some data to be read into the internal buffer from the underlying system, if it hadn't already.
+    - Once the internal buffer is drained, a 'readable' event will fire again when more data is available.
+
+      ```js
+      (.on r "readable"
+        (fn []
+          (println  "there is some data to read now")))
+      ```      
+    - The 'readable' event is not emitted in the "flowing" mode with the sole exception of the last one, on end-of-stream.
+    - The 'readable' event indicates that the stream has new information: either new data is available or the end of the stream has been reached. In the former case, stream.read() will return that data. In the latter case, stream.read() will return null. For instance, in the following example, foo.txt is an empty file:
+
+      ```js
+      (def r (. fs createReadStream "foo.txt"))
+
+      (-> r
+        (.on "readable"
+          (fn [] (println "readable: " (.read r))))
+        (.on "end"
+          (fn [] (println "end"))))
+      ```
+
+        The output of running this script is:
+
+        ```
+        $ node test.js
+        readable: null
+        end
         ```
 
-          The output of running this script is:
-
-          ```
-          $ node test.js
-          readable: null
-          end
-          ```
-
-    * ##### __"data"__ (Buffer|string)
-        - Attaching a 'data' event listener to a stream that has not been explicitly paused will switch the stream into flowing mode. Data will then be passed as soon as it is available.
-        - If you just want to get all the data out of the stream as fast as possible, this is the best way to do so.    
-          ```js
-          var readable = getReadableStreamSomehow();
-          readable.on('data', (chunk) => {
-            console.log('got %d bytes of data', chunk.length);
-          });
-          ```
-
-    * ##### __"error"__ (e)
-      - Emitted if there was an error receiving data.
-
-    * ##### __"end"__ ()
-      - This event fires when there will be no more data to read.
-      - Note that the 'end' event will not fire unless the data is completely consumed. This can be done by switching into flowing mode, or by calling stream.read() repeatedly until you get to the end.
+  * ##### __"data"__ (Buffer|string)
+      - Attaching a 'data' event listener to a stream that has not been explicitly paused will switch the stream into flowing mode. Data will then be passed as soon as it is available.
+      - If you just want to get all the data out of the stream as fast as possible, this is the best way to do so.    
         ```js
-        var readable = getReadableStreamSomehow();
-        readable.on('data', (chunk) => {
-          console.log('got %d bytes of data', chunk.length);
-        });
-        readable.on('end', () => {
-          console.log('there will be no more data.');
-        });
-        ```      
+        (.on r "data"
+          (fn [chunk]
+            (println  "got " (.-length chunk) " bytes of data" )))
+        ```
 
-    * ##### __"close"__ ()
-      - Emitted when the stream and any of its underlying resources (a file descriptor, for example) have been closed. The event indicates that no more events will be emitted, and no further computation will occur.
-      - Not all streams will emit the `'close'` event.
+  * ##### __"error"__ (e)
+    - Emitted if there was an error receiving data.
 
-    * ##### __"open"__  (fd)
-      - Emitted when the ReadStream's file is opened.
-      - filestream ONLY
-      - if stream is opened with an existing fd, then this event is not emitted.
+  * ##### __"end"__ ()
+    - This event fires when there will be no more data to read.
+    - Note that the 'end' event will not fire unless the data is completely consumed. This can be done by switching into flowing mode, or by calling stream.read() repeatedly until you get to the end.
+      ```js
+      (-> r
+        (.on "data"
+          (fn [chunk] (println  "got " (.-length chunk) " bytes of data" )))
+        (.on  "end"
+          (fn [] (println  "there will be no more data" ))))
+      ```      
+
+  * ##### __"close"__ ()
+    - Emitted when the stream and any of its underlying resources (a file descriptor, for example) have been closed. The event indicates that no more events will be emitted, and no further computation will occur.
+    - Not all streams will emit the `'close'` event.
+
+  * ##### __"open"__  (fd)
+    - Emitted when the ReadStream's file is opened.
+    - filestream ONLY
+    - if stream is opened with an existing fd, then this event is not emitted.
 
   + ### __methods__
     - ##### __isPaused__ ()-> bool
@@ -203,35 +257,30 @@
         2. use unshift() if we get too much
         3. Call the callback with (error, header, stream)
         ```js
-          const StringDecoder = require('string_decoder').StringDecoder;
-          function parseHeader(stream, callback) {
-            stream.on('error', callback);
-            stream.on('readable', onReadable);
-            var decoder = new StringDecoder('utf8');
-            var header = '';
-            function onReadable() {
-              var chunk;
-              while (null !== (chunk = stream.read())) {
-                var str = decoder.write(chunk);
-                if (str.match(/\n\n/)) {
-                  // found the header boundary
-                  var split = str.split(/\n\n/);
-                  header += split.shift();
-                  var remaining = split.join('\n\n');
-                  var buf = new Buffer(remaining, 'utf8');
-                  if (buf.length)
-                    stream.unshift(buf);
-                  stream.removeListener('error', callback);
-                  stream.removeListener('readable', onReadable);
-                  // now the body of the message can be read from the stream.
-                  callback(null, header, stream);
-                } else {
-                  // still reading the header.
-                  header += str;
-                }
-              }
-            }
-          }
+          (def StringDecoder (. (require "string_decoder") -StringDecoder))
+
+          (defn parseHeader
+            [strm cb]
+            (let [decoder    (StringDecoder. "utf8")
+                  header     (atom "")
+                  onReadable (fn onReadable []
+                              (while-let [chunk (.read strm)]
+                                (let [s (.write decoder chunk)]
+                                  (if (.match s #"\n\n")
+                                    (let [splt      (.split s #"\n\n")
+                                          _         (swap! header str (.shift splt))
+                                          remaining (.join splt "\n\n")
+                                          buf       (Buffer. remaining "utf8")]
+                                      (if (.-length buf)
+                                        (.unshift strm buf)) ;<--
+                                      (-> strm
+                                        (.removeListener "error" cb)
+                                        (.removeListener "readable" onReadable))
+                                      (cb nil @header strm))
+                                    (swap! header str s)))))]
+              (-> strm
+                (.on "error" cb)
+                (.on "readable" onReadable))))
         ```
       - Note that, unlike [`stream.push(chunk)`][stream-push], `stream.unshift(chunk)`
       will not end the reading process by resetting the internal reading state of the
