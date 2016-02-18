@@ -18,3 +18,13 @@
                                 (finally
                                   (. ~(bindings 0) close))))
     :else  (throw (IllegalArgumentException. "with-open only allows Symbols in bindings"))))
+
+
+;https://github.com/markmandel/while-let
+(defmacro while-let
+  "Repeatedly executes body while test expression is true, evaluating the body with binding-form bound to the value of test."
+  [[form test] & body]
+  `(loop [~form ~test]
+       (when ~form
+           ~@body
+           (recur ~test))))
