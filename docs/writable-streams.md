@@ -16,7 +16,7 @@ Examples of writable streams include:
 
 + ### events
 
-  - ##### "drain" ()
+  - #### "drain" ()
     - if a `stream.write(chunk)` call returns false, then the "drain" event will indicate when it is appropriateto begin writing more data to the stream
 
       ```clj
@@ -40,10 +40,10 @@ Examples of writable streams include:
 
       ```
 
-  - ##### "error" (e)
+  - #### "error" (e)
     - Emitted if there was an error when writing or piping data.
 
-  - ##### "finish"
+  - #### "finish"
     - When the [`stream.end()`][stream-end] method has been called, and all data has
     been flushed to the underlying system, this event is emitted.
 
@@ -57,7 +57,7 @@ Examples of writable streams include:
       (.end writer "this is the end\n")
       ```
 
-  - ##### "pipe" (src)
+  - #### "pipe" (src)
     - src: {stream.Readable} source stream that is piping to this writable
     - emitted whenever the pipe method is called on as readable stream, adding this writable to its set of destinations
       ```js
@@ -70,7 +70,7 @@ Examples of writable streams include:
         (.pipe writer))
       ```
 
-  - ##### "unpipe" (src)
+  - #### "unpipe" (src)
     - src: the stream on whic unpipe was called, removing the writer as a destination
       ```js
       (. writer on "unpipe"
@@ -82,12 +82,43 @@ Examples of writable streams include:
       (.unpipe reader writer)
       ```
 
-  - ##### "open" (fd)
+  - #### "open" (fd)
     - filestream only
     - fd: file descriptor for the file being opened
 
 
 + ### methods
 
-  - ##### cork
+  - #### cork ()
     - forces buffering of all writes
+    - Buffered data will be flushed either at [`stream.uncork()`][] or at
+      [`stream.end()`][stream-end] call.
+
+  - #### uncork ()
+    - Flush all data buffered since stream.cork call
+
+  - #### end (?chunk ?encoding ?cb )
+    - chunk: String|Buffer
+    - call this method when there is no more data to be written to the stream.
+    - If cb, cb is attached as a listener for "finish"
+    - calling `steam.write` after `stream.end`  will raise an error
+
+      ```js
+      (def file (. fs createWriteStream "example.txt"))
+      (. file write "hello, ")
+      (. file end "world!")
+      ; no more writing is allowed
+      ```
+
+  - #### setDefaultEncoding (encoding)
+    - sets the default encoding for a writable stream
+
+  - #### write (chunk ?encoding ?cb) -> Boolean
+    - This method writes some data to the underlying system, and calls the supplied callback once the data has been fully handled.
+    - `chunk`: string|Buffer
+    - `encoding` : string : encoding when chunk is a string
+    - Return: Boolean
+      - `true` if the data was handled completely, keep writing!
+      - `false` the data was buffered internally
+       - you can keep writing, but it eats up memory so be cautious.
+          - wait for `"drain"`
