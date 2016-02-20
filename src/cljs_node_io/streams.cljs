@@ -36,7 +36,7 @@
       (getFd [_] @filedesc))))
 
 
-; Note that fd should be blocking; non-blocking fds should be passed to net.Socket.
+
 (defn file-stream-dispatch [f {:keys [fd]}]
   (if (or (and (integer? f)  (isFd? f)) ;redundant?
           (and (integer? fd) (isFd? fd)))
