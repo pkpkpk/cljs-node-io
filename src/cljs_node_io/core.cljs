@@ -191,9 +191,9 @@
 (defn sslurp
   "augmented 'super' slurp for convenience. edn|json => clj data-structures"
   [f & opts]
-  (let [f    (apply reader f opts)
-        rdr  (reader-method (.getPath f))]
-    (rdr (.read f))))
+  (let [ff    (apply reader f opts)
+        rdr  (reader-method (.getPath ff))]
+    (rdr (.read ff))))
 
 (defn saslurp
   "augmented 'super' aslurp for convenience. edn|json => clj data-structures put into a ch
