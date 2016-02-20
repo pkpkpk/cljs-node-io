@@ -40,10 +40,10 @@ Examples of writable streams include:
 
       ```
 
-  - ##### Error (e)
+  - ##### "error" (e)
     - Emitted if there was an error when writing or piping data.
 
-  - ##### finish
+  - ##### "finish"
     - When the [`stream.end()`][stream-end] method has been called, and all data has
     been flushed to the underlying system, this event is emitted.
 
@@ -57,23 +57,37 @@ Examples of writable streams include:
       (.end writer "this is the end\n")
       ```
 
-  - ##### pipe (src)
+  - ##### "pipe" (src)
     - src: {stream.Readable} source stream that is piping to this writable
     - emitted whenever the pipe method is called on as readable stream, adding this writable to its set of destinations
       ```js
       (. writer on "pipe"
-        (fn [src] (println "something is piping into the writer")))
+        (fn [src]
+          (println "something is piping into the writer")
+          (assert (= src reader))))
 
       (-> reader
         (.pipe writer))
       ```
 
-  - ##### unpipe
+  - ##### "unpipe" (src)
+    - src: the stream on whic unpipe was called, removing the writer as a destination
+      ```js
+      (. writer on "unpipe"
+        (fn [src]
+          (println "something has stopped piping into the writer")
+          (assert (= reader src))))
 
+      (.pipe reader writer)
+      (.unpipe reader writer)
+      ```
 
-  - ##### open
+  - ##### "open" (fd)
     - filestream only
+    - fd: file descriptor for the file being opened
 
 
 + ### methods
-  -
+
+  - ##### cork
+    - forces buffering of all writes
