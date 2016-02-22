@@ -297,8 +297,8 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
       - The path to the file the stream is reading from.
 
 <hr>
-## FileInputStream
-  + ```(FileInputStream. fileable {opts} ) ``` -> ch
+###  cljs-node-io.streams/FileInputStream
+  + `(FileInputStream. fileable {opts} ) `
   + Be aware that, unlike the default value set for highWaterMark on a readable stream (16 kb), the stream returned by this method has a default value of 64 kb for the same parameter.
   + __options__
     - options can include `start` and `end` values to read a range of bytes from the file instead of the entire file.
@@ -334,24 +334,89 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
 
 
 
-```clj
-(defn slurp-stream
-   [f]
-   (let [sb  (StringBuffer.)
-         r   (apply reader f nil)
-         res (atom nil)] ; channel?
-     (doto r
-       (.on "error" (fn [e] (throw e)))
-       (.on "readable"
-          (fn []
-            (loop [chunk (.read r 1)]
-              (if (nil? chunk)
-                (reset! res (.toString sb))
-                (do
-                  (.append sb chunk)
-                  (recur (.read r)))))))) res))
-```
 
-; read [] -> int , reads a byte of data from this inputstream
-; read [^byteArray b] -> int ,  Reads up to b.length bytes of data from this input stream into an array of bytes.
-; read [^byteArray b, ^int off, ^int len] -> int ,   Reads up to len bytes of data from this input stream into an array of bytes.
+# Implementing Readable Streams :
+
+
+### cljs-node-io.streams/ReadableStream
+#### `(ReadableStream  options)`
+  - a wrapper around stream.Readable that calls its constructor so that buffering setting are properly initialized
+  * `options` : map
+    * `:highWaterMark` : Int
+      - The maximum number of bytes to store in
+      the internal buffer before ceasing to read from the underlying
+      resource.
+      - Default = `16384` (16kb), or `16` for `objectMode` streams
+    * `:encoding` : String
+      - If specified, then buffers will be decoded to strings using the specified encoding.
+      - Default : `nil`
+    * `:objectMode` : Boolean
+      - Whether this stream should behave as a stream of objects. Meaning that `stream.read(n)` returns a single value instead of a Buffer of size n.
+      - Default = `false`
+    * `:read` : fn(size)
+      - Implementation for the `stream._read()` method (see below)
+      - *Required*
+
+
+#### readable.\_read(size)
+  * `size` : Int : Number of bytes to read asynchronously
+   -  this arg is advisory. Implementations where a "read" is a
+     single call that returns data can use this to know how much data to
+     fetch. Implementations where that is not relevant, such as TCP or
+     TLS, may ignore this argument, and simply provide data whenever it
+     becomes available. There is no need, for example to "wait" until
+     `size` bytes are available before calling `stream.push(chunk)`
+  * ** Note: \_\_Implement\_\_ this method, but do NOT call it directly.**
+    - This method has an underscore prefix because it is internal to the class that defines it
+    - should only be called by the internal Readable class methods.
+    - All Readable stream implementations must provide a \_read method to fetch data from the underlying resource.
+  * When `_read()` is called, if data is available from the resource, the `_read()`
+  implementation should start pushing that data into the read queue by calling
+  `this.push(dataChunk)`
+    - `_read()` should continue reading + pushing data until push returns `false`, at which point it should stop reading from the resource.
+      - once the `_read()` method is called, it will not be called again until the `stream.push()` method is called.
+    - Only when `_read()` is called again after it has stopped should it start reading more data from the resource and pushing that data onto the queue.
+
+
+#### readable.push(chunk,  ?encoding) -> Boolean
+  * `chunk` : Buffer|Null|String
+    - Chunk of data to push into the read queue
+  * `encoding` : String
+    - Encoding of String chunks.  Must be a valid Buffer encoding, such as `"utf8"` or `"ascii"`
+  * return : Boolean
+    - Whether or not more pushes should be performed
+  - ** Note: This method should be \_\_called\_\_ by Readable implementors, NOT
+  by consumers of Readable streams.**
+  * If a value other than null is passed, The `push()` method adds a chunk of data
+  into the queue for subsequent stream processors to consume. If `null` is
+  passed, it signals the end of the stream (EOF), after which no more data
+  can be written.
+  * The data added with `push()` can be pulled out by calling the `stream.read()` method when the `"readable"` event fires.
+
+
+<hr>
+
+
+#### Example: A Counting Stream
+
+  <!--type=example-->
+
+  This is a basic example of a Readable stream. It emits the numerals
+  from 1 to 10 in ascending order, and then ends.
+
+```js
+(defn counter []
+  (let [_max  10
+        index (atom 0)
+        _read (fn []
+                (this-as this
+                  (let [i (swap! index inc)]
+                    (if (> i _max)
+                      (. this push  nil)
+                      (let [s (str "\n" i)
+                            buf (js/Buffer s "ascii")]
+                        (. this push buf))))))]
+    (ReadableStream {:read _read})))
+
+(.pipe (counter) (.-stdout js/process))
+```
