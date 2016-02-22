@@ -6,6 +6,7 @@
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
 (def fs (require "fs"))
+(def stream (require "stream"))
 
 (defn ^Boolean isFd? "is File-descriptor?"
   [path]
@@ -104,7 +105,10 @@
   ([file opts] (FileOutputStream* file (merge default-output-options opts))))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-    ;
-    ; writeStream.bytesWritten#
-    ; The number of bytes written so far. Does not include data that is still queued for writing.
+(defn ReadableStream
+  [{:keys [highWaterMark encoding objectMode read] :as opts}]
+  (assert (map? opts) "you must pass a map of constructor options containing at least a :read k-v pair")
+  (assert (fn? read) "you must supply an internal read function when creating your own read stream")
+  (new stream.Readable (clj->js opts)))
