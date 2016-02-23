@@ -1,9 +1,6 @@
 
 # Readstream (stream.readable)
 
-### Class: stream.Readable
-
-<!--type=class-->
 
 The Readable stream interface is the abstraction for a *source* of
 data that you are reading from. In other words, data comes *out* of a
@@ -123,173 +120,173 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - filestream ONLY
     - if stream is opened with an existing fd, then this event is not emitted.
 
-  + ### __methods__
-    - ##### __isPaused__ ()-> bool
-      - This method returns whether or not the readable has been explicitly paused by client code (using stream.pause() without a corresponding stream.resume())
++ ### __methods__
+  - ##### __isPaused__ ()-> bool
+    - This method returns whether or not the readable has been explicitly paused by client code (using stream.pause() without a corresponding stream.resume())
 
-        ```js
-        (def readable (new stream.Readable))
-        (.isPaused readable) // === false
-        (.pause readable)
-        (.isPaused readable) // === true
-        (.resume readable)
-        (.isPaused readable) // === false
-        ```
+      ```js
+      (def readable (new stream.Readable))
+      (.isPaused readable) // === false
+      (.pause readable)
+      (.isPaused readable) // === true
+      (.resume readable)
+      (.isPaused readable) // === false
+      ```
 
-    - ##### __pause__ ()->this
-      - This method will cause a stream in flowing mode to stop emitting 'data' events, switching out of flowing mode. Any data that becomes available will remain in the internal buffer.
+  - ##### __pause__ ()->this
+    - This method will cause a stream in flowing mode to stop emitting 'data' events, switching out of flowing mode. Any data that becomes available will remain in the internal buffer.
 
-        ```js
-        (.on readable 'data',
-          (fn [chunk]
-            (println "got" (.-length chunk) "bytes of data")
-            (.pause readable)
-            (println 'there will be no more data for 1 second')
-            (js/setTimeout
-              (fn []
-                (println "now data will start flowing again")
-                (.resume readable))
-              1000)))
-        ```
+      ```js
+      (.on readable 'data',
+        (fn [chunk]
+          (println "got" (.-length chunk) "bytes of data")
+          (.pause readable)
+          (println 'there will be no more data for 1 second')
+          (js/setTimeout
+            (fn []
+              (println "now data will start flowing again")
+              (.resume readable))
+            1000)))
+      ```
 
-    - ##### __pipe__  (dest, ?opts) -> dest stream
-      - This method pulls all the data out of a readable stream, and writes it to the supplied destination, automatically managing the flow so that the destination is not overwhelmed by a fast readable stream.
-      - Multiple destinations can be piped to safely.
-      - __dest__: Writable Stream, destination for writing data
-      - __opts__:
-        - ```:end true```
-          - End the writer when the reader ends.
-      - returns the destination stream, so you can set up pipe chains like so
-        ```js
-        (let [r (. fs createReadStream "foo.edn")
-              z (. zlib createGzip)
-              w (. fs createWriteStream "foo.edn.gz")]
-          (-> r
-            (.pipe z)
-            (.pipe w)))
-        ```
-      - By default stream.end() is called on the destination when the source stream emits 'end', so that destination is no longer writable. Pass ```:end false``` an opt to keep the destination stream open.
-        ```js    
-        (.pipe reader writer {:end false})
-        (.on reader "end" (fn [] (.end writer "Goodbye!\n")))
-        ```
-      - emulate UNIX cat:
-            process.stdin.pipe(process.stdout);
-      - Note that process.stderr and process.stdout are never closed until the process exits, regardless of the specified options.
+  - ##### __pipe__  (dest, ?opts) -> dest stream
+    - This method pulls all the data out of a readable stream, and writes it to the supplied destination, automatically managing the flow so that the destination is not overwhelmed by a fast readable stream.
+    - Multiple destinations can be piped to safely.
+    - __dest__: Writable Stream, destination for writing data
+    - __opts__:
+      - ```:end true```
+        - End the writer when the reader ends.
+    - returns the destination stream, so you can set up pipe chains like so
+      ```js
+      (let [r (. fs createReadStream "foo.edn")
+            z (. zlib createGzip)
+            w (. fs createWriteStream "foo.edn.gz")]
+        (-> r
+          (.pipe z)
+          (.pipe w)))
+      ```
+    - By default stream.end() is called on the destination when the source stream emits 'end', so that destination is no longer writable. Pass ```:end false``` an opt to keep the destination stream open.
+      ```js    
+      (.pipe reader writer {:end false})
+      (.on reader "end" (fn [] (.end writer "Goodbye!\n")))
+      ```
+    - emulate UNIX cat:
+          process.stdin.pipe(process.stdout);
+    - Note that process.stderr and process.stdout are never closed until the process exits, regardless of the specified options.
 
-    - ##### __read__  ( ^int ?size) -> str|buffer|nil
-      - size: Optional argument to specify how much data to read.
-      - The `read()` method pulls some data out of the internal buffer and
-      returns it.
-      - If there is no data available, then it will return
-     `null`.
-      - If you do not specify a `size` argument, then it will return all the
-     data in the internal buffer.
-      - If you pass in a `size` argument, then it will return that many
-     bytes. If `size` bytes are not available, then it will return `null`,
-     unless we've ended, in which case it will return the data remaining
-     in the buffer.
-      - If this method returns a data chunk, then it will also trigger the
-      emission of a `'data'` event.
-      - Note that calling [`stream.read([size])`][stream-read] after the [`'end'`][] event has been triggered will return `null`. No runtime error will be raised.      
-      - This method should only be called in paused mode. In flowing mode,
-      this method is called automatically until the internal buffer is
-      drained.
-        ```js
-        (.on r "readable"
-          (fn []
-            (let [chunks (take-while identity (repeatedly  #(.read r 1)))]
-              (doseq [chunk chunks]
-                (println "got " (.-length chunk) " bytes of data" )))))
-        ```
+  - ##### __read__  ( ^int ?size) -> str|buffer|nil
+    - size: Optional argument to specify how much data to read.
+    - The `read()` method pulls some data out of the internal buffer and
+    returns it.
+    - If there is no data available, then it will return
+   `null`.
+    - If you do not specify a `size` argument, then it will return all the
+   data in the internal buffer.
+    - If you pass in a `size` argument, then it will return that many
+   bytes. If `size` bytes are not available, then it will return `null`,
+   unless we've ended, in which case it will return the data remaining
+   in the buffer.
+    - If this method returns a data chunk, then it will also trigger the
+    emission of a `'data'` event.
+    - Note that calling [`stream.read([size])`][stream-read] after the [`'end'`][] event has been triggered will return `null`. No runtime error will be raised.      
+    - This method should only be called in paused mode. In flowing mode,
+    this method is called automatically until the internal buffer is
+    drained.
+      ```js
+      (.on r "readable"
+        (fn []
+          (let [chunks (take-while identity (repeatedly  #(.read r 1)))]
+            (doseq [chunk chunks]
+              (println "got " (.-length chunk) " bytes of data" )))))
+      ```
 
-    - ##### __resume__ () -> this
-      - This method will cause the readable stream to resume emitting [`'data'`][] events.
-      - __This method will switch the stream into flowing mode.__ If you do *not* want to consume the data from a stream, but you *do* want to get to its [`'end'`][] event, you can call [`stream.resume()`][stream-resume] to open the flow of data.
+  - ##### __resume__ () -> this
+    - This method will cause the readable stream to resume emitting [`'data'`][] events.
+    - __This method will switch the stream into flowing mode.__ If you do *not* want to consume the data from a stream, but you *do* want to get to its [`'end'`][] event, you can call [`stream.resume()`][stream-resume] to open the flow of data.
 
-        ```js
-        ...
-        (.on r "end"
-          (fn [] (println "got to the end, but did not read anything"))
-        ...
-        (.resume r)
-        ```      
+      ```js
+      ...
+      (.on r "end"
+        (fn [] (println "got to the end, but did not read anything"))
+      ...
+      (.resume r)
+      ```      
 
-    - ##### __setEncoding__ (^string encoding) -> this
-      - cause the stream to return strings of the specified encoding instead of Buffer objects.
-      - For example, if you do `readable.setEncoding('utf8')`, then the output data will be interpreted as UTF-8 data, and returned as strings. If you do `readable.setEncoding('hex')`, then the data will be encoded in hexadecimal string format.
-      - This properly handles multi-byte characters that would otherwise be potentially mangled if you simply pulled the Buffers directly and called [`buf.toString(encoding)`][] on them. If you want to read the data as strings, always use this method.
-        ```js
-        (.setEncoding r "utf8")
-        (.on r "data"
-          (fn [chunk]
-            (assert (string? (type chunk)))
-            (println "got " (.-length chunk) " characters of string data")))
-        ```
+  - ##### __setEncoding__ (^string encoding) -> this
+    - cause the stream to return strings of the specified encoding instead of Buffer objects.
+    - For example, if you do `readable.setEncoding('utf8')`, then the output data will be interpreted as UTF-8 data, and returned as strings. If you do `readable.setEncoding('hex')`, then the data will be encoded in hexadecimal string format.
+    - This properly handles multi-byte characters that would otherwise be potentially mangled if you simply pulled the Buffers directly and called [`buf.toString(encoding)`][] on them. If you want to read the data as strings, always use this method.
+      ```js
+      (.setEncoding r "utf8")
+      (.on r "data"
+        (fn [chunk]
+          (assert (string? (type chunk)))
+          (println "got " (.-length chunk) " characters of string data")))
+      ```
 
-    - ##### __unpipe__ (?dest)
-      - This method will remove the hooks set up for a previous [`stream.pipe()`][]
-      call.
-      - dest refers to optional specific stream to unpipe.
-      - If the destination is not specified, then all pipes are removed.
-      - If the destination is specified, but no pipe is set up for it, then this is a no-op.
-        ```js
-        (def readable (getReadableStreamSomehow))
-        (def writable (. fs createWriteStream "file.txt")
-        // All the data from readable goes into 'file.txt',
-        // but only for the first second
-        (.pipe readable writable)
-        (js/setTimeout
-          (fn []
-            (println 'stop writing to file.txt')
-            (.unpipe readable writable)
-            (println 'manually close the file stream')
-            (.end writable))
-          1000)
-        ```
+  - ##### __unpipe__ (?dest)
+    - This method will remove the hooks set up for a previous [`stream.pipe()`][]
+    call.
+    - dest refers to optional specific stream to unpipe.
+    - If the destination is not specified, then all pipes are removed.
+    - If the destination is specified, but no pipe is set up for it, then this is a no-op.
+      ```js
+      (def readable (getReadableStreamSomehow))
+      (def writable (. fs createWriteStream "file.txt")
+      // All the data from readable goes into 'file.txt',
+      // but only for the first second
+      (.pipe readable writable)
+      (js/setTimeout
+        (fn []
+          (println 'stop writing to file.txt')
+          (.unpipe readable writable)
+          (println 'manually close the file stream')
+          (.end writable))
+        1000)
+      ```
 
-    - ##### __unshift__ (chunk)
-      - chunk: Buffer|String, Chunk of data to unshift onto the read queue
-      - This is useful in certain cases where a stream is being consumed by a parser, which needs to "un-consume" some data that it has optimistically pulled out of the source, so that the stream can be passed on to some other party.
-      - Note that `stream.unshift(chunk)` cannot be called after the [`'end'`][] event has been triggered; a runtime error will be raised.
-      - Example:
-        1. Pull off a header delimited by \n\n
-        2. use unshift() if we get too much
-        3. Call the callback with (error, header, stream)
-        ```js
-          (def StringDecoder (. (require "string_decoder") -StringDecoder))
+  - ##### __unshift__ (chunk)
+    - chunk: Buffer|String, Chunk of data to unshift onto the read queue
+    - This is useful in certain cases where a stream is being consumed by a parser, which needs to "un-consume" some data that it has optimistically pulled out of the source, so that the stream can be passed on to some other party.
+    - Note that `stream.unshift(chunk)` cannot be called after the [`'end'`][] event has been triggered; a runtime error will be raised.
+    - Example:
+      1. Pull off a header delimited by \n\n
+      2. use unshift() if we get too much
+      3. Call the callback with (error, header, stream)
+      ```js
+        (def StringDecoder (. (require "string_decoder") -StringDecoder))
 
-          (defn parseHeader
-            [strm cb]
-            (let [decoder    (StringDecoder. "utf8")
-                  header     (atom "")
-                  onReadable (fn onReadable []
-                              (while-let [chunk (.read strm)]
-                                (let [s (.write decoder chunk)]
-                                  (if (.match s #"\n\n")
-                                    (let [splt      (.split s #"\n\n")
-                                          _         (swap! header str (.shift splt))
-                                          remaining (.join splt "\n\n")
-                                          buf       (Buffer. remaining "utf8")]
-                                      (if (.-length buf)
-                                        (.unshift strm buf)) ;<--
-                                      (-> strm
-                                        (.removeListener "error" cb)
-                                        (.removeListener "readable" onReadable))
-                                      (cb nil @header strm))
-                                    (swap! header str s)))))]
-              (-> strm
-                (.on "error" cb)
-                (.on "readable" onReadable))))
-        ```
-      - Note that, unlike [`stream.push(chunk)`][stream-push], `stream.unshift(chunk)`
-      will not end the reading process by resetting the internal reading state of the
-      stream. This can cause unexpected results if `unshift()` is called during a
-      read (i.e. from within a [`stream._read()`][stream-_read] implementation on a
-      custom stream). Following the call to `unshift()` with an immediate
-      [`stream.push('')`][stream-push] will reset the reading state appropriately,
-      however it is best to simply avoid calling `unshift()` while in the process of
-      performing a read.
+        (defn parseHeader
+          [strm cb]
+          (let [decoder    (StringDecoder. "utf8")
+                header     (atom "")
+                onReadable (fn onReadable []
+                            (while-let [chunk (.read strm)]
+                              (let [s (.write decoder chunk)]
+                                (if (.match s #"\n\n")
+                                  (let [splt      (.split s #"\n\n")
+                                        _         (swap! header str (.shift splt))
+                                        remaining (.join splt "\n\n")
+                                        buf       (Buffer. remaining "utf8")]
+                                    (if (.-length buf)
+                                      (.unshift strm buf)) ;<--
+                                    (-> strm
+                                      (.removeListener "error" cb)
+                                      (.removeListener "readable" onReadable))
+                                    (cb nil @header strm))
+                                  (swap! header str s)))))]
+            (-> strm
+              (.on "error" cb)
+              (.on "readable" onReadable))))
+      ```
+    - Note that, unlike [`stream.push(chunk)`][stream-push], `stream.unshift(chunk)`
+    will not end the reading process by resetting the internal reading state of the
+    stream. This can cause unexpected results if `unshift()` is called during a
+    read (i.e. from within a [`stream._read()`][stream-_read] implementation on a
+    custom stream). Following the call to `unshift()` with an immediate
+    [`stream.push('')`][stream-push] will reset the reading state appropriately,
+    however it is best to simply avoid calling `unshift()` while in the process of
+    performing a read.
 
 
   + ### __Properties__
@@ -325,11 +322,6 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
         (FileInputStream.  'sample.txt' {start: 90, end: 99})
         ```
 
-
-
-
-
-
 <hr>
 
 
@@ -340,7 +332,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
 
 ### cljs-node-io.streams/ReadableStream
 #### `(ReadableStream  options)`
-  - a wrapper around stream.Readable that calls its constructor so that buffering setting are properly initialized
+  - a wrapper around stream.Readable that calls its constructor so that buffering settings are properly initialized
   * `options` : map
     * `:highWaterMark` : Int
       - The maximum number of bytes to store in

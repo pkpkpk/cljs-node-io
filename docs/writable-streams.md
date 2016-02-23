@@ -1,18 +1,14 @@
 # WriteStream (stream.writable)
-The Writable stream interface is an abstraction for a *destination*
-that you are writing data *to*.
-
-Examples of writable streams include:
-
-* [HTTP requests, on the client][]
-* [HTTP responses, on the server][]
-* [fs write streams][]
-* [zlib streams][zlib]
-* [crypto streams][crypto]
-* [TCP sockets][]
-* [child process stdin][]
-* [`process.stdout`][], [`process.stderr`][]
-
+  + The Writable stream interface is an abstraction for a *destination* that you are writing data *to*.
+  + Examples of writable streams include:
+    * HTTP requests, on the client
+    * HTTP responses, on the server
+    * *FileOutputStream* (fs write streams)
+    * zlib streams
+    * crypto streams
+    * TCP sockets
+    * child process stdin
+    * `process.stdout`, `process.stderr`
 
 + ### events
 
@@ -86,7 +82,6 @@ Examples of writable streams include:
     - filestream only
     - fd: file descriptor for the file being opened
 
-
 + ### methods
 
   - #### cork ()
@@ -122,3 +117,59 @@ Examples of writable streams include:
       - `false` the data was buffered internally
        - you can keep writing, but it eats up memory so be cautious.
           - wait for `"drain"`
+
+
+<hr>
+
+# FileOutputStream
+### methods
+### properties
+  * __bytesWritten__
+    - The number of bytes written so far. Does not include data that is still queued for writing.
+
+
+<hr>
+
+
+# Implementing Writable Streams :
+
+### cljs-node-io.streams/WritableStream
+#### `(WritableStream  options)`
+  - a wrapper around stream.Writable that calls its constructor so that buffering settings are properly initialized
+  * `options` : map
+    * `:highWaterMark` : Int
+      - Buffer level when `stream.write()` starts returning `false`
+      - Default = `16384` (16kb), or `16` for `objectMode` streams.
+    * `:decodeStrings` : Boolean
+      - Whether or not to decode strings into Buffers before passing them to `stream._write()`
+      - Default : `true`
+    * `:objectMode` : Boolean
+      - Whether or not the `stream.write(anyObj)` is a valid operation.
+      - If set you can write arbitrary data instead of only `Buffer` / `String` data.
+      - Default : `false`
+    * `:write` : Function
+      - implementation for stream._write() (see below)
+      - *Required*
+    * `:writev` : Function
+      - Implementation for stream._writev() (see below)
+
+#### writable.\_write(chunk, encoding, callback)
+  * `chunk` : Buffer|strings
+    - the chunk to be writter
+    - will always be a buffer unless `:decodeStrings false`
+  * `encoding` : strings
+    - If chunk is a string, then use this encodings
+    - If chunk is a buffer, then encoding is ignored
+  * `callback` : function
+    - call this optionally w/ an error when you are done processing the supplied channel
+  * all writable stream implementations must provide a `stream._write` method to send data to the underlying resource.
+    - it must *not* be called directly, is used by internals
+  * call the callback using the standard cb(err) to signal write completed successfully or with an error.
+  * if `decodeStrings true` is set at class construction, then `chunk` arg can be a string and not a Buffer, relying on what you pass as `encoding`
+
+#### writable.\_writev(chunks, cb)
+  * `chunks` : Array
+    - chunks to be written, where each chunk has format:
+      `#js{"chunk" .... , "encoding" ...}`
+  * this function is optional. If implemented, is called with all the chunks that are buffered in the write queue
+  * must not be called directly
