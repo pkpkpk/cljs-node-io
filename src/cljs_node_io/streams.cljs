@@ -23,7 +23,7 @@
 (defn stream-reader [st opts] st) ; good place to setup async handlers?
 
 
-(defn attach-input-impls! [filestreamobj]
+(defn attach-input-impls! [filestreamobj] ; <THIS IS FILE STREAM specific
   (let [filedesc      (atom nil)
         _             (set! (.-constructor filestreamobj) :FileInputStream)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
@@ -108,7 +108,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn ReadableStream
-  [{:keys [highWaterMark encoding objectMode read] :as opts}]
+  [{:keys [read] :as opts}]
   (assert (map? opts) "you must pass a map of constructor options containing at least a :read k-v pair")
-  (assert (fn? read) "you must supply an internal read function when creating your own read stream")
+  (assert (fn? read) "you must supply an internal :read function when creating a read stream")
   (new stream.Readable (clj->js opts)))
+
+(defn WritableStream
+  [{:keys [write] :as opts}]
+  (assert (map? opts) "you must pass a map of constructor options containing at least a :write k-v pair")
+  (assert (fn? write) "you must supply an internal :write function when creating writable streams")
+  (new stream.Writable (clj->js opts)))
+
+(defn DuplexStream
+  [{:keys [read write] :as opts}]
+  (assert (map? opts) "you must pass a map of constructor options containing at least :read & :write fns")
+  (assert (and (fn? read) (fn? write)) "you must supply :read & :write fns when creating duplex streams.")
+  (new stream.Duplex (clj->js opts)))
