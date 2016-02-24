@@ -12,27 +12,24 @@ you are ready to receive it.
 Readable streams have two "modes": a **flowing mode** and a **paused
 mode**. When in flowing mode, data is read from the underlying system
 and provided to your program as fast as possible. In paused mode, you
-must explicitly call [`stream.read()`][stream-read] to get chunks of data out.
+must explicitly call `stream.read()` to get chunks of data out.
 Streams start out in paused mode.
 
-**Note**: If no data event handlers are attached, and there are no
-[`stream.pipe()`][] destinations, and the stream is switched into flowing
+**Note**: If no data event handlers are attached, and there are no `stream.pipe()` destinations, and the stream is switched into flowing
 mode, then data will be lost.
 
 You can switch to flowing mode by doing any of the following:
 
-* Adding a [`'data'`][] event handler to listen for data.
-* Calling the [`stream.resume()`][stream-resume] method to explicitly open the
+* Adding a `'data'` event handler to listen for data.
+* Calling the `stream.resume()` method to explicitly open the
   flow.
-* Calling the [`stream.pipe()`][] method to send the data to a [Writable][].
+* Calling the `stream.pipe()` method to send the data to a Writable.
 
 You can switch back to paused mode by doing either of the following:
 
-* If there are no pipe destinations, by calling the
-  [`stream.pause()`][stream-pause] method.
-* If there are pipe destinations, by removing any [`'data'`][] event
-  handlers, and removing all pipe destinations by calling the
-  [`stream.unpipe()`][] method.
+* If there are no pipe destinations, by calling the `stream.pause()` method.
+* If there are pipe destinations, by removing any `'data'` event
+  handlers, and removing all pipe destinations by calling the `stream.unpipe()` method.
 
 Note that, for backwards compatibility reasons, removing [`'data'`][]
 event handlers will **not** automatically pause the stream. Also, if
@@ -42,14 +39,14 @@ destinations drain and ask for more data.
 
 Examples of readable streams include:
 
-* [HTTP responses, on the client][http-incoming-message]
-* [HTTP requests, on the server][http-incoming-message]
-* [fs read streams][]
-* [zlib streams][zlib]
-* [crypto streams][crypto]
-* [TCP sockets][]
-* [child process stdout and stderr][]
-* [`process.stdin`][]
+* HTTP responses, on the client
+* HTTP requests, on the server
+* fs read streams
+* zlib streams
+* crypto streams
+* TCP sockets
+* child process stdout and stderr
+* `process.stdin`
 
 
 
@@ -62,7 +59,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - In some cases, listening for a 'readable' event will cause some data to be read into the internal buffer from the underlying system, if it hadn't already.
     - Once the internal buffer is drained, a 'readable' event will fire again when more data is available.
 
-      ```js
+      ```clj
       (.on r "readable"
         (fn []
           (println  "there is some data to read now")))
@@ -70,7 +67,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - The 'readable' event is not emitted in the "flowing" mode with the sole exception of the last one, on end-of-stream.
     - The 'readable' event indicates that the stream has new information: either new data is available or the end of the stream has been reached. In the former case, stream.read() will return that data. In the latter case, stream.read() will return null. For instance, in the following example, foo.txt is an empty file:
 
-      ```js
+      ```clj
       (def r (. fs createReadStream "foo.txt"))
 
       (-> r
@@ -91,7 +88,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   * ##### __"data"__ (Buffer|string)
       - Attaching a 'data' event listener to a stream that has not been explicitly paused will switch the stream into flowing mode. Data will then be passed as soon as it is available.
       - If you just want to get all the data out of the stream as fast as possible, this is the best way to do so.    
-        ```js
+        ```clj
         (.on r "data"
           (fn [chunk]
             (println  "got " (.-length chunk) " bytes of data" )))
@@ -103,7 +100,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   * ##### __"end"__ ()
     - This event fires when there will be no more data to read.
     - Note that the 'end' event will not fire unless the data is completely consumed. This can be done by switching into flowing mode, or by calling stream.read() repeatedly until you get to the end.
-      ```js
+      ```clj
       (-> r
         (.on "data"
           (fn [chunk] (println  "got " (.-length chunk) " bytes of data" )))
@@ -124,7 +121,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   - ##### __isPaused__ ()-> bool
     - This method returns whether or not the readable has been explicitly paused by client code (using stream.pause() without a corresponding stream.resume())
 
-      ```js
+      ```clj
       (def readable (new stream.Readable))
       (.isPaused readable) // === false
       (.pause readable)
@@ -136,7 +133,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   - ##### __pause__ ()->this
     - This method will cause a stream in flowing mode to stop emitting 'data' events, switching out of flowing mode. Any data that becomes available will remain in the internal buffer.
 
-      ```js
+      ```clj
       (.on readable 'data',
         (fn [chunk]
           (println "got" (.-length chunk) "bytes of data")
@@ -157,7 +154,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
       - ```:end true```
         - End the writer when the reader ends.
     - returns the destination stream, so you can set up pipe chains like so
-      ```js
+      ```clj
       (let [r (. fs createReadStream "foo.edn")
             z (. zlib createGzip)
             w (. fs createWriteStream "foo.edn.gz")]
@@ -166,7 +163,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
           (.pipe w)))
       ```
     - By default stream.end() is called on the destination when the source stream emits 'end', so that destination is no longer writable. Pass ```:end false``` an opt to keep the destination stream open.
-      ```js    
+      ```clj
       (.pipe reader writer {:end false})
       (.on reader "end" (fn [] (.end writer "Goodbye!\n")))
       ```
@@ -188,11 +185,11 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
    in the buffer.
     - If this method returns a data chunk, then it will also trigger the
     emission of a `'data'` event.
-    - Note that calling [`stream.read([size])`][stream-read] after the [`'end'`][] event has been triggered will return `null`. No runtime error will be raised.      
+    - Note that calling `stream.read([size])` after the `'end'` event has been triggered will return `null`. No runtime error will be raised.      
     - This method should only be called in paused mode. In flowing mode,
     this method is called automatically until the internal buffer is
     drained.
-      ```js
+      ```clj
       (.on r "readable"
         (fn []
           (let [chunks (take-while identity (repeatedly  #(.read r 1)))]
@@ -202,9 +199,9 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
 
   - ##### __resume__ () -> this
     - This method will cause the readable stream to resume emitting [`'data'`][] events.
-    - __This method will switch the stream into flowing mode.__ If you do *not* want to consume the data from a stream, but you *do* want to get to its [`'end'`][] event, you can call [`stream.resume()`][stream-resume] to open the flow of data.
+    - __This method will switch the stream into flowing mode.__ If you do *not* want to consume the data from a stream, but you *do* want to get to its `'end'` event, you can call `stream.resume()` to open the flow of data.
 
-      ```js
+      ```clj
       ...
       (.on r "end"
         (fn [] (println "got to the end, but did not read anything"))
@@ -216,7 +213,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - cause the stream to return strings of the specified encoding instead of Buffer objects.
     - For example, if you do `readable.setEncoding('utf8')`, then the output data will be interpreted as UTF-8 data, and returned as strings. If you do `readable.setEncoding('hex')`, then the data will be encoded in hexadecimal string format.
     - This properly handles multi-byte characters that would otherwise be potentially mangled if you simply pulled the Buffers directly and called [`buf.toString(encoding)`][] on them. If you want to read the data as strings, always use this method.
-      ```js
+      ```clj
       (.setEncoding r "utf8")
       (.on r "data"
         (fn [chunk]
@@ -225,12 +222,12 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
       ```
 
   - ##### __unpipe__ (?dest)
-    - This method will remove the hooks set up for a previous [`stream.pipe()`][]
+    - This method will remove the hooks set up for a previous `stream.pipe()`
     call.
     - dest refers to optional specific stream to unpipe.
     - If the destination is not specified, then all pipes are removed.
     - If the destination is specified, but no pipe is set up for it, then this is a no-op.
-      ```js
+      ```clj
       (def readable (getReadableStreamSomehow))
       (def writable (. fs createWriteStream "file.txt")
       // All the data from readable goes into 'file.txt',
@@ -248,20 +245,20 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   - ##### __unshift__ (chunk)
     - chunk: Buffer|String, Chunk of data to unshift onto the read queue
     - This is useful in certain cases where a stream is being consumed by a parser, which needs to "un-consume" some data that it has optimistically pulled out of the source, so that the stream can be passed on to some other party.
-    - Note that `stream.unshift(chunk)` cannot be called after the [`'end'`][] event has been triggered; a runtime error will be raised.
+    - Note that `stream.unshift(chunk)` cannot be called after the `'end'` event has been triggered; a runtime error will be raised.
     - Example:
       1. Pull off a header delimited by \n\n
       2. use unshift() if we get too much
       3. Call the callback with (error, header, stream)
-      ```js
+      ```clj
         (def StringDecoder (. (require "string_decoder") -StringDecoder))
 
         (defn parseHeader
-          [strm cb]
+          [rstream cb]
           (let [decoder    (StringDecoder. "utf8")
                 header     (atom "")
                 onReadable (fn onReadable []
-                            (while-let [chunk (.read strm)]
+                            (while-let [chunk (.read rstream)]
                               (let [s (.write decoder chunk)]
                                 (if (.match s #"\n\n")
                                   (let [splt      (.split s #"\n\n")
@@ -269,22 +266,22 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
                                         remaining (.join splt "\n\n")
                                         buf       (Buffer. remaining "utf8")]
                                     (if (.-length buf)
-                                      (.unshift strm buf)) ;<--
-                                    (-> strm
+                                      (.unshift rstream buf)) ;<--
+                                    (-> rstream
                                       (.removeListener "error" cb)
                                       (.removeListener "readable" onReadable))
-                                    (cb nil @header strm))
+                                    (cb nil @header rstream))
                                   (swap! header str s)))))]
-            (-> strm
+            (-> rstream
               (.on "error" cb)
               (.on "readable" onReadable))))
       ```
-    - Note that, unlike [`stream.push(chunk)`][stream-push], `stream.unshift(chunk)`
+    - Note that, unlike `stream.push(chunk)`, `stream.unshift(chunk)`
     will not end the reading process by resetting the internal reading state of the
     stream. This can cause unexpected results if `unshift()` is called during a
-    read (i.e. from within a [`stream._read()`][stream-_read] implementation on a
+    read (i.e. from within a `stream._read()` implementation on a
     custom stream). Following the call to `unshift()` with an immediate
-    [`stream.push('')`][stream-push] will reset the reading state appropriately,
+    `stream.push('')` will reset the reading state appropriately,
     however it is best to simply avoid calling `unshift()` while in the process of
     performing a read.
 
@@ -362,23 +359,24 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - This method has an underscore prefix because it is internal to the class that defines it
     - should only be called by the internal Readable class methods.
     - All Readable stream implementations must provide a \_read method to fetch data from the underlying resource.
-  * When `_read()` is called, if data is available from the resource, the `_read()`
-  implementation should start pushing that data into the read queue by calling
-  `this.push(dataChunk)`
-    - `_read()` should continue reading + pushing data until push returns `false`, at which point it should stop reading from the resource.
-      - once the `_read()` method is called, it will not be called again until the `stream.push()` method is called.
-    - Only when `_read()` is called again after it has stopped should it start reading more data from the resource and pushing that data onto the queue.
 
+1. `_read()` should continue reading + pushing data while `.push(chunk) -> true`
+  - once the `_read()` is called, is not called again until the `.push()` method is called
+2.  when `.push(chunk)` -> `false`, stop reading from the resource.
+  - Only when `_read()` is called again after it has stopped should it start reading more data from the resource and pushing that data onto the queue.
+3. when data is no longer available, call `.push(nil)` to end the stream.
+
+
+ <hr>
 
 #### readable.push(chunk,  ?encoding) -> Boolean
+  - **this method is provided, use it in your internal read fn**
   * `chunk` : Buffer|Null|String
     - Chunk of data to push into the read queue
   * `encoding` : String
     - Encoding of String chunks.  Must be a valid Buffer encoding, such as `"utf8"` or `"ascii"`
   * return : Boolean
     - Whether or not more pushes should be performed
-  - ** Note: This method should be \_\_called\_\_ by Readable implementors, NOT
-  by consumers of Readable streams.**
   * If a value other than null is passed, The `push()` method adds a chunk of data
   into the queue for subsequent stream processors to consume. If `null` is
   passed, it signals the end of the stream (EOF), after which no more data
