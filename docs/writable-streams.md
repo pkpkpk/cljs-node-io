@@ -148,10 +148,10 @@
       - If set you can write arbitrary data instead of only `Buffer` / `String` data.
       - Default : `false`
     * `:write` : Function
-      - implementation for stream._write() (see below)
+      - implementation for stream.\_write() (see below)
       - *Required*
     * `:writev` : Function
-      - Implementation for stream._writev() (see below)
+      - Implementation for stream.\_writev() (see below)
 
 #### writable.\_write(chunk, encoding, callback)
   * `chunk` : Buffer|strings

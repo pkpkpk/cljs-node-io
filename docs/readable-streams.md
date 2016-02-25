@@ -347,29 +347,30 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
       - *Required*
 
 
-#### readable.\_read(size)
-  * `size` : Int : Number of bytes to read asynchronously
-   -  this arg is advisory. Implementations where a "read" is a
-     single call that returns data can use this to know how much data to
-     fetch. Implementations where that is not relevant, such as TCP or
-     TLS, may ignore this argument, and simply provide data whenever it
-     becomes available. There is no need, for example to "wait" until
-     `size` bytes are available before calling `stream.push(chunk)`
-  * ** Note: \_\_Implement\_\_ this method, but do NOT call it directly.**
+#### `readable.\_read(size)`
+
+  * `size` : Int
+    - Number of bytes to read asynchronously
+    -  this arg is advisory. Implementations where a "read" is a single call that returns data can use this to know how much data to fetch. Implementations where that is not relevant, such as TCP or TLS, may ignore this argument, and simply provide data whenever it becomes available. There is no need, for example to "wait" until `size` bytes are available before calling `stream.push(chunk)`
+
+
+  * The purpose of this function is to obtain data from some underlying resource and place it into the stream's internal buffer via `.push(chunk)`. The details of that resource are up to you, but you should make decisions based on the return value of `.push(chunk)` in addition to the status of your resource
+    - *You are required to implement this method, but do NOT call it directly.*
     - This method has an underscore prefix because it is internal to the class that defines it
+      - it is not the same thing as `ReadableInstance.read()` above
     - should only be called by the internal Readable class methods.
     - All Readable stream implementations must provide a \_read method to fetch data from the underlying resource.
 
 1. `_read()` should continue reading + pushing data while `.push(chunk) -> true`
-  - once the `_read()` is called, is not called again until the `.push()` method is called
+  - once the `_read()` is called, it is not called again until the `.push()` method is called
 2.  when `.push(chunk)` -> `false`, stop reading from the resource.
   - Only when `_read()` is called again after it has stopped should it start reading more data from the resource and pushing that data onto the queue.
-3. when data is no longer available, call `.push(nil)` to end the stream.
+3. when data from your resource is exhausted, call `.push(nil)` to end the stream.
 
 
  <hr>
 
-#### readable.push(chunk,  ?encoding) -> Boolean
+#### `readable.push(chunk,  ?encoding)` -> Boolean
   - **this method is provided, use it in your internal read fn**
   * `chunk` : Buffer|Null|String
     - Chunk of data to push into the read queue
@@ -388,13 +389,10 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
 
 
 #### Example: A Counting Stream
-
-  <!--type=example-->
-
   This is a basic example of a Readable stream. It emits the numerals
   from 1 to 10 in ascending order, and then ends.
 
-```js
+```clj
 (defn counter []
   (let [_max  10
         index (atom 0)
@@ -409,4 +407,27 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     (ReadableStream {:read _read})))
 
 (.pipe (counter) (.-stdout js/process))
+```
+
+#### Example: A Stateful Object-Readable-Stream
+  This stream accesses a clojure vector via a clojure and drops its head with every read call
+  - this is an object stream so it returns clj data structures!
+
+```clj
+
+(let [counter (atom [1 2 3 4 5 6 7 8 9 10])
+      opts {:objectMode true
+            :read (fn [_]
+                    (this-as this
+                      (if (and @counter (.push this (vec @counter)))
+                        (swap! counter next)
+                        (if-not @counter
+                          (.push this nil)))))}
+      r  (ReadableStream opts)]
+  (-> r
+    (.once "readable" (fn [] (println (take-while identity (repeatedly #(.read r))))))
+    (.on "end" #(js/console.log "\nWe've reached the end!!"))))
+
+;=> ([1 2 3 4 5 6 7 8 9 10] ... [8 9 10] [9 10] [10])
+
 ```
