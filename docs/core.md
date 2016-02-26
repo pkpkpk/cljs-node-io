@@ -94,3 +94,7 @@
 
 * __file-seq__
   - A lazy tree seq on files in a directory
+
+
+* __error?__
+  - a predicate fn that checks if an object is an instance of js/Error
