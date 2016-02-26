@@ -88,7 +88,7 @@
   "Builds an appropriate write method given opts and attaches it to the reified file.
    Returns the passed file.
     TODO if :stream? true, returns a chan which receives FileOutputStream asynchronously?
-    - opts: encoding, append?, async?, stream?
+    - opts: :encoding, :append, :async?, :stream?
     - if content is a Buffer instance, opt encoding is ignored
     - if :async? true, file.write() returns a chan which receives err|true on successful write."
   [file opts]
@@ -126,7 +126,7 @@
                       (make-reader [^File this opts] (file-reader this opts))
                       (make-writer [^File this opts] (file-writer this opts))
                       (make-input-stream [^File this opts] (FileInputStream. this opts))
-                      (make-output-stream [^File this opts] (FileOutputStream. this (append? opts)) opts)
+                      (make-output-stream [^File this opts] (FileOutputStream. this  opts))
                       IPrintWithWriter
                       (-pr-writer [this writer opts] ;#object[java.io.File 0x751b0a12 "foo\\bar.txt"]
                         (-write writer "#object [cljs-node-io.File")
@@ -253,5 +253,6 @@
     (let [tmpd (or dir (.tmpdir os))
           path (str tmpd (.-sep path) prefix (or suffix ".tmp"))
           f    (File. path)
-          _    (.deleteOnExit f)]
+          ; _    (.deleteOnExit f)
+          ]
       f)))
