@@ -292,7 +292,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
 
 <hr>
 ###  cljs-node-io.streams/FileInputStream
-  + `(FileInputStream. fileable {opts} ) `
+  + `(FileInputStream. fileable {opts} ) ` -> stream-object
   + Be aware that, unlike the default value set for highWaterMark on a readable stream (16 kb), the stream returned by this method has a default value of 64 kb for the same parameter.
   + __options__
     - options can include `start` and `end` values to read a range of bytes from the file instead of the entire file.

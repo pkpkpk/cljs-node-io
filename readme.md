@@ -43,6 +43,7 @@
   * jsDoc
   + test advanced compilation
   + script examples, w/ CLI args
+  + translate transform stream doc example
   * verify degenerate cases, type returns
   * verify opts keys through all paths. :append? :async? :stream?
     - should be :append like clojure semantics? "?" hints bool though
