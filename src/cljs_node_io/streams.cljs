@@ -55,11 +55,10 @@
 
 
 (defn FileInputStream* [src opts]
-  (let [c         (chan)
-        streamobj (.createReadStream fs (filepath src) (clj->js opts))
+  (let [streamobj (.createReadStream fs (filepath src) (clj->js opts))
         _         (attach-input-impls! streamobj)]
-    (put! c streamobj)
-    c))
+
+    streamobj))
 
 
 (defn FileInputStream ; file|string|file-descriptor => stream-object => Buffer
@@ -124,3 +123,9 @@
   (assert (map? opts) "you must pass a map of constructor options containing at least :read & :write fns")
   (assert (and (fn? read) (fn? write)) "you must supply :read & :write fns when creating duplex streams.")
   (new stream.Duplex (clj->js opts)))
+
+(defn TransformStream
+  [{:keys [transform] :as opts}]
+  (assert (map? opts) "you must pass a map of constructor options containing at least :read & :write fns")
+  (assert (and (fn? transform)) "you must supply :read & :write fns when creating duplex streams.")
+  (new stream.Transform (clj->js opts)))
