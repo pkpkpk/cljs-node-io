@@ -53,15 +53,7 @@
       - https://docs.oracle.com/javase/7/docs/api/java/net/URL.html#openStream()
   * __line-seq  + test __
   * __xml-seq  + test __
-  * __Streams__
-    - reader + writer
-    - types
-        - file
-        - object streams,
-        - duplex streams,
-        - transform streams,
-        - gcl node-object-stream ??
-    - java.io.FileInputStream API
+  * java.io.FileInputStream API etc
       - available
       - close
       - finalize
@@ -70,47 +62,24 @@
   *  __zlib__
     - zip/unzip files? directories?
   * __transit w/ object stream??__
+  * [ ] __extend Sockets & byteArrays with   coercions & IOFactory__
   * [ ]__copy__
-    - ```(copy input output & opts)```  
-    - easiest: coerce args to streams and the just pipe it over?
+    - [x] easiest: coerce args to streams and the just pipe it over?
     - [ ] Test
     - Copies input to output.  Returns nil or throws IOException.
-    - __Input__ can be:
-      - [ ] InputStream
-      - [ ] Reader
-      - [ ] File
-      - [ ] byte[]
-      - [ ] String
-    - __Output__ may be:
-      - [ ] OutputStream
-      - [ ] Writer
-      - [ ] File
-      * [ ] string (coerced to file, not in clj api)
-    - Options are key/value pairs and may be one of
+    - [ ] Options are key/value pairs and may be one of
       - __:buffer-size__  buffer size to use, default is 1024.
       - __:encoding__     encoding to use if converting between byte and char streams.
-  * ~~[ ]__reader__~~
-  * ~~[ ]__writer__~~
-  * __input-stream__
-    * [x] inputstream
-    * [x] File
-    * [x] URI, URL
-    * [ ] Socket
-    * [ ] byteArray
-    * [x] string
-  * __output-stream__
-    * [x] outputstream
-    * [x] File
-    * [x] URI, URL
-    * [ ] Socket
-    * [ ] byteArray
-    * [x] string
+
 
 ### Issues
+  + test encodings throughout, streams + file readers + writers
+    - slurp + spit encodings are broken
+    - both direct constructors and indirection via option map passing all over the place
   - test ns specific temp file that doesnt have delete-on-exit listeners
   - if file is deleted make sure event listeners are removed? (delete on exit)
     -find way to manage deletion listeners
-  * slurp + spit encodings are broken
+
   * sslurp assumes file with extension, whereas slurp (should) opens reader variable types
   * delete-file should handle absolute paths, not just file objects
   * add mode to supported opts for reader & writer
