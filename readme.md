@@ -43,7 +43,6 @@
   * jsDoc
   + test advanced compilation
   + script examples, w/ CLI args
-  + translate transform stream doc example
   * verify degenerate cases, type returns
   * verify opts keys through all paths. :append? :async? :stream?
     - should be :append like clojure semantics? "?" hints bool though
@@ -89,30 +88,23 @@
       * [ ] string (coerced to file, not in clj api)
     - Options are key/value pairs and may be one of
       - __:buffer-size__  buffer size to use, default is 1024.
-      - __:encoding__     encoding to use if converting between byte and char streams.      
-    * __combinations__:
-      * [x] file file sync
-      * [ ] file file stream
-      * [x] file string sync
-      * [ ] file string stream      
-      * [x] string string sync
-      * [ ] string string stream
-  * [ ]__reader__
-  * [ ]__writer__
+      - __:encoding__     encoding to use if converting between byte and char streams.
+  * ~~[ ]__reader__~~
+  * ~~[ ]__writer__~~
   * __input-stream__
-    * [ ] inputstream
-    * [ ] File
-    * [ ] URI, URL
+    * [x] inputstream
+    * [x] File
+    * [x] URI, URL
     * [ ] Socket
     * [ ] byteArray
-    * [ ] string
+    * [x] string
   * __output-stream__
-    * [ ] outputstream
-    * [ ] File
-    * [ ] URI, URL
+    * [x] outputstream
+    * [x] File
+    * [x] URI, URL
     * [ ] Socket
     * [ ] byteArray
-    * [ ] string
+    * [x] string
 
 ### Issues
   - test ns specific temp file that doesnt have delete-on-exit listeners
