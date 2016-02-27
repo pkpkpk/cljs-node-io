@@ -10,9 +10,5 @@
 figwheel_server.log
 pom.xml
 *.edn
-file.js
-fs.js
 clj-java-io*
-moops*
 *foo.cljs
-stream_readable.js
