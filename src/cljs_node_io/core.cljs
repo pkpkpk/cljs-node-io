@@ -254,32 +254,14 @@
   (when-let [parent (.getParentFile ^File (apply file f more))]
     (.mkdirs parent)))
 
-(defn copy-filestream [input output opts] nil)
-
-(defmulti
-  ^{:doc "Internal helper for copy"
-     :private true
-     :arglists '([input output opts])}
-  do-copy
-  (fn [input output opts] [(type input) (type output)]))
 
 
-(defmethod do-copy [:File js/String] [^File input ^File output opts]
-  (let [in (slurp input)]
-   (spit output in opts)))
-
-(defmethod do-copy [js/String :File] [^File input ^File output opts]
-  (let [in (slurp input)]
-   (spit output in opts)))
-
-(defmethod do-copy [js/String js/String] [^File input ^File output opts]
-  (let [in (slurp input)]
-   (spit output in opts)))
-
-
-(defmethod do-copy [:File :File] [^File input ^File output opts]
-  (let [in (slurp input)]
-   (spit output in opts)))
+(defn do-copy [input output opts]
+  (let [in  (make-input-stream input opts)
+        out (make-output-stream output opts)]
+    (try
+      (do (.pipe in out) nil)
+      (catch js/Error e (throw e)))))
 
 (defn copy
   "Copies input to output.  Returns nil or throws IOException.
