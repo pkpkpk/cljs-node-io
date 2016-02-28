@@ -24,6 +24,8 @@
     - Returns a file object for the temp file
 
 
+  File?
+  Directory?
 
 ---
 

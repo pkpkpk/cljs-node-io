@@ -104,7 +104,7 @@
   + Call the callback function only when the current chunk is completely consumed. Note that there may or may not be output as a result of any particular input chunk.
 
 
-  #### Example: `line delimited edn parsestream` parser v2
+  #### Example: `line delimited edn parsestream`
 
 ```
 (spit "foo.ednl"  "{:a 1}\n{:b 2}\n{:a 3}\n")

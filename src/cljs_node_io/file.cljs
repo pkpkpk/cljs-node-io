@@ -64,7 +64,7 @@
 (defn file-reader
   "Builds an appropriate read method given opts and attaches it to the reified file.
    Returns the passed file.
-    TODO if :stream? true, returns a chan which receives FileInputStream asynchronously?
+    TODO if :stream? true, return FileInputStream (as separate object?)?
     - if :stream true, :async is ignored
     - opts: encoding :async :stream?
     - if :async? true, file.read() returns a chan which receives err|str on successful read "
@@ -87,7 +87,7 @@
 (defn file-writer
   "Builds an appropriate write method given opts and attaches it to the reified file.
    Returns the passed file.
-    TODO if :stream? true, returns a chan which receives FileOutputStream asynchronously?
+    TODO if :stream? true, returns FileOutputStream  (as separate object?)?
     - opts: :encoding, :append, :async?, :stream?
     - if content is a Buffer instance, opt encoding is ignored
     - if :async? true, file.write() returns a chan which receives err|true on successful write."
@@ -252,7 +252,6 @@
   ([prefix suffix dir]
     (let [tmpd (or dir (.tmpdir os))
           path (str tmpd (.-sep path) prefix (or suffix ".tmp"))
-          f    (File. path)
-          ; _    (.deleteOnExit f)
-          ]
+          f    (File. path)]
+      ; (.deleteOnExit f)
       f)))

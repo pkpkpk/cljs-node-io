@@ -182,7 +182,7 @@
   (condp = (.extname path filepath)
     ".edn"  (fn [contents] (read-string contents))
     ".json" (fn [contents] (js->clj (js/JSON.parse contents) :keywordize-keys true))
-    ;xml, csv
+    ;xml, csv, transit?
     ;; does it make sense to throw here?
     (throw (js/Error. "sslurp was given an unrecognized file format.
                        The file's extension must be json or edn"))))
@@ -209,14 +209,19 @@
 
 (defn spit
   "Opposite of slurp.  Opens f with writer, writes content.
-   Options passed to a file/file-writer."
+   Options passed to a file/file-writer.
+   :encoding
+   :append
+   :async?
+   :stream?
+  "
   [f content & options]
   (let [w (apply writer f options)]
     (.write w (str content))))
 
 (defn aspit
   "Async spit. returned chan recieves error or true on write success.
-   Wait for on result before writing again.
+   Wait for result before writing again.
    @returns {Channel}"
   [f content & options]
   (let [w (apply writer f (concat options '(:async? true)))]

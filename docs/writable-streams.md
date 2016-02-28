@@ -78,10 +78,6 @@
       (.unpipe reader writer)
       ```
 
-  - #### "open" (fd)
-    - filestream only
-    - fd: file descriptor for the file being opened
-
 + ### methods
 
   - #### cork ()
@@ -122,10 +118,24 @@
 <hr>
 
 # FileOutputStream
-### methods
-### properties
-  * __bytesWritten__
-    - The number of bytes written so far. Does not include data that is still queued for writing.
+
+(def default-output-options
+  { :flags "w" ;r+ = append?
+    :defaultEncoding "utf8" ; can be any encoding accepted by Buffer
+    :fd nil ;if specified, will ignore path argument, therefore no 'open' event
+    ; :start -> used to write at some postion past the beginning of the file
+    ; :mode "0o666" ;needs to be parsed
+   })
+  + methods
+    - __getFd__ ( ) -> internally
+      - baked in listener for `"open"` event, returns file-descriptor
+      - if you opened the stream with an existing fd this method returns nil      
+  + properties
+    * __path__ -> string
+      - The path to the file the stream is reading from.
+      - if you opened the stream with an existiny fd this property is nil
+    * __bytesWritten__
+      - The number of bytes written so far. Does not include data that is still queued for writing.
 
 
 <hr>

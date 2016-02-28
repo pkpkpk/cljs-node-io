@@ -34,64 +34,81 @@
 ```
 
 # todo
+  + __streams__
+    - separate out coercions in impls
+    - stream-type specific impl attachers
+      - setup print representations
+      - specific methods
+        * java.io.FileInputStream API etc
+            - available
+            - close
+            - finalize
+            - getChannel      
+  + __types__
+    - compile checks, jsDoc (simple opts cant be used with figwheel)
+    - runtime checks, schema?
+    - verify degenerate cases, type returns
+    - verify docs
+  + __copy__
+    - [x] easiest: coerce args to streams and the just pipe it over?
+    - [ ] Test
+    - [ ] Options supported
+      - __:buffer-size__  buffer size to use, default is 1024.
+      - __:encoding__     encoding to use if converting between byte and char streams.
+  + extend missing types with coercions & IOFactory
+    - Object (throw in all cases)
+    - Socket
+    - byte-array
+    - char-array        
+  + verify opts keys through all paths. :append? :async? :stream?
+    - should be :append like clojure semantics? "?" hints bool though
+  + __line-seq  + test __
+  + __xml-seq  + test __    
   + aFile? aync reified file objects
     - constructor opt?
     - currently you have sync methods but option for async read/write
-    - .aread vs .read methods to distinguish. rather than build based on opts?
+    - .aread vs .read methods to distinguish. rather than build based on opts?    
   + super-spit?
-  + try/catch=>bool macro, sync vs async
-  * jsDoc
+  + try/catch => bool macro, sync vs async
+    - try-false, try-bool
   + test advanced compilation
   + script examples, w/ CLI args
-  * verify degenerate cases, type returns
-  * verify opts keys through all paths. :append? :async? :stream?
-    - should be :append like clojure semantics? "?" hints bool though
-  * https://github.com/Raynes/fs and other convenience stuff out there
-  * java URL has unique set of methods that should be extended to goog.Uri
-    * openStream -> opens connection to this URL and returns an input stream for reading
+  + https://github.com/Raynes/fs and other convenience stuff out there
+  + java URL has unique set of methods that should be extended to goog.Uri
+    - openStream -> opens connection to this URL and returns an input stream for reading
       - see IOFactory
       - https://docs.oracle.com/javase/7/docs/api/java/net/URL.html#openStream()
-  * __line-seq  + test __
-  * __xml-seq  + test __
-  * java.io.FileInputStream API etc
-      - available
-      - close
-      - finalize
-      - getChannel
-      - getFD
-  *  __zlib__
+
+  + __zlib__
     - zip/unzip files? directories?
-  * __transit w/ object stream??__
-  * [ ] __extend Sockets & byteArrays with   coercions & IOFactory__
-  * [ ]__copy__
-    - [x] easiest: coerce args to streams and the just pipe it over?
-    - [ ] Test
-    - Copies input to output.  Returns nil or throws IOException.
-    - [ ] Options are key/value pairs and may be one of
-      - __:buffer-size__  buffer size to use, default is 1024.
-      - __:encoding__     encoding to use if converting between byte and char streams.
+  + __transit w/ object stream??__
+
 
 
 ### Issues
-  + test encodings throughout, streams + file readers + writers
-    - slurp + spit encodings are broken
+  + __encodings__
+    - "hex"
+    - "binary"
+    - "base64"
+    - test throughout, streams + file readers + writers
     - both direct constructors and indirection via option map passing all over the place
-  - test ns specific temp file that doesnt have delete-on-exit listeners
-  - if file is deleted make sure event listeners are removed? (delete on exit)
-    -find way to manage deletion listeners
-
-  * sslurp assumes file with extension, whereas slurp (should) opens reader variable types
-  * delete-file should handle absolute paths, not just file objects
-  * add mode to supported opts for reader & writer
-    - streams, file api
-    - (js/parseInt "0666" 8)   ===   0o666 ES6 octal literal
-  * change file & filestream type to resemble cljs type (currently is keyword)   
-* __readline__
-  - line-seq needs readline stream, probably must be async (breaking from clj)
-  - file reader needs a read, readline methods??
-* __Improve Error Handling__
- - defrecord SomeError [cause context ....]
-
+  * __readline__
+    - line-seq needs readline stream, probably must be async (breaking from clj)
+    - file reader needs a read, readline methods??
+  * __Improve Error Handling__
+    - defrecord SomeError [cause context ....]
+  * misc
+    - test ns specific temp file that doesnt have delete-on-exit listeners
+    - if file is deleted make sure event listeners are removed? (delete on exit)
+      -find way to manage deletion listeners
+    + File streams need bettters docs w/ default option info
+    + reified files lacking chmod methods etc
+    * sslurp assumes file with extension, whereas slurp (should) opens reader variable types
+    * delete-file should handle absolute paths, not just file objects
+    * add mode to supported opts for reader & writer
+      - streams, file api
+      - (js/parseInt "0666" 8)   ===   0o666 ES6 octal literal
+    * change file & filestream type to resemble cljs type (currently is keyword)   
 
 
 ### Notes
