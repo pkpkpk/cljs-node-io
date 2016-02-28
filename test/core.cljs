@@ -31,15 +31,17 @@
        "foo/bar/baz" ["foo" "bar" "baz"]))
 
 
-(deftest test-spit-and-slurp
-  (let [f (createTempFile "cljs.node.io" "test")
-        content (apply str (concat "a" (repeat 500 "\u226a\ud83d\ude03")))]
-    (spit f content)
-    (is (= content (slurp f)))
-    ; UTF-16 must be last for the following test
-   (doseq [enc [ "utf8"]] ;"utf16le" should work but doesn't
-      (spit f content :encoding enc)
-      (is (= content (slurp f :encoding enc))))))
+(deftest test-spit-and-slurp-unicode
+  (let [f             (createTempFile "spit_slurp_unicode" "test")
+        ascii-content (apply str (concat "a" (repeat 500 " cat 42 \n")))
+        uni-content   (apply str (concat "a" (repeat 500 "\u226a\ud83d\ude03")))]
+    (is (= false (.exists f)))
+    (spit f ascii-content :encoding "ascii" :append false)
+    (is (= ascii-content (slurp f :encoding "ascii")))
+    (doseq [enc [ "utf8" "utf-8" "utf16le" "utf-16le" "ucs2" "ucs-2"]]
+      (spit f uni-content :encoding enc :append false)
+      (is (= uni-content (slurp f :encoding enc))))
+    (is (= true (.delete f)))))
 
 (deftest test-delete-file
   (let [f (createTempFile "test" "deletion")
