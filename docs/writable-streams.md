@@ -13,7 +13,7 @@
 + ### events
 
   - #### "drain" ()
-    - if a `stream.write(chunk)` call returns false, then the "drain" event will indicate when it is appropriateto begin writing more data to the stream
+    - if a `stream.write(chunk)` call returns false, then the "drain" event will indicate when it is appropriate to begin writing more data to the stream
 
       ```clj
       (defn writeOneMillionTimes
@@ -40,7 +40,7 @@
     - Emitted if there was an error when writing or piping data.
 
   - #### "finish"
-    - When the [`stream.end()`][stream-end] method has been called, and all data has
+    - When the `stream.end()` method has been called, and all data has
     been flushed to the underlying system, this event is emitted.
 
       ```js
@@ -54,7 +54,8 @@
       ```
 
   - #### "pipe" (src)
-    - src: {stream.Readable} source stream that is piping to this writable
+    - `src` : {stream.Readable}
+      - source stream that is piping to this writable
     - emitted whenever the pipe method is called on as readable stream, adding this writable to its set of destinations
       ```js
       (. writer on "pipe"
@@ -117,17 +118,29 @@
 
 <hr>
 
-# FileOutputStream
-
-(def default-output-options
-  { :flags "w" ;r+ = append?
-    :defaultEncoding "utf8" ; can be any encoding accepted by Buffer
-    :fd nil ;if specified, will ignore path argument, therefore no 'open' event
-    ; :start -> used to write at some postion past the beginning of the file
-    ; :mode "0o666" ;needs to be parsed
-   })
+###  cljs-node-io.streams/FileOutputStream
+#### `(FileOutputStream. path ?options ) ` -> WritableStream
+  + `path` : string | Uri | File
+  + `options` : optional map
+    - `:append` : ^boolen `false`
+      - sets as `:flags to "a"`
+      - is overridden by *any* passed flag value
+    - `:flags` ^string `"w"`
+      - any passed value overrides `:append true`
+    - `:defaultEncoding` ^string `"utf8"`
+      - can be any encoding accepted by Buffer
+    - `:fd` ^int `nil`
+      - if specified path arg is ignored
+      - fd should be blocking; non-blocking fds should be passed to net.Socket
+    - `:start` ^int 0
+      - byte index to start writing at
+    - `:autoClose` ^boolen `true`
+      - If true (default behavior), on 'error' or 'end' the file descriptor will be closed automatically.
+      - If false, then the file descriptor won't be closed, even if there's an error. It is your responsibility to close it and make sure there's no file descriptor leak.    
+    - `:mode` ^octal `0o666`
+      - sets the file mode (permission and sticky bits), but only if the file was created.    
   + methods
-    - __getFd__ ( ) -> internally
+    - __getFd__ ( ) -> int
       - baked in listener for `"open"` event, returns file-descriptor
       - if you opened the stream with an existing fd this method returns nil      
   + properties
@@ -144,7 +157,7 @@
 # Implementing Writable Streams :
 
 ### cljs-node-io.streams/WritableStream
-#### `(WritableStream  options)`
+#### `(WritableStream options)`
   - a wrapper around stream.Writable that calls its constructor so that buffering settings are properly initialized
   * `options` : map
     * `:highWaterMark` : Int

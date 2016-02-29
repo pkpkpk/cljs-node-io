@@ -207,7 +207,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   - ##### __setEncoding__ (^string encoding) -> this
     - cause the stream to return strings of the specified encoding instead of Buffer objects.
     - For example, if you do `readable.setEncoding('utf8')`, then the output data will be interpreted as UTF-8 data, and returned as strings. If you do `readable.setEncoding('hex')`, then the data will be encoded in hexadecimal string format.
-    - This properly handles multi-byte characters that would otherwise be potentially mangled if you simply pulled the Buffers directly and called [`buf.toString(encoding)`][] on them. If you want to read the data as strings, always use this method.
+    - This properly handles multi-byte characters that would otherwise be potentially mangled if you simply pulled the Buffers directly and called `buf.toString(encoding)` on them. If you want to read the data as strings, always use this method.
       ```clj
       (.setEncoding r "utf8")
       (.on r "data"
@@ -283,13 +283,13 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
 
 <hr>
 ###  cljs-node-io.streams/FileInputStream
-#### `(FileInputStream. path options ) ` -> stream-object
+#### `(FileInputStream. path ?options ) ` -> ReadableStream
   + wrapper around `fs.createReadStream`
   + Be aware that, unlike the default value set for highWaterMark on a readable stream (16 kb), the stream returned by this method has a default value of 64 kb for the same parameter.
   + options can include `start` and `end` values to read a range of bytes from the file instead of the entire file.
     - Both are inclusive and start at 0.
   + `path` : string | Uri | File
-  + `options` : map
+  + `options` : optional map
     - `:flags` `"r"`
     - `:encoding` `"utf8"`
       - The encoding can be any one of those accepted by Buffer.
