@@ -6,7 +6,7 @@
 ```clj
 (require '[cljs-node-io.core :as io :refer [spit sslurp]])
 
-(def data [{:foo 42} {:foo 43 :bar {:a 1 :b [1 2 3]}}])
+(def data [{:foo 42} {:foo 43}])
 
 (spit "data.edn"  data)
 
@@ -19,7 +19,7 @@
 ```clj
 ;; write asynchronously
 (go
-  (when-let [written (<! (aspit "data.edn" data))]
+  (when-let [written (<! (io/aspit "data.edn" data))]
     (if (true? written)
       (println "you've successfully written to 'foo.edn'")
       (println "there was an error writing: " written))))
@@ -64,7 +64,7 @@
     - should be :append like clojure semantics? "?" hints bool though
   + __line-seq  + test __
   + __xml-seq  + test __    
-  + aFile? aync reified file objects
+  + aFile? async reified file objects
     - constructor opt?
     - currently you have sync methods but option for async read/write
     - .aread vs .read methods to distinguish. rather than build based on opts?    
@@ -107,7 +107,7 @@
     * delete-file should handle absolute paths, not just file objects
     * add mode to supported opts for reader & writer
       - streams, file api
-      - (js/parseInt "0666" 8)   ===   0o666 ES6 octal literal
+      - (js/parseInt "0666" 8) ||   (js/Number "0o666")  , ES6 octal literal
     * change file & filestream type to resemble cljs type (currently is keyword)   
 
 
