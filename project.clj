@@ -14,8 +14,7 @@
   :clean-targets ["server.js"
                   "target"]
 
-  :cljsbuild {
-              :builds [{:id "dev"
+  :cljsbuild {:builds [{:id "dev"
                         :source-paths ["src" "test"]
                         :figwheel true
                         :compiler {
@@ -26,10 +25,23 @@
                                    :target :nodejs
                                    :optimizations :none
                                    :source-map true}}
-                       {:id "prod"
-                        :source-paths ["src"]
-                        :compiler {
-                                   :output-to "server.js"
-                                   :output-dir "target/server_prod"
-                                   :target :nodejs
-                                   :optimizations :simple}}]})
+
+                        {:id "simple"
+                         :source-paths ["src" "test"]
+                         :notify-command ["node" "target/test/tests-simple.js"]
+                         :compiler {:optimizations :simple
+                                    :target :nodejs
+                                    :output-to "target/test/tests-simple.js"
+                                    :output-dir "target/test/out-simple"}}
+
+                        {:id "advanced"
+                         :source-paths ["src" "test"]
+                         :compiler {:optimizations :advanced
+                                    :target :nodejs
+                                    :parallel-build true
+                                    :output-to "target/test/tests-advanced.js"
+                                    :output-dir "target/test/out-advanced"}}]
+
+              :test-commands
+              {"simple" ["node" "target/test/tests-simple.js"]
+               "advanced" ["node" "target/test/tests-advanced.js"]}})
