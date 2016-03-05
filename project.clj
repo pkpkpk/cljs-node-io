@@ -31,17 +31,9 @@
                          :notify-command ["node" "target/test/tests-simple.js"]
                          :compiler {:optimizations :simple
                                     :target :nodejs
+                                    :main cljs-node-io.core
                                     :output-to "target/test/tests-simple.js"
-                                    :output-dir "target/test/out-simple"}}
-
-                        {:id "advanced"
-                         :source-paths ["src" "test"]
-                         :compiler {:optimizations :advanced
-                                    :target :nodejs
-                                    :parallel-build true
-                                    :output-to "target/test/tests-advanced.js"
-                                    :output-dir "target/test/out-advanced"}}]
+                                    :output-dir "target/test/out-simple"}}]
 
               :test-commands
-              {"simple" ["node" "target/test/tests-simple.js"]
-               "advanced" ["node" "target/test/tests-advanced.js"]}})
+              {"simple" ["node" "target/test/tests-simple.js"]}})
