@@ -163,13 +163,8 @@
                           (try
                              (do (.unlinkSync fs @pathstring) true)
                              (catch js/Error e false))))
-
-
                       (deleteOnExit [this]
                         (.on js/process "exit"  (fn [exit-code] (.delete this))))
-
-
-
                       (equals ^boolean [this that] (= this that))
                       (exists ^boolean [this] (.existsSync fs @pathstring)) ;deprecated buts stats docs are shit so im using it
                       (getAbsoluteFile [this] (as-file (.getAbsolutePath this)))
