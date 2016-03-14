@@ -82,10 +82,14 @@
   + __zlib__
     - zip/unzip files? directories?
   + __transit w/ object stream??__
+  + fs.watch, fs.watchFile, symlinks, realpath, chmod, chown readlink, fsync
+
 
 
 
 ### Issues
+  + switch (.exists File) to non-deprecated impl
+    - Use fs.statSync() or fs.accessSync() instead.
   + __encodings__
     - "hex"
     - "binary"

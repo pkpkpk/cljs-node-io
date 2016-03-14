@@ -1,25 +1,25 @@
 # cljs-node-io.core
 
 * ### delete-file
-  - ```(delete-file f & [silently])```
+  - `(delete-file f & [silently])`
   - Delete file f. Raise an exception if it fails unless silently is true.
 
 
 * ### file
-  - ```(file arg)```
-  - ```(file parent child)```
-  - ```(file parent child & more)```
+  - `(file arg)`
+  - `(file parent child)`
+  - `(file parent child & more)`
   - Returns a reified File, passing each arg to as-file.  Multiple-arg versions treat the first argument as parent and subsequent args as children relative to the parent.
   - see File API documentation
 
 
 * ### make-parents
-  - ```(make-parents f & more)```
+  - `(make-parents f & more)`
   - Given the same arg(s) as for file, creates all parent directories of the file they represent.
 
 
 * ### as-relative-path
-  - ```(as-relative-path x) ```
+  - `(as-relative-path x) `
   - Take an as-file-able thing and return a string if it is a relative path, else IllegalArgumentException.
 
 * ### copy
@@ -37,18 +37,19 @@
 
 + ### spit
   - Opposite of slurp.  Opens f with writer, writes content. Options passed to a file/file-writer.
-  - ```(spit f content & opts)```
-   * content : ```string``` | ```Buffer```
+  - `(spit f content & opts)`
+   * content : `string` | `Buffer`
      - if buffer, encoding is ignored
       - __you are responsible for feeding spit an appropriate string representation for non-clj objects.__
           - To print json you must use `(js/JSON.stringify js-data ...)`
           - clj data-structures print fine automatically, use sslurp/spit to read & write edn data.
    * returns nil
    * default opts:
-      - ```:append false```
-      - ```:encoding "utf8"```
-      - ```:flags "w"```
-      - ```:async? false```
+      - `:append false`
+      - `:encoding "utf8"`
+      - `:mode  436`
+      - `:flags "w"`
+      - `:async? false`
       - ~~:stream? false~~
     * flags take precedence over append        
   - defaults to synchronous write, use *aspit* for *async* writes
@@ -56,30 +57,31 @@
 
 + ### aspit
   - asynchronous version of spit
-  - ```(aspit f content & opts)```
-   * content : ```string``` | ```Buffer```
-     - if buffer, encoding is ignored
-   * returns channel receiving ```true``` | ```error```
-   * default opts:
-      - ```:append false```
-      - ```:encoding "utf8"```
-      - ```:flags "w"```
-      - ```:async? true```
-      - ~~:stream? false~~
-    * flags take precedence over append
+  - `(aspit f content & opts)`
+    + content : `string` | `Buffer`
+      - if buffer, encoding is ignored
+    + returns channel receiving `true` | `error`
+  - default opts:
+    - `:append false`
+    - `:encoding "utf8"`
+    - `:mode  436`
+    - `:flags "w"`
+    - `:async? true`
+    - ~~:stream? false~~
+  - flags take precedence over append
   - Note that it is unsafe to use fs.writeFile multiple times on the same file without waiting for the callback. For this scenario, `FileOutputStream` is strongly recommended.
 
 
 * ### slurp
   -  opens a reader on f and returns its contents. Returns a string synchronously by default
-  - ```(slurp f & opts)```
+  - `(slurp f & opts)`
     * default opts:
-      - ```:encoding "utf8"```
-      - ```:flags "r"```
-      - ```:async? false```
+      - `:encoding "utf8"`
+      - `:flags "r"`
+      - `:async? false`
       - ~~:stream? false~~
-    * If ```:encoding ""``` (an explicit empty string), returns raw buffer instead of string.
-    * If ```:async? true```, returns channel which will receive err|data specified by encoding via put! cb
+    * If `:encoding ""` (an explicit empty string), returns raw buffer instead of string.
+    * If `:async? true`, returns channel which will receive err|data specified by encoding via put! cb
 
 
 

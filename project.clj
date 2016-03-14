@@ -8,7 +8,7 @@
                  [org.clojure/core.async "0.2.374"]]
 
   :plugins [[lein-cljsbuild "1.1.1"]
-            [lein-figwheel "0.5.0-3"]]
+            [lein-figwheel "0.5.0-6"]]
 
 
   :clean-targets ["server.js"

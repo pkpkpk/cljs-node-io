@@ -59,12 +59,13 @@
                                               "\nYou must pass a [pathstring], [uri], [file], or include :fd in opts .\n" )))) ;throw?
 
 (defn valid-opts [opts]
-  (clj->js (merge {:encoding "utf8"} opts)))
+  (clj->js (merge {:encoding "utf8" :mode 438} opts)))
 ; kewyword for buffer instead of ""?
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn FileInputStream* [src opts]
+  (assert (if (:mode opts) (integer? (:mode opts)) true) "mode must be an integer")
   (let [filestreamobj (.createReadStream fs (filepath src) (valid-opts opts))
         filedesc      (atom nil)
         _             (set! (.-constructor filestreamobj) :FileInputStream)
@@ -83,6 +84,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn FileOutputStream* [src {:keys [append flags] :as opts}]
+  (assert (if (:mode opts) (integer? (:mode opts)) true) "mode must be an integer")
   (let [flag          (or flags (if append "a" "w"))
         vopts         (valid-opts (assoc opts :flags flag))
         filestreamobj (.createWriteStream fs (filepath src) vopts)

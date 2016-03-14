@@ -92,22 +92,26 @@
     - if content is a Buffer instance, opt encoding is ignored
     - if :async? true, file.write() returns a chan which receives err|true on successful write."
   [file opts]
-  (if (:stream? opts) ;async write option too
+  (if (:stream? opts)
     (file-stream-writer (make-output-stream file opts) opts)
     (if (:async? opts)
       (specify! file Object
         (write [this content]
           (let [filename (.getPath this)
                 c (chan)
-                cb (fn [err] (put! c (or err true)))] ;mode?
-            (.writeFile fs filename content  #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
-                                                 "encoding" (or (:encoding opts) "utf8")} cb)
+                cb (fn [err] (put! c (or err true)))]
+            (.writeFile fs filename content
+                        #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
+                            "mode"     (or (:mode opts) 438)
+                            "encoding" (or (:encoding opts) "utf8")}
+                        cb)
             c)))
       (specify! file Object ;sync
         (write [this content]
-          (let [filename (.getPath this)] ;mode?
+          (let [filename (.getPath this)]
             (.writeFileSync fs filename content
                             #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
+                                "mode"     (or (:mode opts)  438)
                                 "encoding" (or (:encoding opts) "utf8")})))))))
 
 
