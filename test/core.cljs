@@ -34,13 +34,12 @@
 
 (deftest test-spit-and-slurp
   (let [f             (createTempFile "spit_slurp_unicode" "test")
-        ; ascii-content (apply str (concat "a" (repeat 500 " cat 42 \n")))
         ascii-content (js/Buffer. #js[0x62 0x75 0x66 0x66 0x65 0x72])
         uni-content   (apply str (concat "a" (repeat 500 "\u226a\ud83d\ude03")))]
     (is (= false (.exists f)))
     ;ascii + bin
     (spit f ascii-content :append false )
-    (is (.equals ascii-content (slurp f :encoding ""))) ;raw buffer should be identical0
+    (is (= ascii-content (slurp f :encoding ""))) ;raw buffer should be identical
     (is (= "buffer" (slurp f :encoding "ascii"))) ;but content is valid ascii
     ;unicode
     (doseq [enc [ "utf8" "utf-8" "utf16le" "utf-16le" "ucs2" "ucs-2"]]

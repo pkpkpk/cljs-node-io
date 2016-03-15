@@ -3,7 +3,6 @@
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.file :refer [File]]
-            ; [cljs-node-io.reader :refer [reader]]
             [cljs.reader :refer [read-string]]
             [cljs-node-io.streams :refer [FileInputStream]]
             [cljs-node-io.protocols
@@ -19,6 +18,10 @@
 (def fs (require "fs"))
 (def path (require "path"))
 (def Buffer (.-Buffer (require "buffer")))
+
+(extend-type js/Buffer
+  IEquiv
+  (-equiv [this that] (.equals this that)))
 
 (extend-protocol Coercions
   nil
