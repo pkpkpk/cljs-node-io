@@ -1,8 +1,10 @@
 (ns cljs-node-io.test.core
-  (:require [cljs.test :refer-macros [deftest is testing run-tests run-all-tests are]]
+  (:require-macros [cljs.core.async.macros :refer [go go-loop alt!]])
+  (:require [cljs.test :refer-macros [deftest is testing async are]]
+            [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.file :refer [File createTempFile]]
             [cljs-node-io.protocols :refer [Coercions as-file as-url ]]
-            [cljs-node-io.core :refer [file as-relative-path spit slurp delete-file make-parents]])
+            [cljs-node-io.core :refer [file as-relative-path spit slurp aspit aslurp delete-file make-parents]])
   (:import goog.Uri))
 
 
@@ -30,13 +32,17 @@
        "foo/bar/baz" ["foo" "bar" "baz"]))
 
 
-(deftest test-spit-and-slurp-unicode
+(deftest test-spit-and-slurp
   (let [f             (createTempFile "spit_slurp_unicode" "test")
-        ascii-content (apply str (concat "a" (repeat 500 " cat 42 \n")))
+        ; ascii-content (apply str (concat "a" (repeat 500 " cat 42 \n")))
+        ascii-content (js/Buffer. #js[0x62 0x75 0x66 0x66 0x65 0x72])
         uni-content   (apply str (concat "a" (repeat 500 "\u226a\ud83d\ude03")))]
     (is (= false (.exists f)))
-    (spit f ascii-content :encoding "ascii" :append false)
-    (is (= ascii-content (slurp f :encoding "ascii")))
+    ;ascii + bin
+    (spit f ascii-content :append false )
+    (is (.equals ascii-content (slurp f :encoding ""))) ;raw buffer should be identical0
+    (is (= "buffer" (slurp f :encoding "ascii"))) ;but content is valid ascii
+    ;unicode
     (doseq [enc [ "utf8" "utf-8" "utf16le" "utf-16le" "ucs2" "ucs-2"]]
       (spit f uni-content :encoding enc :append false)
       (is (= uni-content (slurp f :encoding enc))))
@@ -70,3 +76,12 @@
     (make-parents tmp "test-make-parents" "child" "grandchild")
     (is (.isDirectory (file tmp "test-make-parents" "child")))
     (is (not (.isDirectory (file tmp "test-make-parents" "child" "grandchild"))))))
+
+(deftest test-async-spit-and-slurp
+  (let [txt "hello world"
+        f    (createTempFile "test" "deletion")]
+    (async done
+      (go
+        (is (= true (<! (aspit f txt))))
+        (is (= txt  (<! (aslurp f))))
+        (done)))))
