@@ -62,6 +62,8 @@
   (clj->js (merge {:encoding "utf8" :mode 438} opts)))
 ; kewyword for buffer instead of ""?
 
+(def fp (juxt type #(.-path %))) ; filestream fingerprint
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn FileInputStream* [src opts]
@@ -71,8 +73,12 @@
         _             (set! (.-constructor filestreamobj) :FileInputStream)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
     (specify! filestreamobj
-      ;pr rep here
-      ; IEquiv etc
+      IEquiv
+      (-equiv [this that](= (fp this) (fp that)))
+      IPrintWithWriter
+      (-pr-writer [this writer opts]
+        (-write writer "#object [FileInputStream")
+        (-write writer (str "  "  (.-path this)  "]")))
       Object
       (getFd [_] @filedesc))
     (input-IOF! filestreamobj)))
@@ -92,6 +98,12 @@
         _             (set! (.-constructor filestreamobj) :FileOutputStream)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
     (specify! filestreamobj
+      IEquiv
+      (-equiv [this that](= (fp this) (fp that)))
+      IPrintWithWriter
+      (-pr-writer [this writer opts]
+        (-write writer "#object [FileOutputStream")
+        (-write writer (str "  "  (.-path this)  "]")))
       Object
       (getFd [_] @filedesc))
     (output-IOF! filestreamobj)))
@@ -126,3 +138,22 @@
   (assert (fn? transform) "you must supply a :transform fn when creating a transform stream.")
   (assert (if flush (fn? flush) true) ":flush must be a fn")
   (duplex-IOF! (new stream.Transform (clj->js opts))))
+
+(defn BufferStream
+  "Creates a ReadableStream from a Buffer. Opts are same as ReadableStream except
+  the :read fn is provided. If you provide :read, it is ignored"
+  ([source](BufferStream source nil))
+  ([source opts]
+   (assert (js/Buffer.isBuffer source) "source must be a Buffer instance")
+   (let [offset (atom 0)
+         length (.-length source)
+         read   (fn [size]
+                  (this-as this
+                   (if (< @offset length)
+                     ; still buffer to consume
+                     (let [chunk (.slice source @offset (+ @offset size))]
+                       (.push this chunk)
+                       (swap! offset + size))
+                     ; offset>=buffer length...totally consumed
+                     (.push this nil))))]
+     (ReadableStream (merge opts {:read read})))))
