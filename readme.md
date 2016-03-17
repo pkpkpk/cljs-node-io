@@ -35,15 +35,12 @@
 
 # todo
   + __streams__
-    - separate out coercions in impls
-    - stream-type specific impl attachers
-      - setup print representations
-      - specific methods
-        * java.io.FileInputStream API etc
-            - available
-            - close
-            - finalize
-            - getChannel      
+    - tests & examples
+    - IEquiv
+    - IPrintWithWriter
+    - consolidate docs
+  + extend Buffer with useful protocols
+    - [x] IEquiv
   + __types__
     - compile checks, jsDoc (simple opts cant be used with figwheel)
     - runtime checks, schema?
@@ -51,19 +48,23 @@
     - verify docs
   + __copy__
     - [x] easiest: coerce args to streams and the just pipe it over?
+    - directories?
     - [ ] Test
     - [ ] Options supported
       - __:buffer-size__  buffer size to use, default is 1024.
       - __:encoding__     encoding to use if converting between byte and char streams.
   + extend missing types with coercions & IOFactory
-    - Object (throw in all cases)
+    - ~~Object~~
     - Socket
-    - byte-array
-    - char-array        
   + verify opts keys through all paths. :append? :async? :stream?
     - should be :append like clojure semantics? "?" hints bool though
-  + __line-seq  + test __
-  + __xml-seq  + test __    
+  + line-seq  + test
+  + __readline__
+    - line-seq needs readline stream, probably must be async (breaking from clj)
+    - file reader needs a read, readline methods??
+  * __Improve Error Handling__
+    - defrecord SomeError [cause context ....]  
+  + xml-seq  + test  
   + aFile? async reified file objects
     - constructor opt?
     - currently you have sync methods but option for async read/write
@@ -71,10 +72,9 @@
   + super-spit?
   + try/catch => bool macro, sync vs async
     - try-false, try-bool
-  + test advanced compilation
   + script examples, w/ CLI args
   + https://github.com/Raynes/fs and other convenience stuff out there
-  + java URL has unique set of methods that should be extended to goog.Uri
+  + java URL has unique set of methods that could be extended to goog.Uri
     - openStream -> opens connection to this URL and returns an input stream for reading
       - see IOFactory
       - https://docs.oracle.com/javase/7/docs/api/java/net/URL.html#openStream()
@@ -84,41 +84,33 @@
   + __transit w/ object stream??__
   + fs.watch, fs.watchFile, symlinks, realpath, chmod, chown readlink, fsync
 
+``` clj
 
+(extend Socket
+  IOFactory
+  (assoc default-streams-impl
+    :make-input-stream (fn [^Socket x opts] (make-input-stream (.getInputStream x) opts))
+    :make-output-stream (fn [^Socket x opts] (make-output-stream (.getOutputStream x) opts))))
 
+```
 
 ### Issues
+
   + switch (.exists File) to non-deprecated impl
     - Use fs.statSync() or fs.accessSync() instead.
-  + __encodings__
-    - "hex"
-    - "binary"
-    - "base64"
-    - test throughout, streams + file readers + writers
-    - both direct constructors and indirection via option map passing all over the place
-  * __readline__
-    - line-seq needs readline stream, probably must be async (breaking from clj)
-    - file reader needs a read, readline methods??
-  * __Improve Error Handling__
-    - defrecord SomeError [cause context ....]
-  * misc
+  + misc
     - test ns specific temp file that doesnt have delete-on-exit listeners
     - if file is deleted make sure event listeners are removed? (delete on exit)
       -find way to manage deletion listeners
-    + File streams need bettters docs w/ default option info
+    + File streams need better docs w/ default option info
     + reified files lacking chmod methods etc
-    * sslurp assumes file with extension, whereas slurp (should) opens reader variable types
-    * delete-file should handle absolute paths, not just file objects
-    * add mode to supported opts for reader & writer
-      - streams, file api
-      - (js/parseInt "0666" 8) ||   (js/Number "0o666")  , ES6 octal literal
-    * change file & filestream type to resemble cljs type (currently is keyword)   
+    + sslurp assumes file with extension, whereas slurp (should) opens reader variable types
+    + delete-file should handle absolute paths, not just file objects
+    + change file & filestream type to resemble cljs type (currently is keyword)   
 
 
 ### Notes
-  * biased towards sync calls, async makes for poor repl experience
-  * consolidated URL & URI, goog.net.Uri is very java-ish
-  * node streams close themselves, cleanup automatically?
-  * polymorphic java constructors (ie java.io.File)
-    necessitate alot of indirection
-  * default-impl-obj + specify! is a cool pattern
+  + biased towards sync calls, async makes for poor repl experience
+  + no URL type, just goog.net.Uri (which is great & very java-ish)
+  + no java-style char/byte arrays, just nodejs buffers
+  + node streams manage themselves, are awesome. no readers necessary
