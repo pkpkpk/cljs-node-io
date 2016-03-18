@@ -118,40 +118,6 @@
 
 <hr>
 
-###  cljs-node-io.streams/FileOutputStream
-#### `(FileOutputStream. path ?options ) ` -> WritableStream
-  + `path` : string | Uri | File
-  + `options` : optional map
-    - `:append` : ^boolen `false`
-      - sets as `:flags to "a"`
-      - is overridden by *any* passed flag value
-    - `:flags` ^string `"w"`
-      - any passed value overrides `:append true`
-    - `:defaultEncoding` ^string `"utf8"`
-      - can be any encoding accepted by Buffer
-    - `:fd` ^int `nil`
-      - if specified path arg is ignored
-      - fd should be blocking; non-blocking fds should be passed to net.Socket
-    - `:start` ^int 0
-      - byte index to start writing at
-    - `:autoClose` ^boolen `true`
-      - If true (default behavior), on 'error' or 'end' the file descriptor will be closed automatically.
-      - If false, then the file descriptor won't be closed, even if there's an error. It is your responsibility to close it and make sure there's no file descriptor leak.    
-    - `:mode` ^octal `0o666`
-      - sets the file mode (permission and sticky bits), but only if the file was created.    
-  + methods
-    - __getFd__ ( ) -> int
-      - baked in listener for `"open"` event, returns file-descriptor
-      - if you opened the stream with an existing fd this method returns nil      
-  + properties
-    * __path__ -> string
-      - The path to the file the stream is reading from.
-      - if you opened the stream with an existiny fd this property is nil
-    * __bytesWritten__
-      - The number of bytes written so far. Does not include data that is still queued for writing.
-
-
-<hr>
 
 
 # Implementing Writable Streams :
