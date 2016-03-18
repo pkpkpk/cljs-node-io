@@ -1,7 +1,5 @@
 
-# Readstream (stream.readable)
-
-
+# Consuming ReadableStreams
 The Readable stream interface is the abstraction for a *source* of
 data that you are reading from. In other words, data comes *out* of a
 Readable stream.
@@ -112,7 +110,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - Emitted when the stream and any of its underlying resources (a file descriptor, for example) have been closed. The event indicates that no more events will be emitted, and no further computation will occur.
     - Not all streams will emit the `'close'` event.
 
-+ ### __methods__
+### __methods__
   - ##### __isPaused__ ()-> bool
     - This method returns whether or not the readable has been explicitly paused by client code (using stream.pause() without a corresponding stream.resume())
 
@@ -282,49 +280,8 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
 
 
 <hr>
-###  cljs-node-io.streams/FileInputStream
-#### `(FileInputStream. path ?options ) ` -> ReadableStream
-  + wrapper around `fs.createReadStream`
-  + Be aware that, unlike the default value set for highWaterMark on a readable stream (16 kb), the stream returned by this method has a default value of 64 kb for the same parameter.
-  + options can include `start` and `end` values to read a range of bytes from the file instead of the entire file.
-    - Both are inclusive and start at 0.
-  + `path` : string | Uri | File
-  + `options` : optional map
-    - `:flags` `"r"`
-    - `:encoding` `"utf8"`
-      - The encoding can be any one of those accepted by Buffer.
-      - use `""` to return raw buffers instead of strings
-    - `:fd` `nil`
-      - If fd is specified, path arg is ignored
-      - fd should be blocking; non-blocking fds should be passed to net.Socket.
-    - `:mode` `0o666`
-      - sets the file mode (permission and sticky bits), but only if the file was created.
-    - `:autoClose` `true`
-      - If true (default behavior), on 'error' or 'end' the file descriptor will be closed automatically.
-      - If false, then the file descriptor won't be closed, even if there's an error. It is your responsibility to close it and make sure there's no file descriptor leak.
-    - `:start` 0
-      - index of first byte to read
-    - `:end` Infinity
-      - index of last byte to read
-  + methods
-    - __getFd__ ( ) -> int
-      - baked in listener for `"open"`, returns file-descriptor
-      - if you opened the stream with an existing fd this method returns nil            
-  + Properties
-    - __path__ -> string
-      - The path to the file the stream is reading from.
-      - if you opened the stream with an existiny fd this property is nil      
-  + example: read the last 10 bytes of a file which is 100 bytes long:
-      ```clj
-      (FileInputStream.  'sample.txt' {start: 90, end: 99})
-      ```
 
-<hr>
-
-
-
-
-# Implementing Readable Streams :
+# Implementing ReadableStreams :
 
 
 ### cljs-node-io.streams/ReadableStream
@@ -347,7 +304,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
       - *Required*
 
 
-#### `readable.\_read(size)`
+#### `readable._read(size)`
 
   * `size` : Int
     - Number of bytes to read asynchronously
@@ -367,8 +324,6 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   - Only when `_read()` is called again after it has stopped should it start reading more data from the resource and pushing that data onto the queue.
 3. when data from your resource is exhausted, call `.push(nil)` to end the stream.
 
-
- <hr>
 
 #### `readable.push(chunk,  ?encoding)` -> Boolean
   - **this method is provided, use it in your internal read fn**
@@ -408,7 +363,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
 
 (.pipe (counter) (.-stdout js/process))
 ```
-
+# this example sucks
 #### Example: A Stateful Object-Readable-Stream
   This stream accesses a clojure vector via a clojure and drops its head with every read call
   - this is an object stream so it returns clj data structures!
