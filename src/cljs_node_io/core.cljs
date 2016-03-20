@@ -24,7 +24,7 @@
   (-equiv [this that] (.equals this that))
   IOFactory
   (make-reader [b opts] (make-reader (make-input-stream b opts) opts))
-  (make-input-stream [b opts] (BufferStream. x opts))
+  (make-input-stream [b opts] (BufferStream. b opts))
   (make-writer [x opts] (fn [x opts] (make-writer (make-output-stream x opts) opts)))
   (make-output-stream [x opts](fn [x opts]
                                 (throw (js/Error.
