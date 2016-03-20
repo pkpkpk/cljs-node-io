@@ -156,4 +156,4 @@
                        (swap! offset + size))
                      ; offset>=buffer length...totally consumed
                      (.push this nil))))]
-     (ReadableStream (merge opts {:read read})))))
+     (input-IOF! (ReadableStream (merge opts {:read read}))))))
