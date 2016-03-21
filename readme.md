@@ -36,16 +36,13 @@
 # todo
   + __streams__
     - tests & examples
+    - cleanup
     - consolidate docs
+    - methods like pipe take option maps, in docs are cljs maps, shouldnt be
+  + slurping Buffers?
   + extend Buffer with useful protocols
     - [x] IEquiv
-  + __types__
-    - compile checks, jsDoc (simple opts cant be used with figwheel)
-    - runtime checks, schema?
-    - verify degenerate cases, type returns
-    - verify docs
-  + doc strings
-  + test IOFactory + Copy on all supported types
+    - (into [] <Buffer>)
   + __copy__
     - [x] easiest: coerce args to streams and the just pipe it over?
     - directories?
@@ -53,9 +50,18 @@
     - [ ] Options supported
       - __:buffer-size__  buffer size to use, default is 1024.
       - __:encoding__     encoding to use if converting between byte and char streams.
+
+
+  + __types__
+    - compile checks, jsDoc (simple opts cant be used with figwheel)
+    - runtime checks, schema?
+    - verify degenerate cases, type returns
+    - verify docs
   + extend missing types with coercions & IOFactory
     - ~~Object~~
     - Socket
+  + doc strings
+  + test IOFactory on all supported types
   + verify opts keys through all paths. :append? :async? :stream?
     - should be :append like clojure semantics? "?" hints bool though
   + line-seq  + test
@@ -108,7 +114,6 @@
   + switch (.exists File) to non-deprecated impl
     - Use fs.statSync() or fs.accessSync() instead.
   + misc
-    - test ns specific temp file that doesnt have delete-on-exit listeners
     - if file is deleted make sure event listeners are removed? (delete on exit)
       -find way to manage deletion listeners
     + File streams need better docs w/ default option info
@@ -121,5 +126,7 @@
 ### Notes
   + biased towards sync calls, async makes for poor repl experience
   + no URL type, just goog.net.Uri (which is great & very java-ish)
+  + clojure on JVM exploits inheritance for typing, not available here
+  + fudging types with keywords, simplest
   + no java-style char/byte arrays, just nodejs buffers
   + node streams manage themselves, are awesome. no readers necessary
