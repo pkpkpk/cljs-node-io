@@ -252,5 +252,4 @@
     (let [tmpd (or dir (.tmpdir os))
           path (str tmpd (.-sep path) prefix (or suffix ".tmp"))
           f    (File. path)]
-      ; (.deleteOnExit f)
       f)))
