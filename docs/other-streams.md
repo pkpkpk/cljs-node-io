@@ -65,6 +65,7 @@
 
 ###  cljs-node-io.streams/FileOutputStream
 #### `(FileOutputStream. path ?options ) ` -> WritableStream
+  + A wrapper around `fs.createWriteStream`
   + Note: opening a nonexisting file creates an empty file even before writing
   + `path` : string | Uri | File
   + `options` : optional map
@@ -226,7 +227,7 @@
   (let [handler (fn [request response]
                   (.writeHead response 200 "OK"
                               #js{"Content-Type"        "image/jpeg"
-                                  "Content-Disposition" "inline; filename=thom"
+                                  "Content-Disposition" "inline; filename=example.jpeg"
                                   "Content-Length"      (.-length photo)})
                   (.pipe (BufferStream photo) response))
         server  (.createServer http handler)]

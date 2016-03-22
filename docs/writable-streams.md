@@ -15,7 +15,7 @@
   - #### "drain" ()
     - if a `stream.write(chunk)` call returns false, then the "drain" event will indicate when it is appropriate to begin writing more data to the stream
 
-      ```clj
+      ```js
       (defn writeOneMillionTimes
         [writer data encoding cb]
         (let [i     (atom 1000000)
