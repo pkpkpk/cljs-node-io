@@ -4,7 +4,7 @@
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.file :refer [File]]
             [cljs.reader :refer [read-string]]
-            [cljs-node-io.streams :refer [FileInputStream BufferStream]]
+            [cljs-node-io.streams :refer [FileInputStream BufferReadStream]]
             [cljs-node-io.protocols
               :refer [Coercions as-url as-file
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]
@@ -24,7 +24,7 @@
   (-equiv [this that] (.equals this that))
   IOFactory
   (make-reader [b opts] (make-reader (make-input-stream b opts) opts))
-  (make-input-stream [b opts] (BufferStream. b opts))
+  (make-input-stream [b opts] (BufferReadStream. b opts))
   (make-writer [x opts] (fn [x opts] (make-writer (make-output-stream x opts) opts)))
   (make-output-stream [x opts](fn [x opts]
                                 (throw (js/Error.

@@ -139,10 +139,10 @@
   (assert (if flush (fn? flush) true) ":flush must be a fn")
   (duplex-IOF! (new stream.Transform (clj->js opts))))
 
-(defn BufferStream
+(defn BufferReadStream
   "Creates a ReadableStream from a Buffer. Opts are same as ReadableStream except
   the :read fn is provided. If you provide :read, it is ignored"
-  ([source](BufferStream source nil))
+  ([source](BufferReadStream source nil))
   ([source opts]
    (assert (js/Buffer.isBuffer source) "source must be a Buffer instance")
    (let [offset (atom 0)
@@ -155,5 +155,23 @@
                        (.push this chunk)
                        (swap! offset + size))
                      ; offset>=buffer length...totally consumed
-                     (.push this nil))))]
-     (input-IOF! (ReadableStream (merge opts {:read read}))))))
+                     (.push this nil))))
+         strm (ReadableStream (merge opts {:read read}))
+         _    (set! (.-constructor strm) :BufferReadStream)]
+     strm)))
+
+(defn BufferWriteStream
+  "Creates WritableStream to a buffer. The buffer is  formed from concatenated
+   chunks passed to write method. cb is called with the buffer on the 'finish' event.
+  'finish' must be triggered to recieve buffer"
+  ([cb] (BufferWriteStream cb nil))
+  ([cb opts]
+   (let [data  #js[]
+         write (fn [chunk _ callback] (.push data chunk) (callback))
+         strm  (WritableStream (merge opts {:write write}))
+         _     (set! (.-constructor strm) :BufferWriteStream)
+         _     (.on strm "finish"
+                (fn []
+                  (let [b (js/Buffer.concat data)]
+                    (cb b))))]
+     strm)))
