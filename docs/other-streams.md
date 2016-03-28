@@ -213,8 +213,8 @@
 
 <hr>
 
-###  cljs-node-io.streams/BufferStream
-#### `(BufferStream buffer ?{options})` -> ReadableStream
+###  cljs-node-io.streams/BufferReadStream
+#### `(BufferReadStream buffer ?{options})` -> ReadableStream
   - Creates a ReadableStream from a Buffer.
   - options are same as for ReadableStream except the `:read` fn is provided.
     - If you provide :read, it is ignored
@@ -229,7 +229,7 @@
                               #js{"Content-Type"        "image/jpeg"
                                   "Content-Disposition" "inline; filename=example.jpeg"
                                   "Content-Length"      (.-length photo)})
-                  (.pipe (BufferStream photo) response))
+                  (.pipe (BufferReadStream photo) response))
         server  (.createServer http handler)]
     (.listen server 8080)
     (println "server running on port 8080")
@@ -237,3 +237,20 @@
 
 (def server (run-server))
 ```
+
+<hr>
+
+###  cljs-node-io.streams/BufferWriteStream
+#### `(BufferWriteStream callback ?{options})` -> WriteStream
+  - Creates a WritableStream from a Buffer.
+  - options are same as for WritableStream except the `:write` fn is provided.
+    - If you provide :write, it is ignored
+  - `callback` (buffer) ->
+    - callback of 1 arg that recieves the finished buffer product after writing ends
+    - the buffer is also accesible through the `.toBuffer` method
+  + __Methods__
+    - toBuffer -> nil|Buffer
+      - returns the buffer product if finished,  nil otherwise  
+  + __properties__
+    - buf -> #js[Buffer ... ]
+      - returns the *internal* array holding written buffer chunks

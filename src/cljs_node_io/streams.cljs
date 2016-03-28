@@ -161,17 +161,26 @@
      strm)))
 
 (defn BufferWriteStream
-  "Creates WritableStream to a buffer. The buffer is  formed from concatenated
+  "Creates WritableStream to a buffer. The buffer is formed from concatenated
    chunks passed to write method. cb is called with the buffer on the 'finish' event.
   'finish' must be triggered to recieve buffer"
   ([cb] (BufferWriteStream cb nil))
   ([cb opts]
    (let [data  #js[]
-         write (fn [chunk _ callback] (.push data chunk) (callback))
+         buf   (atom nil)
+         write (fn [chunk _ callback]
+                 (assert (js/Buffer.isBuffer chunk) "data given to the write method must be buffer instances")
+                 (.push data chunk)
+                 (callback))
          strm  (WritableStream (merge opts {:write write}))
          _     (set! (.-constructor strm) :BufferWriteStream)
+         _     (set! (.-buf strm) data)
          _     (.on strm "finish"
                 (fn []
                   (let [b (js/Buffer.concat data)]
+                    (reset! buf b)
                     (cb b))))]
-     strm)))
+     (specify! strm
+      Object
+      (toString [_] (if @buf (.toString @buf)))
+      (toBuffer [_] @buf)))))

@@ -39,10 +39,11 @@
     - cleanup
     - consolidate docs
     - methods like pipe take option maps, in docs are cljs maps, shouldnt be
-  + slurping Buffers?
+    - buffer stream methods
+    - consider writev method for buffer BufferWriteStream
   + extend Buffer with useful protocols
     - [x] IEquiv
-    - (into [] <Buffer>)
+    - (into [] (array-seq <Buffer>))
   + __copy__
     - [x] easiest: coerce args to streams and the just pipe it over?
     - directories?
