@@ -62,12 +62,12 @@
   (make-writer filestream opts)) ;just defering to file stream object for now
 
 (defn file-reader
-  "Builds an appropriate read method given opts and attaches it to the reified file.
-   Returns the passed file.
-    TODO if :stream? true, return FileInputStream (as separate object?)?
-    - if :stream true, :async is ignored
-    - opts: encoding :async :stream?
-    - if :async? true, file.read() returns a chan which receives err|str on successful read "
+  "For async and sync opts, this builds an appropriate read method and attaches
+   it to the reified file, returning the passed file.
+    - opts = :encoding :async :stream?
+    - if :stream? true, returns FileInputStream (as distinct object), :async is ignored
+    - if :async? true, file.read() returns a chan which receives err|str on successful read
+    - if :async? false, file.read() returns data synchronously"
   [file opts]
   (if (:stream? opts)
     (file-stream-reader (make-input-stream file opts) opts)
