@@ -14,7 +14,8 @@
 
 
 (defn directory?
-  "true iff file denoted by this abstract pathname exists and is a directory"
+  "@param {string} pathstring
+   @return {boolean} iff abstract pathname exists and is a directory"
   ^boolean
   [^String pathstring]
   (assert (string? pathstring) "directory? takes a string, perhaps you passed a file instead")
@@ -24,7 +25,8 @@
       false)))
 
 (defn file?
-  "true iff file denoted by this abstract pathname exists and is a file"
+  "@param {string} pathstring
+   @return {boolean} iff abstract pathname exists and is a file"
   ^boolean
   [^String pathstring]
   (assert (string? pathstring) "file? takes a string, perhaps you passed a file instead")
@@ -34,7 +36,8 @@
       false)))
 
 (defn get-non-dirs
-  "returns sequence of strings representing non-existing directory components
+  "@param {string} pathstring
+  returns sequence of strings representing non-existing directory components
    of the passed pathstring, root first, in order "
   [^String pathstring]
   (reverse (take-while #(not (directory? %)) (iterate #(.dirname path %) pathstring))))
@@ -85,10 +88,10 @@
           (.readFileSync fs (.getPath this) (or (:encoding opts) "utf8"))))))) ;if no encoding, returns buffer . catch err?
 
 (defn file-writer
-  "Builds an appropriate write method given opts and attaches it to the reified file.
-   Returns the passed file.
-    TODO if :stream? true, returns FileOutputStream  (as separate object?)?
+  "For async and sync opts, this builds an appropriate write method given opts
+  and attaches it to the reified file, returning the passed file.
     - opts: :encoding, :append, :async?, :stream?
+    - if :stream? true, returns FileOutputStream as separate object.
     - if content is a Buffer instance, opt encoding is ignored
     - if :async? true, file.write() returns a chan which receives err|true on successful write."
   [file opts]
