@@ -40,6 +40,78 @@
     (make-output-stream [this _] this)))
 
 
+(defn ReadableStream
+  [{:keys [read] :as opts}]
+  (assert (map? opts) "you must pass a map of constructor options containing at least a :read k-v pair")
+  (assert (fn? read) "you must supply an internal :read function when creating a read stream")
+  (input-IOF! (new stream.Readable (clj->js opts))))
+
+(defn WritableStream
+  [{:keys [write] :as opts}]
+  (assert (map? opts) "you must pass a map of constructor options containing at least a :write k-v pair")
+  (assert (fn? write) "you must supply an internal :write function when creating writable streams")
+  (output-IOF! (new stream.Writable (clj->js opts))))
+
+(defn DuplexStream
+  [{:keys [read write] :as opts}]
+  (assert (map? opts) "you must pass a map of constructor options containing at least :read & :write fns")
+  (assert (and (fn? read) (fn? write)) "you must supply :read & :write fns when creating duplex streams.")
+  (duplex-IOF! (new stream.Duplex (clj->js opts))))
+
+(defn TransformStream
+  [{:keys [transform flush] :as opts}]
+  (assert (map? opts) "you must pass a map of constructor options containing at least a :transform fn")
+  (assert (fn? transform) "you must supply a :transform fn when creating a transform stream.")
+  (assert (if flush (fn? flush) true) ":flush must be a fn")
+  (duplex-IOF! (new stream.Transform (clj->js opts))))
+
+(defn BufferReadStream
+  "Creates a ReadableStream from a Buffer. Opts are same as ReadableStream except
+  the :read fn is provided. If you provide :read, it is ignored"
+  ([source](BufferReadStream source nil))
+  ([source opts]
+   (assert (js/Buffer.isBuffer source) "source must be a Buffer instance")
+   (let [offset (atom 0)
+         length (.-length source)
+         read   (fn [size]
+                  (this-as this
+                   (if (< @offset length)
+                     ; still buffer to consume
+                     (let [chunk (.slice source @offset (+ @offset size))]
+                       (.push this chunk)
+                       (swap! offset + size))
+                     ; offset>=buffer length...totally consumed
+                     (.push this nil))))
+         strm (ReadableStream (merge opts {:read read}))
+         _    (set! (.-constructor strm) :BufferReadStream)]
+     strm)))
+
+(defn BufferWriteStream
+  "Creates WritableStream to a buffer. The buffer is formed from concatenated
+   chunks passed to write method. cb is called with the buffer on the 'finish' event.
+  'finish' must be triggered to recieve buffer"
+  ([cb] (BufferWriteStream cb nil))
+  ([cb opts]
+   (let [data  #js[]
+         buf   (atom nil)
+         write (fn [chunk _ callback]
+                 (assert (js/Buffer.isBuffer chunk) "data given to the write method must be buffer instances")
+                 (.push data chunk)
+                 (callback))
+         strm  (WritableStream (merge opts {:write write}))
+         _     (set! (.-constructor strm) :BufferWriteStream)
+         _     (set! (.-buf strm) data)
+         _     (.on strm "finish"
+                (fn []
+                  (let [b (js/Buffer.concat data)]
+                    (reset! buf b)
+                    (cb b))))]
+     (specify! strm
+      Object
+      (toString [_] (if @buf (.toString @buf)))
+      (toBuffer [_] @buf)))))
+
+
 (defn ^Boolean isFd? "is File-descriptor?"
   [path]
   (= path (unsigned-bit-shift-right path 0)))
@@ -111,76 +183,3 @@
 (defn FileOutputStream
   ([file] (FileOutputStream file nil))
   ([file opts] (FileOutputStream* file opts)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn ReadableStream
-  [{:keys [read] :as opts}]
-  (assert (map? opts) "you must pass a map of constructor options containing at least a :read k-v pair")
-  (assert (fn? read) "you must supply an internal :read function when creating a read stream")
-  (input-IOF! (new stream.Readable (clj->js opts))))
-
-(defn WritableStream
-  [{:keys [write] :as opts}]
-  (assert (map? opts) "you must pass a map of constructor options containing at least a :write k-v pair")
-  (assert (fn? write) "you must supply an internal :write function when creating writable streams")
-  (output-IOF! (new stream.Writable (clj->js opts))))
-
-(defn DuplexStream
-  [{:keys [read write] :as opts}]
-  (assert (map? opts) "you must pass a map of constructor options containing at least :read & :write fns")
-  (assert (and (fn? read) (fn? write)) "you must supply :read & :write fns when creating duplex streams.")
-  (duplex-IOF! (new stream.Duplex (clj->js opts))))
-
-(defn TransformStream
-  [{:keys [transform flush] :as opts}]
-  (assert (map? opts) "you must pass a map of constructor options containing at least a :transform fn")
-  (assert (fn? transform) "you must supply a :transform fn when creating a transform stream.")
-  (assert (if flush (fn? flush) true) ":flush must be a fn")
-  (duplex-IOF! (new stream.Transform (clj->js opts))))
-
-(defn BufferReadStream
-  "Creates a ReadableStream from a Buffer. Opts are same as ReadableStream except
-  the :read fn is provided. If you provide :read, it is ignored"
-  ([source](BufferReadStream source nil))
-  ([source opts]
-   (assert (js/Buffer.isBuffer source) "source must be a Buffer instance")
-   (let [offset (atom 0)
-         length (.-length source)
-         read   (fn [size]
-                  (this-as this
-                   (if (< @offset length)
-                     ; still buffer to consume
-                     (let [chunk (.slice source @offset (+ @offset size))]
-                       (.push this chunk)
-                       (swap! offset + size))
-                     ; offset>=buffer length...totally consumed
-                     (.push this nil))))
-         strm (ReadableStream (merge opts {:read read}))
-         _    (set! (.-constructor strm) :BufferReadStream)]
-     strm)))
-
-(defn BufferWriteStream
-  "Creates WritableStream to a buffer. The buffer is formed from concatenated
-   chunks passed to write method. cb is called with the buffer on the 'finish' event.
-  'finish' must be triggered to recieve buffer"
-  ([cb] (BufferWriteStream cb nil))
-  ([cb opts]
-   (let [data  #js[]
-         buf   (atom nil)
-         write (fn [chunk _ callback]
-                 (assert (js/Buffer.isBuffer chunk) "data given to the write method must be buffer instances")
-                 (.push data chunk)
-                 (callback))
-         strm  (WritableStream (merge opts {:write write}))
-         _     (set! (.-constructor strm) :BufferWriteStream)
-         _     (set! (.-buf strm) data)
-         _     (.on strm "finish"
-                (fn []
-                  (let [b (js/Buffer.concat data)]
-                    (reset! buf b)
-                    (cb b))))]
-     (specify! strm
-      Object
-      (toString [_] (if @buf (.toString @buf)))
-      (toBuffer [_] @buf)))))
