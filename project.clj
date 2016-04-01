@@ -26,13 +26,22 @@
 
                         {:id "simple"
                          :source-paths ["src" "test"]
-                         :notify-command ["node" "target/test/tests-simple.js"]
+                         :notify-command ["node" "target/test/simple.js"]
                          :compiler {:optimizations :simple
                                     :target :nodejs
                                     :parallel-build true
                                     :main cljs-node-io.core
-                                    :output-to "target/test/tests-simple.js"
-                                    :output-dir "target/test/out-simple"}}]
+                                    :externs ["node_externs.js"]
+                                    :output-to "target/test/simple.js"
+                                    :output-dir "target/test/out-simple"
+                                    :source-map "target/test/simple.js.map"
+                                    :language-in :ecmascript5
+                                    ;  :verbose true
+                                     :closure-warnings
+                                      {:check-types :error
+                                       :undefined-names :off
+                                       :externs-validation :off
+                                       :missing-properties :off}}}]
 
               :test-commands
-              {"simple" ["node" "target/test/tests-simple.js"]}})
+              {"simple" ["node" "target/test/simple.js"]}})
