@@ -70,12 +70,15 @@
 (def os (js/require "os"))
 
 (deftest test-make-parents
-  (let [tmp (.tmpdir os)
-        a   (file tmp "test-make-parents" "child" "grandchild")]
-    (delete-file a :silently)
+  (let [tmp (.tmpdir os)]
+    (delete-file (file tmp "test-make-parents" "child" "grandchild") :silently)
+    (delete-file (file tmp "test-make-parents" "child") :silently)
+    (delete-file (file tmp "test-make-parents") :silently)
     (make-parents tmp "test-make-parents" "child" "grandchild")
     (is (.isDirectory (file tmp "test-make-parents" "child")))
-    (is (not (.isDirectory (file tmp "test-make-parents" "child" "grandchild"))))))
+    (is (not (.isDirectory (file tmp "test-make-parents" "child" "grandchild"))))
+    (delete-file (file tmp "test-make-parents" "child"))
+    (delete-file (file tmp "test-make-parents"))))
 
 (deftest test-async-spit-and-slurp
   (let [txt "hello world"
