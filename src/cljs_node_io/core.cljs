@@ -4,7 +4,7 @@
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.file :refer [File]]
             [cljs.reader :refer [read-string]]
-            [cljs-node-io.streams :refer [FileInputStream BufferReadStream]]
+            [cljs-node-io.streams :refer [FileInputStream BufferReadStream] :as streams]
             [cljs-node-io.protocols
               :refer [Coercions as-url as-file
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]
@@ -127,8 +127,13 @@
   (make-output-stream x (when opts (apply hash-map opts))))
 
 
-(defn- ^Boolean append? [opts]
+(defn- ^boolean append? [opts]
   (boolean (:append opts)))
+
+(defn ^boolean Buffer?
+  "sugar over Buffer.isBuffer"
+  [b]
+  (js/Buffer.isBuffer b))
 
 (defn- ^String encoding [opts]
   (or (:encoding opts) "utf8"))
@@ -269,26 +274,56 @@
   (when-let [parent (.getParentFile ^File (apply file f more))]
     (.mkdirs parent)))
 
+(defn input-stream? [otype]
+  (boolean (#{ :FileInputStream :ReadableStream :BufferReadStream :DuplexStream :TransformStream} otype)))
+
+(defn output-stream? [otype]
+  (boolean (#{ :FileOutputStream :WritableStream :BufferWriteStream :DuplexStream :TransformStream} otype)))
+
+(defn stream-type [o]
+  (let [k (type o)]
+    (if (input-stream? k) ; should turn these into predicate fns
+      :InputStream
+      (if (output-stream? k)
+        :OutputStream
+        false))))
+
+(defmulti
+  ^{:doc "Internal helper for copy"
+    :private true
+    :arglists '([input output opts])}
+  do-copy
+  (fn [input output opts] [(or (stream-type input) (type input))
+                           (or (stream-type output) (type output))]))
 
 
-(defn do-copy [input output opts]
-  (let [in  (make-input-stream input opts)
-        out (make-output-stream output opts)]
-    (try
-      (do (.pipe in out) nil)
-      (catch js/Error e (throw e)))))
+(defmethod do-copy [:InputStream :OutputStream] [^InputStream input ^OutputStream output opts]
+  (do (.pipe input output) nil))
+
+(defmethod do-copy [:File :File] [^File input ^File output opts]
+  (let [in  (-> input streams/FileInputStream. )
+        out (-> output streams/FileOutputStream. )]
+    (do-copy in out opts))) ;=> [:InputStream :OutputStream]
+
+(defmethod do-copy [File :OutputStream] [^File input ^OutputStream output opts]
+  (let [in (streams/FileInputStream. input)]
+    (do-copy in output opts))) ;=> [:InputStream :OutputStream]
+
+(defmethod do-copy [:InputStream File] [^InputStream input ^File output opts]
+  (let [out  (streams/FileOutputStream. output)]
+    (do-copy input out opts))) ;=> [:InputStream :OutputStream]
+
+(defmethod do-copy [js/Buffer :OutputStream] [input output opts]
+  (do-copy (streams/BufferReadStream. input opts) output opts)) ;=> [:InputStream :OutputStream]
+
+(defmethod do-copy [js/Buffer :File] [input ^File output opts]
+  (do-copy (streams/BufferReadStream. input opts) output opts)) ;=> [:InputStream File]
 
 (defn copy
-  "Copies input to output.  Returns nil or throws IOException.
-  Input may be an InputStream, Reader, File, byte[], or String.
-  Output may be an OutputStream, Writer, or File.
-  Options are key/value pairs and may be one of
-    :buffer-size  buffer size to use, default is 1024.
-    :encoding     encoding to use if converting between
-                  byte and char streams.
-  Does not close any streams except those it opens itself
-  (on a File)."
-  ; :stream? option to use async stream readers vs sync
+  "Copies input to output. Returns nil or throws.
+  Input may be an InputStream, File, Buffer, or String.
+  Output may be an OutputStream or File.
+  :encoding = destination encoding to use when copying a Buffer"
   [input output & opts]
   (do-copy input output (when opts (apply hash-map opts))))
 

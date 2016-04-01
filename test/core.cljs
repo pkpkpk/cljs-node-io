@@ -3,8 +3,9 @@
   (:require [cljs.test :refer-macros [deftest is testing async are]]
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.file :refer [File createTempFile]]
+            [cljs-node-io.streams :refer [BufferReadStream BufferWriteStream]]
             [cljs-node-io.protocols :refer [Coercions as-file as-url ]]
-            [cljs-node-io.core :refer [file as-relative-path spit slurp aspit aslurp delete-file make-parents]])
+            [cljs-node-io.core :refer [file  Buffer? copy as-relative-path spit slurp aspit aslurp delete-file make-parents]])
   (:import goog.Uri))
 
 
@@ -78,9 +79,45 @@
 
 (deftest test-async-spit-and-slurp
   (let [txt "hello world"
-        f    (createTempFile "test" "deletion")]
+        f    (createTempFile "test" "async")]
     (async done
       (go
         (is (= true (<! (aspit f txt))))
         (is (= txt  (<! (aslurp f))))
         (done)))))
+
+(defn bytes-should-equal [buffer-1 buffer-2]
+  (is (and (Buffer? buffer-1) (Buffer? buffer-2)))
+  (is (= (into []  (array-seq buffer-1)) (into [] (array-seq buffer-2)))))
+
+(defn data-fixture
+  "in memory fixture data for tests"
+  [src-enc]
+  (let [s  (apply str (concat "a" (repeat 10 "\u226a\ud83d\ude03")))
+        i  (js/Buffer. s src-enc)
+        ch (chan)
+        o  (BufferWriteStream (fn [b] (put! ch b)) )]
+    {:s s :input-buffer i :o o :ch ch}))
+
+; buffers convert strings to different encodings via the toString method
+; for new Buffer(str, enc), enc identifies the str params encoding, ex:
+;   buf = new Buffer('7468697320697320612074c3a97374', 'hex')
+;   buf.toString("utf8") ;=> this is a tést
+
+(deftest test-copy-encodings
+  (async done
+   (go
+    (doseq [enc [ "utf8" "utf-8" "utf16le" "utf-16le" "ucs2" "ucs-2"]]
+      (testing (str "from inputstream " enc " to output UTF-8")
+        (let [{:keys [s input-buffer o ch]} (data-fixture enc)]
+          (is (nil? (copy input-buffer o :encoding "utf8")))
+          (let [expected (js/Buffer. (.toString input-buffer))
+                output-buffer (<! ch)]
+            (bytes-should-equal expected output-buffer))))
+      (testing (str "from inputstream UTF-8 to output-stream  " enc)
+        (let [{:keys [o s ch input-buffer]} (data-fixture "utf8")]
+          (is (nil? (copy input-buffer o :encoding enc)))
+          (let [expected (js/Buffer. (.toString (js/Buffer. s) enc))
+                output-buffer (<! ch)]
+            (bytes-should-equal expected output-buffer )))))
+    (done))))
