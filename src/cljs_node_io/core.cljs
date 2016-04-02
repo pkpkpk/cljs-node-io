@@ -17,7 +17,6 @@
 
 (def fs (require "fs"))
 (def path (require "path"))
-(def Buffer (.-Buffer (require "buffer")))
 
 (extend-type js/Buffer
   IEquiv
@@ -122,7 +121,6 @@
    local file names.
    Should be used inside with-open to ensure the OutputStream is
    properly closed."
-  {:added "1.2"}
   [x & opts]
   (make-output-stream x (when opts (apply hash-map opts))))
 
@@ -135,12 +133,12 @@
   [b]
   (js/Buffer.isBuffer b))
 
-(defn- ^String encoding [opts]
-  (or (:encoding opts) "utf8"))
-
-(defn- buffer-size [opts]
-  (or (:buffer-size opts) 1024)) ;<==?
-
+; (defn- ^String encoding [opts]
+;   (or (:encoding opts) "utf8"))
+;
+; (defn- buffer-size [opts]
+;   (or (:buffer-size opts) 1024)) ;<==?
+;
 
 
 (extend-protocol IOFactory
@@ -171,28 +169,27 @@
 
 
 (defn slurp
-  "Returns String synchronously by default
-   If :stream? true, punts to file-stream-reader, havent figured out yet
-   If :async? true, returns channel which will receive err|data specified by encoding via put! cb
-   If :reader true,  attempts to convert the file content to clj data structures
-   If :encoding \"\" (an explicit empty string), returns raw buffer instead of string.
-   @returns {String|Buffer|Channel}"
+  "Returns a string synchronously by default
+   Opts:
+     :stream? true, punts to file-stream-reader, havent figured out yet
+     :async? true, returns channel which will receive err|data specified by encoding via put! cb
+     :reader true,  attempts to convert the file content to clj data structures
+     :encoding \"\" (an explicit empty string), returns raw buffer instead of string.
+   @return {(cljs.core.async.impl.protocols.Channel|string|stream.ReadableStream)}"
   ([f & opts]
    (let [r (apply reader f opts)]
      (.read r) )))
 
 (defn aslurp
   "sugar for (slurp f :async? true ...)
-   Returns a channel which will receive err|data specified by encoding via put! cb
-   @returns {Channel}"
+   @return {cljs.core.async.impl.protocols.Channel} a which will receive err|data"
   [f & opts]
   (let [r (apply reader f (concat opts '(:async? true)))]
     (.read r)))
 
 (defn reader-method
-  "Finds an appropriate reader based on the file's extension. ie clojure.reader/read-string
-   for edn files.
-   Should be user extensible?"
+  "@param {string} filepath
+   @return {function(string):Object} appropriate reader based on the file's extension"
   [filepath]
   (condp = (.extname path filepath)
     ".edn"  (fn [contents] (read-string contents))
@@ -204,7 +201,8 @@
 
 
 (defn sslurp
-  "augmented 'super' slurp for convenience. edn|json => clj data-structures"
+  "augmented 'super' slurp for convenience. edn|json => clj data-structures
+  @returns {Object}"
   [f & opts]
   (let [ff    (apply reader f opts)
         rdr  (reader-method (.getPath ff))]
@@ -213,9 +211,9 @@
 (defn saslurp
   "augmented 'super' aslurp for convenience. edn|json => clj data-structures put into a ch
     TODO: allow passing custom reader fn
-   @returns {Channel} which receives edn data or error "
+   @returns {cljs.core.async.impl.protocols.Channel} which receives edn data or error "
   [f & opts]
-  (let [file  (apply reader f (concat opts '(:async? true :reader true)))
+  (let [file  (apply reader f (concat opts '(:async? true)))
         rdr   (reader-method (.getPath file))
         from  (.read file)
         to    (chan 1 (map #(if (error? %) % (rdr %))) )
@@ -223,21 +221,17 @@
     to))
 
 (defn spit
-  "Opposite of slurp.  Opens f with writer, writes content.
-   Options passed to a file/file-writer.
+  "Opens f with writer, writes content. Opts passed to a file/file-writer.
    :encoding
    :append
-   :async?
-   :stream?
-  "
+   :async?"
   [f content & options]
   (let [w (apply writer f options)]
     (.write w (str content))))
 
 (defn aspit
-  "Async spit. returned chan recieves error or true on write success.
-   Wait for result before writing again.
-   @returns {Channel}"
+  "Async spit. Wait for result before writing again.
+   @return {cljs.core.async.impl.protocols.Channel} recieves error or true on write success"
   [f content & options]
   (let [w (apply writer f (concat options '(:async? true)))]
     (.write w (str content))))
@@ -274,19 +268,26 @@
   (when-let [parent (.getParentFile ^File (apply file f more))]
     (.mkdirs parent)))
 
-(defn input-stream? [otype]
-  (boolean (#{ :FileInputStream :ReadableStream :BufferReadStream :DuplexStream :TransformStream} otype)))
+(defn input-stream?
+  "@param {Object} obj object to test
+   @return {boolean} is object an input-stream?"
+  [obj]
+  (boolean (#{ :FileInputStream :ReadableStream :BufferReadStream :DuplexStream :TransformStream} (type obj))))
 
-(defn output-stream? [otype]
-  (boolean (#{ :FileOutputStream :WritableStream :BufferWriteStream :DuplexStream :TransformStream} otype)))
+(defn output-stream?
+  "@param {Object} obj object to test
+   @return {boolean} is object an output-stream?"
+  [obj]
+  (boolean (#{ :FileOutputStream :WritableStream :BufferWriteStream :DuplexStream :TransformStream} (type obj))))
 
-(defn stream-type [o]
-  (let [k (type o)]
-    (if (input-stream? k) ; should turn these into predicate fns
-      :InputStream
-      (if (output-stream? k)
-        :OutputStream
-        false))))
+(defn stream-type
+  "@param {Object} obj The object to test"
+  [obj]
+  (if (input-stream? obj)
+    :InputStream
+    (if (output-stream? obj)
+      :OutputStream
+      false)))
 
 (defmulti
   ^{:doc "Internal helper for copy"
@@ -303,21 +304,21 @@
 (defmethod do-copy [:File :File] [^File input ^File output opts]
   (let [in  (-> input streams/FileInputStream. )
         out (-> output streams/FileOutputStream. )]
-    (do-copy in out opts))) ;=> [:InputStream :OutputStream]
+    (do-copy in out opts)))
 
-(defmethod do-copy [File :OutputStream] [^File input ^OutputStream output opts]
+(defmethod do-copy [:File :OutputStream] [^File input ^OutputStream output opts]
   (let [in (streams/FileInputStream. input)]
-    (do-copy in output opts))) ;=> [:InputStream :OutputStream]
+    (do-copy in output opts)))
 
 (defmethod do-copy [:InputStream File] [^InputStream input ^File output opts]
   (let [out  (streams/FileOutputStream. output)]
-    (do-copy input out opts))) ;=> [:InputStream :OutputStream]
+    (do-copy input out opts)))
 
 (defmethod do-copy [js/Buffer :OutputStream] [input output opts]
-  (do-copy (streams/BufferReadStream. input opts) output opts)) ;=> [:InputStream :OutputStream]
+  (do-copy (streams/BufferReadStream. input opts) output opts))
 
 (defmethod do-copy [js/Buffer :File] [input ^File output opts]
-  (do-copy (streams/BufferReadStream. input opts) output opts)) ;=> [:InputStream File]
+  (do-copy (streams/BufferReadStream. input opts) output opts))
 
 (defn copy
   "Copies input to output. Returns nil or throws.
