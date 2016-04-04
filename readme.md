@@ -41,18 +41,6 @@
     - methods like pipe take option maps, in docs are cljs maps, shouldnt be
     - buffer stream methods
     - consider writev method for buffer BufferWriteStream
-  + extend Buffer with useful protocols
-    - [x] IEquiv
-    - (into [] (array-seq <Buffer>))
-  + __copy__
-    - [x] easiest: coerce args to streams and the just pipe it over?
-    - directories?
-    - [ ] Test
-    - [ ] Options supported
-      - __:buffer-size__  buffer size to use, default is 1024.
-      - __:encoding__     encoding to use if converting between byte and char streams.
-
-
   + __types__
     - compile checks, jsDoc (simple opts cant be used with figwheel)
     - runtime checks, schema?
@@ -65,18 +53,10 @@
   + test IOFactory on all supported types
   + verify opts keys through all paths. :append? :async? :stream?
     - should be :append like clojure semantics? "?" hints bool though
-  + line-seq  + test
-  + __readline__
-    - line-seq needs readline stream, probably must be async (breaking from clj)
-    - file reader needs a read, readline methods??
   * __Improve Error Handling__
     - defrecord SomeError [cause context ....]  
   + xml-seq  + test  
-  + aFile? async reified file objects
-    - constructor opt?
-    - currently you have sync methods but option for async read/write
-    - .aread vs .read methods to distinguish. rather than build based on opts?    
-  + super-spit?
+  + aFile?
   + try/catch => bool macro, sync vs async
     - try-false, try-bool
   + script examples, w/ CLI args
@@ -85,33 +65,13 @@
     - openStream -> opens connection to this URL and returns an input stream for reading
       - see IOFactory
       - https://docs.oracle.com/javase/7/docs/api/java/net/URL.html#openStream()
-
   + __zlib__
     - zip/unzip files? directories?
   + __transit w/ object stream??__
   + fs.watch, fs.watchFile, symlinks, realpath, chmod, chown readlink, fsync
 
-``` clj
-(def default-streams-impl
-  {:make-reader (fn [x opts] (make-reader (make-input-stream x opts) opts))
-   :make-writer (fn [x opts] (make-writer (make-output-stream x opts) opts))
-   :make-input-stream (fn [x opts]
-                        (throw (IllegalArgumentException.
-                                (str "Cannot open <" (pr-str x) "> as an InputStream."))))
-   :make-output-stream (fn [x opts]
-                         (throw (IllegalArgumentException.
-                                 (str "Cannot open <" (pr-str x) "> as an OutputStream."))))})
-
-(extend Socket
-  IOFactory
-  (assoc default-streams-impl
-    :make-input-stream (fn [^Socket x opts] (make-input-stream (.getInputStream x) opts))
-    :make-output-stream (fn [^Socket x opts] (make-output-stream (.getOutputStream x) opts))))
-
-```
 
 ### Issues
-
   + switch (.exists File) to non-deprecated impl
     - Use fs.statSync() or fs.accessSync() instead.
   + misc
