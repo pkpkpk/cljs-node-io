@@ -23,3 +23,9 @@
 
 (defprotocol IFile
   "A marker protocol indicating a reified File")
+
+(defprotocol IInputStream
+  "A marker protocol indicating an input-stream")
+
+(defprotocol IOutputStream
+  "A marker protocol indicating an output-stream")
