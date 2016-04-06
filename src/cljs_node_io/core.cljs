@@ -2,6 +2,7 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop alt!]])
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
+            [cljs.core.async.impl.protocols :refer [Channel]]
             [cljs-node-io.file :refer [File]]
             [cljs.reader :refer [read-string]]
             [cljs-node-io.streams :refer [FileInputStream BufferReadStream] :as streams]
@@ -129,7 +130,8 @@
   (boolean (:append opts)))
 
 (defn ^boolean Buffer?
-  "sugar over Buffer.isBuffer"
+  "sugar over Buffer.isBuffer
+   @return {boolean}"
   [b]
   (js/Buffer.isBuffer b))
 
@@ -171,18 +173,16 @@
 (defn slurp
   "Returns a string synchronously by default
    Opts:
-     :stream? true, punts to file-stream-reader, havent figured out yet
      :async? true, returns channel which will receive err|data specified by encoding via put! cb
-     :reader true,  attempts to convert the file content to clj data structures
      :encoding \"\" (an explicit empty string), returns raw buffer instead of string.
-   @return {(cljs.core.async.impl.protocols.Channel|string|stream.ReadableStream)}"
+   @return {(Channel|string|buffer.Buffer)}"
   ([f & opts]
    (let [r (apply reader f opts)]
      (.read r) )))
 
 (defn aslurp
   "sugar for (slurp f :async? true ...)
-   @return {cljs.core.async.impl.protocols.Channel} a which will receive err|data"
+   @return {Channel} a which will receive err|data"
   [f & opts]
   (let [r (apply reader f (concat opts '(:async? true)))]
     (.read r)))
@@ -210,8 +210,7 @@
 
 (defn saslurp
   "augmented 'super' aslurp for convenience. edn|json => clj data-structures put into a ch
-    TODO: allow passing custom reader fn
-   @returns {cljs.core.async.impl.protocols.Channel} which receives edn data or error "
+   @return {Channel} which receives edn data or error "
   [f & opts]
   (let [file  (apply reader f (concat opts '(:async? true)))
         rdr   (reader-method (.getPath file))
@@ -231,7 +230,7 @@
 
 (defn aspit
   "Async spit. Wait for result before writing again.
-   @return {cljs.core.async.impl.protocols.Channel} recieves error or true on write success"
+   @return {Channel} recieves error or true on write success"
   [f content & options]
   (let [w (apply writer f (concat options '(:async? true)))]
     (.write w (str content))))
