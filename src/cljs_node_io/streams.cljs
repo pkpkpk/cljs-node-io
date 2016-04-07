@@ -4,6 +4,7 @@
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.protocols
               :refer [Coercions as-url as-file
+                      IInputStream IOutputStream
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
 (def fs (require "fs"))
@@ -13,6 +14,7 @@
   "adds IOFactory input impls that just defer back to the stream or throw as appropriate"
   [streamobj]
   (specify! streamobj
+    IInputStream
     IOFactory
     (make-reader [this opts] this)
     (make-input-stream [this _] this)
@@ -23,6 +25,7 @@
   "adds IOFactory output impls that just defer back to the stream or throw as appropriate"
   [streamobj]
   (specify! streamobj
+    IOutputStream
     IOFactory
     (make-reader [this _] (throw (js/Error. (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str this) "> as an InputStream."))))
     (make-input-stream [this _] (throw (js/Error. (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str this) "> as an InputStream."))))
@@ -33,6 +36,8 @@
   "defer back to the stream in all cases"
   [streamobj]
   (specify! streamobj
+    IInputStream
+    IOutputStream
     IOFactory
     (make-reader [this _] this)
     (make-input-stream [this _] this)
@@ -145,6 +150,7 @@
         _             (set! (.-constructor filestreamobj) :FileInputStream)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
     (specify! filestreamobj
+      IInputStream
       IEquiv
       (-equiv [this that](= (fp this) (fp that)))
       IPrintWithWriter
@@ -170,6 +176,7 @@
         _             (set! (.-constructor filestreamobj) :FileOutputStream)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
     (specify! filestreamobj
+      IOutputStream
       IEquiv
       (-equiv [this that](= (fp this) (fp that)))
       IPrintWithWriter
