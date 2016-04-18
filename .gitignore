@@ -12,3 +12,5 @@ pom.xml
 *.edn
 clj-java-io*
 *foo.cljs
+.lein-failures
+checkouts/
