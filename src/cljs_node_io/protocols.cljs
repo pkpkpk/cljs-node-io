@@ -20,3 +20,6 @@
   (make-writer [x opts] "Creates a BufferedWriter. See also IOFactory docs.")
   (make-input-stream [x opts] "Creates a BufferedInputStream. See also IOFactory docs.")
   (make-output-stream [x opts] "Creates a BufferedOutputStream. See also IOFactory docs."))
+
+(defprotocol IFile
+  "A marker protocol indicating a reified File")
