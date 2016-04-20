@@ -7,7 +7,7 @@
             [cljs.reader :refer [read-string]]
             [cljs-node-io.streams :refer [FileInputStream BufferReadStream] :as streams]
             [cljs-node-io.protocols
-              :refer [Coercions as-url as-file
+              :refer [Coercions as-url as-file IInputStream IOutputStream
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]
             [clojure.string :as st]
             [goog.string :as gstr])
@@ -268,16 +268,16 @@
     (.mkdirs parent)))
 
 (defn input-stream?
-  "@param {Object} obj object to test
+  "@param {*} obj object to test
    @return {boolean} is object an input-stream?"
   [obj]
-  (boolean (#{ :FileInputStream :ReadableStream :BufferReadStream :DuplexStream :TransformStream} (type obj))))
+  (implements? IInputStream obj))
 
 (defn output-stream?
-  "@param {Object} obj object to test
-   @return {boolean} is object an output-stream?"
+  "@param {*} obj object to test
+   @return {boolean} is object an input-stream?"
   [obj]
-  (boolean (#{ :FileOutputStream :WritableStream :BufferWriteStream :DuplexStream :TransformStream} (type obj))))
+  (implements? IOutputStream obj))
 
 (defn stream-type
   "@param {Object} obj The object to test"
