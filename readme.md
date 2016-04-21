@@ -45,15 +45,16 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
 ```
 <hr>
 
-
-
-
-### Notes
-  + biased towards sync calls, async makes for poor repl experience
-  + no URL type, just goog.net.Uri (which is great & very java-ish)
-  + clojure on JVM exploits inheritance for typing, not available here
-  + fudging types with keywords, simplest
-  + no java-style char/byte arrays, just nodejs buffers
-  + node streams manage themselves, are awesome. no readers necessary
-
 ### Differences from Clojure
+  + Node runs an asynchronous event loop & is event driven. This means you can't do things like create a stream and consume it synchronously (that is, on the same event-loop tick)... you must instead create the stream and attach handlers to its emitted events.
+    - clojure.java.io coerces everything into streams and reads and writes from there. This strategy cannot work in node. 
+    - To preserve synchronous semantics, slurp for example uses memory consuming fs.readFileSync. This is fine for small files and repl sessions. If you need to read larger files, restructure your program to accommodate node streams. Luckily core.async makes this easy!
+
+
+  + node streams manage themselves, are awesome. no reader+writer interfaces necessary
+  + no URL type, just goog.net.Uri (which is great & very java-ish)
+  + javascript does not have a character type
+  + no java-style char/byte arrays, just nodejs buffers
+  + clojure on JVM exploits inheritance for typing, not available here
+  
+  
