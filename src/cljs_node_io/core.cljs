@@ -220,10 +220,10 @@
     to))
 
 (defn spit
-  "Opens f with writer, writes content. Opts passed to a file/file-writer.
-   :encoding
-   :append
-   :async?"
+  "Writes content synchronously to file f.
+   :encoding {string} encoding to write the string. Ignored when content is a buffer
+   :append - {bool} - if true add content to end of file
+   @return {nil} or throws"
   [f content & options]
   (let [w (apply writer f options)]
     (.write w (str content))))
