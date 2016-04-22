@@ -171,7 +171,12 @@
             (deleteOnExit [this]
               (.on js/process "exit"  (fn [exit-code] (.delete this))))
             (equals ^boolean [this that] (= this that))
-            (exists ^boolean [this] (.existsSync fs @pathstring)) ;deprecated buts stats docs are shit so im using it
+            (exists ^boolean [_]
+              (try
+                (do
+                  (.accessSync fs @pathstring (.-F_OK fs))
+                  true)
+                (catch js/Error e false)))
             (getAbsoluteFile [this] (as-file (.getAbsolutePath this)))
             (getAbsolutePath [_] (.resolve path @pathstring))
             (getCanonicalFile [this] (as-file (.getCanonicalPath this)))
