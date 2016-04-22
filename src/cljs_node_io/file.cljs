@@ -3,9 +3,8 @@
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs.reader :refer [read-string]]
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
-            [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
             [cljs-node-io.protocols
-              :refer [Coercions as-url as-file IFile IFileOutputStream
+              :refer [Coercions as-url as-file IFile
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
 (def fs (require "fs"))
@@ -58,67 +57,58 @@
                                               "\nYou passed " (pr-str x)
                                               "\nYou must pass a [string], [uri], [string string], or [file string].\n" ))))
 
-(defn file-stream-reader [filestream opts]
-  (make-reader filestream opts)) ;just defering to file stream object for now
-
-(defn file-stream-writer [filestream opts]
-  (make-writer filestream opts)) ;just defering to file stream object for now
-
 (defn file-reader
-  "For async and sync opts, this builds an appropriate read method and attaches
-   it to the reified file, returning the passed file.
-    - opts = :encoding :async :stream?
-    - if :stream? true, returns FileInputStream (as distinct object), :async is ignored
-    - if :async? true, file.read() returns a chan which receives err|str on successful read
-    - if :async? false, file.read() returns data synchronously"
+  "Depending on :async? option, this builds an appropriate read method 
+   and attaches it to the reified file, returning the passed file.
+    - opts {map}: :encoding {string}, :async? {bool}
+    - if :async? true, file.read() => channel which receives err|str on successful read
+    - if :encoding is \"\" (an explicit empty string), file.read() => raw buffer
+   @param {IFile} file to build read method for
+   @param {IMap} opts
+   @return {IFile} the same file with a read method attached"
   [file opts]
-  (if (:stream? opts)
-    (file-stream-reader (make-input-stream file opts) opts)
-    (if (:async? opts)
-      (specify! file Object
-        (read [this]
-          (let [c (chan) ]
-            (.readFile fs (.getPath this) (or (:encoding opts) "utf8") ;if no encoding, returns buffer
-              (fn [err data]
-                (put! c (if err err data))))
-            c)))
-      ;sync reader
-      (specify! file Object
-        (read [this]
-          (.readFileSync fs (.getPath this) (or (:encoding opts) "utf8"))))))) ;if no encoding, returns buffer . catch err?
+  (if (:async? opts)
+    (specify! file Object
+      (read [this]
+            (let [c (chan) ]
+              (.readFile fs (.getPath this) (or (:encoding opts) "utf8") ;if no encoding, returns buffer
+                (fn [err data]
+                  (put! c (if err err data))))
+              c)))
+    ;sync reader
+    (specify! file Object
+      (read [this]
+        (.readFileSync fs (.getPath this) (or (:encoding opts) "utf8")))))) ;if no encoding, returns buffer . catch err?
 
 (defn file-writer
-  "For async and sync opts, this builds an appropriate write method given opts
-  and attaches it to the reified file, returning the passed file.
-    - opts: :encoding, :append, :async?, :stream?
-    - if :stream? true, returns FileOutputStream as separate object.
-    - if content is a Buffer instance, opt encoding is ignored
-    - if :async? true, file.write() returns a chan which receives err|true on successful write.
-  @param {IFile} file
-  @param {IMap} opts a map of options
-  @return {(IMap|IFn)}"
+  "Depending on the :async? option, this builds an appropriate write method
+   and attaches it to the reified file, returning the passed file.
+     - opts {map}: :encoding {string}, :append {bool}, :async? {bool}
+     - if content is a Buffer instance, opt encoding is ignored
+     - if :async? file.write() => channel which receives err|true on successful write.
+   @param {IFile} file to build write method for
+   @param {IMap} opts a map of options
+   @return {IFile} the same file with a write method attached"
   [file opts]
-  (if (:stream? opts)
-    (file-stream-writer (make-output-stream file opts) opts)
-    (if (:async? opts)
-      (specify! file Object
-        (write [this content]
-          (let [filename (.getPath this)
-                c (chan)
-                cb (fn [err] (put! c (or err true)))]
-            (.writeFile fs filename content
-                        #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
-                            "mode"     (or (:mode opts) 438)
-                            "encoding" (or (:encoding opts) "utf8")}
-                        cb)
-            c)))
-      (specify! file Object ;sync
-        (write [this content]
-          (let [filename (.getPath this)]
-            (.writeFileSync fs filename content
-                            #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
-                                "mode"     (or (:mode opts)  438)
-                                "encoding" (or (:encoding opts) "utf8")})))))))
+  (if (:async? opts)
+    (specify! file Object
+      (write [this content]
+        (let [filename (.getPath this)
+              c (chan)
+              cb (fn [err] (put! c (or err true)))]
+          (.writeFile fs filename content
+                      #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
+                          "mode"     (or (:mode opts) 438)
+                          "encoding" (or (:encoding opts) "utf8")}
+                      cb)
+          c)))
+    (specify! file Object ;sync
+      (write [this content]
+        (let [filename (.getPath this)]
+          (.writeFileSync fs filename content
+                          #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
+                              "mode"     (or (:mode opts)  438)
+                              "encoding" (or (:encoding opts) "utf8")}))))))
 
 
 
