@@ -3,6 +3,7 @@
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs.reader :refer [read-string]]
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
+            [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
             [cljs-node-io.protocols
               :refer [Coercions as-url as-file IFile
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
