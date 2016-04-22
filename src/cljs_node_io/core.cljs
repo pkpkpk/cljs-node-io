@@ -173,9 +173,8 @@
 (defn slurp
   "Returns a string synchronously by default
    Opts:
-     :async? true, returns channel which will receive err|data specified by encoding via put! cb
      :encoding \"\" (an explicit empty string), returns raw buffer instead of string.
-   @return {(Channel|string|buffer.Buffer)}"
+   @return {(string|buffer.Buffer)}"
   ([f & opts]
    (let [r (apply reader f opts)]
      (.read r) )))
@@ -229,7 +228,7 @@
     (.write w (str content))))
 
 (defn aspit
-  "Async spit. Wait for result before writing again.
+  "Async spit. Wait for result before writing again!
    @return {Channel} recieves error or true on write success"
   [f content & options]
   (let [w (apply writer f (concat options '(:async? true)))]
