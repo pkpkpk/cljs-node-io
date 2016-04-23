@@ -72,62 +72,46 @@
       silently
       (throw (js/Error. (str "Couldn't delete " f)))))
 
-(defn ^Reader reader
+(defn reader
   "Attempts to coerce its argument into an open java.io.Reader.
-   Default implementations always return a java.io.BufferedReader.
    Default implementations are provided for Reader, BufferedReader,
-   InputStream, File, URI, URL, Socket, byte arrays, character arrays,
+   InputStream, File, URI, byte arrays, character arrays,
    and String.
    If argument is a String, it tries to resolve it first as a URI, then
    as a local file name.  URIs with a 'file' protocol are converted to
-   local file names.
-   Should be used inside with-open to ensure the Reader is properly
-   closed."
+   local file names."
   [x & opts]
   (make-reader x (when opts (apply hash-map opts))))
 
-(defn ^Writer writer
+(defn writer
   "Attempts to coerce its argument into an open java.io.Writer.
-   Default implementations always return a java.io.BufferedWriter.
    Default implementations are provided for Writer, BufferedWriter,
-   OutputStream, File, URI, URL, Socket, and String.
+   OutputStream, File, URI, and String.
    If the argument is a String, it tries to resolve it first as a URI, then
    as a local file name.  URIs with a 'file' protocol are converted to
-   local file names.
-   Should be used inside with-open to ensure the Writer is properly
-   closed."
+   local file names."
   [x & opts]
   (make-writer x (when opts (apply hash-map opts))))
 
-(defn ^InputStream input-stream
-  "Attempts to coerce its argument into an open java.io.InputStream.
-   Default implementations always return a java.io.BufferedInputStream.
-   Default implementations are defined for InputStream, File, URI, URL,
-   Socket, byte array, and String arguments.
+(defn input-stream
+  "Attempts to coerce its argument into an IInputStream
+   Default implementations are defined for InputStream, File, URI, and Buffers
    If the argument is a String, it tries to resolve it first as a URI, then
    as a local file name.  URIs with a 'file' protocol are converted to
    local file names.
-   Should be used inside with-open to ensure the InputStream is properly
-   closed."
+   @return {IInputStream}"
   [x & opts]
   (make-input-stream x (when opts (apply hash-map opts))))
 
-(defn ^OutputStream output-stream
-  "Attempts to coerce its argument into an open java.io.OutputStream.
-   Default implementations always return a java.io.BufferedOutputStream.
-   Default implementations are defined for OutputStream, File, URI, URL,
-   Socket, and String arguments.
+(defn output-stream
+  "Attempts to coerce its argument into an IOutputStream.
+   Default implementations are defined for OutputStream, File, URI, Strings
    If the argument is a String, it tries to resolve it first as a URI, then
    as a local file name.  URIs with a 'file' protocol are converted to
    local file names.
-   Should be used inside with-open to ensure the OutputStream is
-   properly closed."
+   @return {IOutputStream}"
   [x & opts]
   (make-output-stream x (when opts (apply hash-map opts))))
-
-
-(defn- ^boolean append? [opts]
-  (boolean (:append opts)))
 
 (defn ^boolean Buffer?
   "sugar over Buffer.isBuffer
@@ -135,20 +119,12 @@
   [b]
   (js/Buffer.isBuffer b))
 
-; (defn- ^String encoding [opts]
-;   (or (:encoding opts) "utf8"))
-;
-; (defn- buffer-size [opts]
-;   (or (:buffer-size opts) 1024)) ;<==?
-;
-
-
 (extend-protocol IOFactory
   Uri
   (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
   (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
   (make-input-stream [x opts] (make-input-stream
-                                (if (= "file" (.getScheme x)) ;move this to make-reader?
+                                (if (= "file" (.getScheme x))
                                   (FileInputStream. (as-file x))
                                   (.openStream x)) opts))
   (make-output-stream [x opts] (if (= "file" (.getScheme x))
@@ -156,15 +132,15 @@
                                  (throw (js/Error. (str "IllegalArgumentException: Can not write to non-file URL <" x ">")))))
 
   string
-  (make-reader [x opts] (make-reader (as-file x) opts)); choice to make stream is handled by opts passed to reader
+  (make-reader [x opts] (make-reader (as-file x) opts))
   (make-writer [x opts] (make-writer (as-file x) opts))
   (make-input-stream [^String x opts](try
                                         (make-input-stream (Uri. x) opts)
-                                        (catch js/Error e ;MalformedURLException
+                                        (catch js/Error e
                                           (make-input-stream (File. x) opts))))
   (make-output-stream [^String x opts] (try
                                         (make-output-stream (Uri. x) opts)
-                                          (catch js/Error err ;MalformedURLException
+                                          (catch js/Error err
                                               (make-output-stream (File. x) opts)))))
 
 (defn error? [e] (instance? js/Error e))
