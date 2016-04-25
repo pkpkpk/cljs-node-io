@@ -4,6 +4,7 @@
             [cljs.reader :refer [read-string]]
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
+            [cljs-node-io.fs :as iofs]
             [cljs-node-io.protocols
               :refer [Coercions as-url as-file IFile
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
@@ -12,6 +13,24 @@
 (def path (require "path"))
 (def os (require "os"))
 
+(defn setReadable*
+  "@param {number} mode : the file's existing mode
+   @param {boolean} readable : add or remove read permission
+   @param {boolean} ownerOnly : restrict operation to user bit only
+   @return {number} A int for chmod that only effects the targeted mode bits"
+  [mode readable ownerOnly]
+  (condp = [readable ownerOnly]
+    [true true]   (bit-or mode 256) ; add-user-read
+    [false true]  (bit-and mode (bit-not 256)) ; remove-user-read
+    [true false]  (bit-or mode 256 32 4) ; add-read-to-all
+    [false false] (bit-and mode  (bit-not 256) (bit-not 32) (bit-not 4)))) ;remove all reads
+
+(defn setReadable
+  ([path readable] (setReadable path readable true))
+  ([path readable ownerOnly]
+   (let [mode (iofs/filemode-int path)
+         n    (setReadable* mode readable ownerOnly)]
+     (iofs/chmod path n))))
 
 (defn directory?
   "@param {string} pathstring
@@ -153,6 +172,8 @@
               (try
                 (if (nil? (.accessSync fs (.getPath this) (.-W_OK fs))) true)
                 (catch js/Error e false)))
+            (setReadable [_ r] (setReadable @pathstring r))
+            (setReadable [_ r o] (setReadable @pathstring r o))
             (createNewFile ^boolean [this]
               (file-writer this {:flags "wx" :async? false})
               (try
