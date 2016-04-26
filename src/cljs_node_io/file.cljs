@@ -32,6 +32,25 @@
          n    (setReadable* mode readable ownerOnly)]
      (iofs/chmod path n))))
 
+(defn setWritable*
+  "@param {number} mode : the file's existing mode
+   @param {boolean} writable : add or remove write permission
+   @param {boolean} ownerOnly : restrict operation to user bit only
+   @return {number} A int for chmod that only effects the targeted mode bits"
+  [mode writable ownerOnly]
+  (condp = [writable ownerOnly]
+    [true true]   (bit-or mode 128) ; add-user-write
+    [false true]  (bit-and mode (bit-not 128)) ; remove-user-write
+    [true false]  (bit-or mode 128 16 2) ; add-write-to-all
+    [false false] (bit-and mode  (bit-not 128) (bit-not 16) (bit-not 2)))) ;remove all writes
+
+(defn setWritable
+  ([path writable] (setWritable path writable true))
+  ([path writable ownerOnly]
+   (let [mode (iofs/filemode-int path)
+         n    (setWritable* mode writable ownerOnly)]
+     (iofs/chmod path n))))
+
 (defn directory?
   "@param {string} pathstring
    @return {boolean} iff abstract pathname exists and is a directory"
@@ -174,6 +193,8 @@
                 (catch js/Error e false)))
             (setReadable [_ r] (setReadable @pathstring r))
             (setReadable [_ r o] (setReadable @pathstring r o))
+            (setWritable [_ r] (setWritable @pathstring r))
+            (setWritable [_ r o] (setWritable @pathstring r o))
             (createNewFile ^boolean [this]
               (file-writer this {:flags "wx" :async? false})
               (try
