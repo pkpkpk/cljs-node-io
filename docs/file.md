@@ -189,7 +189,11 @@
   * [x] __setReadable(boolean readable)__ -> boolean
     - A convenience method to set the owner's read permission for this abstract pathname.
   * [x] __setReadable(boolean readable, boolean ownerOnly)__ -> boolean
-    - Sets the owner's or everybody's read permission for this abstract pathname.   
+    - Sets the owner's or everybody's read permission for this abstract pathname.
+  * [x] __setWritable(boolean writable)__ -> boolean
+    - A convenience method to set the owner's write permission for this abstract pathname.
+  * [x] __setWritable(boolean writable, boolean ownerOnly)__ -> boolean
+    - Sets the owner's or everybody's write permission for this abstract pathname.    
 
 
 <hr>
@@ -203,10 +207,7 @@
     - Sets the last-modified time of the file or directory named by this abstract pathname. 
   * [ ] __setReadOnly()__ -> boolean
     - Marks the file or directory named by this abstract pathname so that only read operations are allowed.    
-  * [ ] __setWritable(boolean writable)__ -> boolean
-    - A convenience method to set the owner's write permission for this abstract pathname.
-  * [ ] __setWritable(boolean writable, boolean ownerOnly)__ -> boolean
-    - Sets the owner's or everybody's write permission for this abstract pathname.
+
   * [ ] __compareTo(File pathname)__ -> int
     - Compares two abstract pathnames lexicographically.    
   * [ ] __isHidden()__ -> boolean
