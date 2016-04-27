@@ -184,7 +184,7 @@
   * [x] __canWrite()__ -> boolean
     - [ ] Test
     - Tests whether the application can modify the file denoted by this abstract pathname.
-    - Return: true iff file specified by this abstract pathname exists and the application is allowed to execute the file    
+    - Return: true iff file specified by this abstract pathname exists and the application is allowed to execute the file
     - synchronous
   * [x] __setReadable(boolean readable)__ -> boolean
     - A convenience method to set the owner's read permission for this abstract pathname.
@@ -193,16 +193,15 @@
   * [x] __setWritable(boolean writable)__ -> boolean
     - A convenience method to set the owner's write permission for this abstract pathname.
   * [x] __setWritable(boolean writable, boolean ownerOnly)__ -> boolean
-    - Sets the owner's or everybody's write permission for this abstract pathname.    
+    - Sets the owner's or everybody's write permission for this abstract pathname.
+  * [x] __setExecutable(boolean executable)__ -> boolean
+    - A convenience method to set the owner's execute permission for this abstract pathname.
+  * [x] __setExecutable(boolean executable, boolean ownerOnly)__ -> boolean
+    - Sets the owner's or everybody's execute permission for this abstract pathname.    
 
 
 <hr>
   ### file methods not implemented yet:
-
-  * [ ] __setExecutable(boolean executable)__ -> boolean
-    - A convenience method to set the owner's execute permission for this abstract pathname.
-  * [ ] __setExecutable(boolean executable, boolean ownerOnly)__ -> boolean
-    - Sets the owner's or everybody's execute permission for this abstract pathname.
   * [ ] __setLastModified(long time)__ -> boolean
     - Sets the last-modified time of the file or directory named by this abstract pathname. 
   * [ ] __setReadOnly()__ -> boolean
