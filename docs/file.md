@@ -197,18 +197,17 @@
   * [x] __setExecutable(boolean executable)__ -> boolean
     - A convenience method to set the owner's execute permission for this abstract pathname.
   * [x] __setExecutable(boolean executable, boolean ownerOnly)__ -> boolean
-    - Sets the owner's or everybody's execute permission for this abstract pathname.    
+    - Sets the owner's or everybody's execute permission for this abstract pathname.
+  * [x] __setReadOnly()__ -> boolean
+    - Marks the file or directory named by this abstract pathname so that only read operations are allowed.
 
 
 <hr>
   ### file methods not implemented yet:
   * [ ] __setLastModified(long time)__ -> boolean
     - Sets the last-modified time of the file or directory named by this abstract pathname. 
-  * [ ] __setReadOnly()__ -> boolean
-    - Marks the file or directory named by this abstract pathname so that only read operations are allowed.    
-
   * [ ] __compareTo(File pathname)__ -> int
-    - Compares two abstract pathnames lexicographically.    
+    - Compares two abstract pathnames lexicographically.
   * [ ] __isHidden()__ -> boolean
     - Tests whether the file named by this abstract pathname is a hidden file.    
     
