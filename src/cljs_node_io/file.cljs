@@ -216,6 +216,7 @@
             (setWritable [_ w o] (setWritable @pathstring w o))
             (setExecutable [_ e] (setExecutable @pathstring e))
             (setExecutable [_ e o] (setExecutable @pathstring e o))
+            (setReadOnly [this] (.setWritable this false false))
             (createNewFile ^boolean [this]
               (file-writer this {:flags "wx" :async? false})
               (try
