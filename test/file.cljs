@@ -1,7 +1,7 @@
 (ns cljs-node-io.test.file
   (:require [cljs.test :refer-macros [deftest is testing run-tests are]]
             [clojure.string :as s :refer [starts-with?]]
-            [cljs-node-io.file :refer [File createTempFile setReadable* setWritable*]]
+            [cljs-node-io.file :refer [File createTempFile setReadable* setWritable* setExecutable*]]
             [cljs-node-io.protocols :refer [Coercions as-file as-url ]]
             [cljs-node-io.core :refer [spit slurp]]))
 
@@ -86,3 +86,15 @@
   (is (=  146 (setWritable* 16 true false)))
   (is (=  16  (setWritable* 16 false true)))
   (is (=  0   (setWritable* 16 false false))))
+
+(deftest test-setExecutable*
+  ; rwxrwxrwx
+  (is (= 511 (setExecutable* 511 true true)))
+  (is (= 511 (setExecutable* 511 true false)))
+  (is (= 447 (setExecutable* 511 false true)))
+  (is (= 438 (setExecutable* 511 false false)))
+  ; ------x--x
+  (is (=  73 (setExecutable* 9 true true)))
+  (is (=  73 (setExecutable* 9 true false)))
+  (is (=  9  (setExecutable* 9 false true)))
+  (is (=  0  (setExecutable* 9 false false))))

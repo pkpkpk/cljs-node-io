@@ -51,6 +51,25 @@
          n    (setWritable* mode writable ownerOnly)]
      (iofs/chmod path n))))
 
+(defn setExecutable*
+  "@param {number} mode : the file's existing mode
+   @param {boolean} executable : add or remove execute permission
+   @param {boolean} ownerOnly : restrict operation to user bit only
+   @return {number} A int for chmod that only effects the targeted mode bits"
+  [mode executable ownerOnly]
+  (condp = [executable ownerOnly]
+    [true true]   (bit-or mode 64) ; add-user-execute
+    [false true]  (bit-and mode (bit-not 64)) ; remove-user-execute
+    [true false]  (bit-or mode 64 8 1) ; add-execute-to-all
+    [false false] (bit-and mode  (bit-not 64) (bit-not 8) (bit-not 1)))) ;remove all executes
+
+(defn setExecutable
+  ([path executable] (setExecutable path executable true))
+  ([path executable ownerOnly]
+   (let [mode (iofs/filemode-int path)
+         n    (setExecutable* mode executable ownerOnly)]
+     (iofs/chmod path n))))
+
 (defn directory?
   "@param {string} pathstring
    @return {boolean} iff abstract pathname exists and is a directory"
@@ -193,8 +212,10 @@
                 (catch js/Error e false)))
             (setReadable [_ r] (setReadable @pathstring r))
             (setReadable [_ r o] (setReadable @pathstring r o))
-            (setWritable [_ r] (setWritable @pathstring r))
-            (setWritable [_ r o] (setWritable @pathstring r o))
+            (setWritable [_ w] (setWritable @pathstring w))
+            (setWritable [_ w o] (setWritable @pathstring w o))
+            (setExecutable [_ e] (setExecutable @pathstring e))
+            (setExecutable [_ e o] (setExecutable @pathstring e o))
             (createNewFile ^boolean [this]
               (file-writer this {:flags "wx" :async? false})
               (try
