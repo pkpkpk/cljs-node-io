@@ -217,6 +217,7 @@
             (setExecutable [_ e] (setExecutable @pathstring e))
             (setExecutable [_ e o] (setExecutable @pathstring e o))
             (setReadOnly [this] (.setWritable this false false))
+            (setLastModified [_ time] (iofs/utimes @pathstring time time)) ;sets atime + mtime
             (createNewFile ^boolean [this]
               (file-writer this {:flags "wx" :async? false})
               (try

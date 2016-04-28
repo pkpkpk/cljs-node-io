@@ -48,3 +48,7 @@
   "@return {IMap}"
   []
   {:gid (.getgid js/process) :uid (.getuid js/process)})
+
+(defn utimes
+  [path atime mtime]
+  (.utimesSync fs path atime mtime))
