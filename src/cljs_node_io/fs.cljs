@@ -3,16 +3,16 @@
 
 (def fs (require "fs"))
 
+(defn stat 
+  [path]
+  (.statSync fs path))
+
 (defn to-bit [number] (if-not (zero? number) 1 0))
 
-(defn to-int
-  "takes a vector of 1s an 0s and converts it to an integer"
-  [bitv]
-  (assert (vector? bitv))
-  (assert (every? number? bitv))
-  (let [bb (.join (clj->js bitv) "")
-        i  (js/parseInt bb 2)]
-    i))
+(defn bita->int
+  "takes an array of 1s an 0s and converts it to an integer"
+  [bita]
+  (js/parseInt (.join bita "") 2))
 
 (defn filemode [path]
   (let [s (.statSync fs path)
@@ -25,10 +25,11 @@
         grpx (bit-and mode 8)
         othr (bit-and mode 4)
         othw (bit-and mode 2)
-        othx (bit-and mode 1)]
-    (mapv to-bit [ownr ownw ownx grpr grpw grpx othr othw othx])))
+        othx (bit-and mode 1)
+        a #js [ownr ownw ownx grpr grpw grpx othr othw othx]]
+    (amap a i res (to-bit (aget a i)))))
 
-(defn filemode-int [p] (to-int (filemode p)))
+(defn filemode-int [p] (bita->int (filemode p)))
 
 (defn chmod
   "@param {string} path
