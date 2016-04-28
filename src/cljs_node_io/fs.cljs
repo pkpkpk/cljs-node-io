@@ -37,3 +37,14 @@
   [path mode]
   (.chmodSync fs path mode))
 
+(defn chown
+  "@param {string} path
+   @param {Number?} uid
+   @param {Number} gid"
+  [path uid gid]
+  (.chownSync fs path uid gid))
+
+(defn gid-uid
+  "@return {IMap}"
+  []
+  {:gid (.getgid js/process) :uid (.getuid js/process)})
