@@ -11,7 +11,5 @@ dev/
 figwheel_server.log
 pom.xml
 *.edn
-clj-java-io*
-*foo.cljs
 .lein-failures
 checkouts/
