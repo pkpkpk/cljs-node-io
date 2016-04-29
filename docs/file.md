@@ -23,12 +23,7 @@
     - nothing is written to disk yet, same as regular files
     - Returns a file object for the temp file
 
-
-  File?
-  Directory?
-
----
-
+<hr>
 
 ### File Methods
   * [x] __createNewFile()__ -> boolean
@@ -168,7 +163,6 @@
   * [x] __toURI()__ -> Uri
     - Constructs a file: URI that represents this abstract pathname.
 
-<hr>
 
   * [x] __canExecute()__ -> boolean
     - [ ] test
@@ -176,53 +170,63 @@
     - Tests whether the application can execute the file denoted by this abstract pathname.
     - has no effect on Windows
     - synchronous
+
+
   * [x] __canRead()__ -> boolean
     - [ ] test
     - Tests whether the application can read the file denoted by this abstract pathname.
     - Return: true iff file specified by this abstract pathname exists and can be read by the application; false otherwise
     - synchronous
+
+
   * [x] __canWrite()__ -> boolean
     - [ ] Test
     - Tests whether the application can modify the file denoted by this abstract pathname.
     - Return: true iff file specified by this abstract pathname exists and the application is allowed to execute the file
     - synchronous
+
+
   * [x] __setReadable(boolean readable)__ -> boolean
     - A convenience method to set the owner's read permission for this abstract pathname.
+
+
   * [x] __setReadable(boolean readable, boolean ownerOnly)__ -> boolean
     - Sets the owner's or everybody's read permission for this abstract pathname.
+
+
   * [x] __setWritable(boolean writable)__ -> boolean
     - A convenience method to set the owner's write permission for this abstract pathname.
+
+
   * [x] __setWritable(boolean writable, boolean ownerOnly)__ -> boolean
     - Sets the owner's or everybody's write permission for this abstract pathname.
+
+
   * [x] __setExecutable(boolean executable)__ -> boolean
     - A convenience method to set the owner's execute permission for this abstract pathname.
+
+
   * [x] __setExecutable(boolean executable, boolean ownerOnly)__ -> boolean
     - Sets the owner's or everybody's execute permission for this abstract pathname.
+
+
   * [x] __setReadOnly()__ -> boolean
     - Marks the file or directory named by this abstract pathname so that only read operations are allowed.
 
 
-<hr>
-  ### file methods not implemented yet:
-  * [ ] __setLastModified(long time)__ -> boolean
-    - Sets the last-modified time of the file or directory named by this abstract pathname. 
-  * [ ] __compareTo(File pathname)__ -> int
-    - Compares two abstract pathnames lexicographically.
-  * [ ] __isHidden()__ -> boolean
-    - Tests whether the file named by this abstract pathname is a hidden file.    
-    
+  * [x] __setLastModified(long time)__ -> boolean
+    - Sets the last-modified time of the file or directory named by this abstract pathname.
 
 
+  * [x] __isHidden()__ -> boolean
+    - Tests whether the file named by this abstract pathname is a hidden file.
 
+<hr>    
 
-
-  * ~~[ ] __listFiles(FileFilter filterfn)__ -> File[]~~
-      - ~~Returns an array of abstract pathnames denoting the Files in the directory denoted by this abstract pathname that satisfy the specified filter.~~    
-  * ~~[ ] __toPath()__ -> Path~~
-    - ~~Returns a java.nio.file.Path object constructed from the this abstract path.~~
-  * ~~[ ] __getFreeSpace()__ -> Long~~
-    ~~- Returns the number of unallocated bytes in the partition named by this abstract path name.~~
-  * ~~[ ] __getTotalSpace()__ -> long~~
-    - Returns the size of the partition named by this abstract pathname.
-  * ~~[ ] __getUsableSpace()__ -> long~~
-    ~~- Returns the number of bytes available to this virtual machine on the partition named by this abstract pathname.~~    
+### not implemented :
+  + compareTo
+  + listFiles(FileFilter filterfn)
+  + toPath
+  + getFreeSpace
+  + getTotalSpace
+  + getUsableSpace

@@ -47,12 +47,18 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
 
 ### Differences from Clojure
   + Node runs an asynchronous event loop & is event driven. This means you can't do things like create a stream and consume it synchronously (that is, on the same event-loop tick)... you must instead create the stream and attach handlers to its emitted events.
-    - clojure.java.io coerces everything into streams and reads and writes from there. This strategy cannot work in node. 
-    - To preserve synchronous semantics, slurp for example uses memory consuming fs.readFileSync. This is fine for small files and repl sessions. If you need to read larger files, restructure your program to accommodate node streams. Luckily core.async makes this easy!
+    - clojure.java.io coerces everything into streams and reads and writes from there. This strategy cannot work in node
 
 
-  + node streams manage themselves, are awesome. no reader+writer interfaces necessary
-  + no URL type, just goog.net.Uri (which is great & very java-ish)
+  + To preserve synchronous semantics, slurp for example uses memory consuming fs.readFileSync. This is fine for small files and repl sessions. If you need to read larger files, restructure your program to accommodate node streams. Luckily core.async makes this easy!
+
+
+  + In the nodejs, functions are asynchronous by default, and their synchronous versions have names with a `Sync` suffix. Here functions are synchronous by default, and async versions have an `a` prefix. This convention simply saves you some thought cycles at the repl. *You should use the async versions in your apps!*
+
+
+  + node streams mostly manage themselves, are awesome.
+  + no reader + writer types, not really necessary
+  + no URL type, just goog.net.Uri
   + javascript does not have a character type
   + no java-style char/byte arrays, just nodejs buffers
   + clojure on JVM exploits inheritance for typing, not available here
