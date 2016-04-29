@@ -70,34 +70,12 @@
          n    (setExecutable* mode executable ownerOnly)]
      (iofs/chmod path n))))
 
-(defn directory?
-  "@param {string} pathstring
-   @return {boolean} iff abstract pathname exists and is a directory"
-  ^boolean
-  [^String pathstring]
-  (assert (string? pathstring) "directory? takes a string, perhaps you passed a file instead")
-  (let [stats (try (.statSync fs pathstring) (catch js/Error e false))]
-    (if stats
-      (.isDirectory stats)
-      false)))
-
-(defn file?
-  "@param {string} pathstring
-   @return {boolean} iff abstract pathname exists and is a file"
-  ^boolean
-  [^String pathstring]
-  (assert (string? pathstring) "file? takes a string, perhaps you passed a file instead")
-  (let [stats (try (.statSync fs pathstring) (catch js/Error e false))]
-    (if stats
-      (.isFile stats)
-      false)))
-
 (defn get-non-dirs
   "@param {string} pathstring
   returns sequence of strings representing non-existing directory components
    of the passed pathstring, root first, in order "
   [^String pathstring]
-  (reverse (take-while #(not (directory? %)) (iterate #(.dirname path %) pathstring))))
+  (reverse (take-while #(not (iofs/directory? %)) (iterate #(.dirname path %) pathstring))))
 
 (defn ^boolean append? [opts] (boolean (:append opts)))
 
@@ -226,7 +204,7 @@
                   true)
                 (catch js/Error e false)))
             (delete ^boolean [this]
-              (if (directory? @pathstring)
+              (if (iofs/directory? @pathstring)
                 (try
                   (do (.rmdirSync fs @pathstring) true)
                   (catch js/Error e false))
@@ -252,9 +230,9 @@
             (getPath ^string [this] (if (.isAbsolute this) (.getPath (Uri. @pathstring))  @pathstring))
             (hashCode ^int [_] (hash @pathstring))
             (isAbsolute ^boolean [_] (.isAbsolute path @pathstring))
-            (isDirectory ^boolean [_] (directory? @pathstring))
-            (isFile ^boolean [_] (file? @pathstring))
-            (isHidden ^boolean [_](iofs/hidden? @pathstring))
+            (isDirectory ^boolean [_] (iofs/directory? @pathstring))
+            (isFile ^boolean [_] (iofs/file? @pathstring))
+            (isHidden ^boolean [_](iofs/hidden? @path))
             (lastModified ^int [_]
               (let [stats (try (.statSync fs @pathstring) (catch js/Error e false))]
                 (if stats
@@ -268,7 +246,7 @@
                     (.-size stats))
                   0)))
             (list [_] ; ^ Vector|nil
-              (if-not (directory? @pathstring)
+              (if-not (iofs/directory? @pathstring)
                 nil
                 (try
                   (vec (.readdirSync fs @pathstring))
@@ -278,7 +256,7 @@
               (if-let [files (.list this)]
                 (filterv (partial filterfn @pathstring) files)))
             (listFiles [this]
-              (.list this (fn [d name] (file? (str d (.-sep path)  name)))))
+              (.list this (fn [d name] (iofs/file? (str d (.-sep path)  name)))))
             (listFiles [this filterfn]
               (assert (= 2 (.-length filterfn)) "the file filterfn must accept 2 args, the dir File & name string")
               (if-let [files (.listFiles this)]

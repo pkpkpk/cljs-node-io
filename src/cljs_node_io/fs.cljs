@@ -58,3 +58,25 @@
    @return {boolean} is the file hidden (unix only)"
   [pathstr]
   (.test (js/RegExp. "(^|\\/)\\.[^\\/\\.]" ) pathstr))
+
+(defn directory?
+  "@param {string} pathstring
+   @return {boolean} iff abstract pathname exists and is a directory"
+  ^boolean
+  [^String pathstring]
+  (assert (string? pathstring) "directory? takes a string, perhaps you passed a file instead")
+  (let [stats (try (.statSync fs pathstring) (catch js/Error e false))]
+    (if stats
+      (.isDirectory stats)
+      false)))
+
+(defn file?
+  "@param {string} pathstring
+   @return {boolean} iff abstract pathname exists and is a file"
+  ^boolean
+  [^String pathstring]
+  (assert (string? pathstring) "file? takes a string, perhaps you passed a file instead")
+  (let [stats (try (.statSync fs pathstring) (catch js/Error e false))]
+    (if stats
+      (.isFile stats)
+      false)))
