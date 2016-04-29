@@ -254,6 +254,7 @@
             (isAbsolute ^boolean [_] (.isAbsolute path @pathstring))
             (isDirectory ^boolean [_] (directory? @pathstring))
             (isFile ^boolean [_] (file? @pathstring))
+            (isHidden ^boolean [_](iofs/hidden? @pathstring))
             (lastModified ^int [_]
               (let [stats (try (.statSync fs @pathstring) (catch js/Error e false))]
                 (if stats

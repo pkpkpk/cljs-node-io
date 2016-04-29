@@ -39,7 +39,7 @@
 
 (defn chown
   "@param {string} path
-   @param {Number?} uid
+   @param {Number} uid
    @param {Number} gid"
   [path uid gid]
   (.chownSync fs path uid gid))
@@ -52,3 +52,9 @@
 (defn utimes
   [path atime mtime]
   (.utimesSync fs path atime mtime))
+
+(defn hidden?
+  "@param {string} pathstr
+   @return {boolean} is the file hidden (unix only)"
+  [pathstr]
+  (.test (js/RegExp. "(^|\\/)\\.[^\\/\\.]" ) pathstr))
