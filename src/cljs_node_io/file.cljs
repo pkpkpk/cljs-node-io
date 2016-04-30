@@ -77,22 +77,6 @@
   [^String pathstring]
   (reverse (take-while #(not (iofs/directory? %)) (iterate #(.dirname path %) pathstring))))
 
-(defn ^boolean append? [opts] (boolean (:append opts)))
-
-(defn filepath-dispatch
-  ([x] (type x)) ; string || Uri.
-  ([x y] (mapv type [x y])))
-
-(defmulti  filepath "signature->File" filepath-dispatch)
-(defmethod filepath Uri [u] (.getPath u))
-(defmethod filepath js/String  [pathstring] pathstring)
-(defmethod filepath [js/String js/String] [parent-str child-str] (str parent-str (.-sep path) child-str))
-(defmethod filepath [:File js/String] [parent-file child-str] (str (.getPath parent-file) (.-sep path) child-str))
-(defmethod filepath :default [x] (throw (js/Error.
-                                         (str "Unrecognized path configuration passed to File constructor."
-                                              "\nYou passed " (pr-str x)
-                                              "\nYou must pass a [string], [uri], [string string], or [file string].\n" ))))
-
 (defn file-reader
   "Depending on :async? option, this builds an appropriate read method 
    and attaches it to the reified file, returning the passed file.
@@ -289,11 +273,26 @@
 (set! (.-constructor f) :File)
 f))
 
+(defn filepath-dispatch [x y] (mapv type [x y]))
+
+(defmulti  filepath "signature->Filepath" filepath-dispatch)
+(defmethod filepath [Uri nil]  [u _] (.getPath u))
+(defmethod filepath [js/String nil]  [pathstring _] pathstring)
+(defmethod filepath [js/String js/String] [parent-str child-str] (str parent-str (.-sep path) child-str))
+(defmethod filepath [:File js/String] [parent-file child-str] (str (.getPath parent-file) (.-sep path) child-str))
+(defmethod filepath :default [x y] (throw (js/TypeError.
+                                            (str "Unrecognized path configuration passed to File constructor."
+                                                 "\nYou passed " (pr-str x) " and " (pr-str y)
+                                                 "\nYou must pass a [string], [uri], [string string], or [file string]." ))))
 
 (defn File
-  "@return {IFile} a reified file"
-  ([a]   (File*  (filepath a)))
-  ([a b] (File*  (filepath a b))))
+  "This is intended to mock the java.io.File constructor.
+   The java File constructor is polymorphic and accepts one or two args:
+    (Uri), (pathstring), (parentstring, childstring), (File, childstring)
+   @constructor
+   @return {IFile} a reified file"
+  ([a] (File a nil))
+  ([a b] (File* (filepath a b))))
 
 (defn createTempFile
   "@return {IFile} a reified file"
