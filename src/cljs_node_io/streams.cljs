@@ -100,7 +100,7 @@
    (let [data  #js[]
          buf   (atom nil)
          write (fn [chunk _ callback]
-                 (assert (js/Buffer.isBuffer chunk) "data given to the write method must be buffer instances")
+                ;  (assert (js/Buffer.isBuffer chunk) "data given to the write method must be buffer instances")
                  (.push data chunk)
                  (callback))
          strm  (WritableStream (merge opts {:write write}))
