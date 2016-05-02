@@ -59,7 +59,7 @@
   [pathstr]
   (.test (js/RegExp. "(^|\\/)\\.[^\\/\\.]" ) pathstr))
 
-(defn directory?
+(defn dir?
   "@param {string} pathstring
    @return {boolean} iff abstract pathname exists and is a directory"
   ^boolean

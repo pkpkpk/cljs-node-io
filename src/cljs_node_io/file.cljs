@@ -75,7 +75,7 @@
   returns sequence of strings representing non-existing directory components
    of the passed pathstring, root first, in order "
   [^String pathstring]
-  (reverse (take-while #(not (iofs/directory? %)) (iterate #(.dirname path %) pathstring))))
+  (reverse (take-while #(not (iofs/dir? %)) (iterate #(.dirname path %) pathstring))))
 
 (defn file-reader
   "Depending on :async? option, this builds an appropriate read method 
@@ -188,7 +188,7 @@
                   true)
                 (catch js/Error e false)))
             (delete ^boolean [this]
-              (if (iofs/directory? @pathstring)
+              (if (iofs/dir? @pathstring)
                 (try
                   (do (.rmdirSync fs @pathstring) true)
                   (catch js/Error e false))
@@ -214,7 +214,7 @@
             (getPath ^string [this] (if (.isAbsolute this) (.getPath (Uri. @pathstring))  @pathstring))
             (hashCode ^int [_] (hash @pathstring))
             (isAbsolute ^boolean [_] (.isAbsolute path @pathstring))
-            (isDirectory ^boolean [_] (iofs/directory? @pathstring))
+            (isDirectory ^boolean [_] (iofs/dir? @pathstring))
             (isFile ^boolean [_] (iofs/file? @pathstring))
             (isHidden ^boolean [_](iofs/hidden? @path))
             (lastModified ^int [_]
@@ -230,7 +230,7 @@
                     (.-size stats))
                   0)))
             (list [_] ; ^ Vector|nil
-              (if-not (iofs/directory? @pathstring)
+              (if-not (iofs/dir? @pathstring)
                 nil
                 (try
                   (vec (.readdirSync fs @pathstring))
