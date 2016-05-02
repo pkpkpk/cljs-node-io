@@ -85,3 +85,9 @@
   "@param {string} p : path of directory to create"
   [pathstring]
   (.mkdirSync fs pathstring))
+
+(defn rename
+  "@param {string} prevp : existing file path
+   @param {string} newp  : new file path"
+  [prevp newp]
+  (.renameSync fs prevp newp))

@@ -264,7 +264,7 @@
               (assert (string? dest) "destination must be a string")
               (try
                 (do
-                  (.renameSync fs @pathstring dest)
+                  (iofs/rename @pathstring dest)
                   (reset! pathstring dest)
                   true)
                 (catch js/Error e false)))
