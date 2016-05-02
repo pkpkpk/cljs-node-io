@@ -248,7 +248,7 @@
             (mkdir ^boolean [_]
               (try
                 (do
-                  (.mkdirSync fs @pathstring)
+                  (iofs/mkdir @pathstring)
                   true)
                 (catch js/Error e false)))
             (mkdirs ^boolean [this]
@@ -257,7 +257,7 @@
                 (try
                   (do
                     (doseq [d dirs]
-                      (.mkdirSync fs d))
+                      (iofs/mkdir d))
                     true)
                   (catch js/Error e false))))
             (renameTo ^boolean [this dest]

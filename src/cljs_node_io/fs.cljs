@@ -80,3 +80,8 @@
     (if stats
       (.isFile stats)
       false)))
+
+(defn mkdir
+  "@param {string} p : path of directory to create"
+  [pathstring]
+  (.mkdirSync fs pathstring))
