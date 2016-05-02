@@ -2,6 +2,7 @@
     (:require [cljs.nodejs :as nodejs :refer [require]]))
 
 (def fs (require "fs"))
+(def path (js/require "path"))
 
 (defn stat 
   [path]
@@ -81,6 +82,23 @@
       (.isFile stats)
       false)))
 
+(defn absolute?
+  "@param {string} p : path to test
+   @return {boolean} is p an absolute path"
+  [p]
+  (.isAbsolute path p))
+
+(defn fexists?
+  "test if a file exists
+   @param {string} p : file path to test
+   @return {boolean}"
+  [p]
+  (try
+    (do
+      (.accessSync fs p (.-F_OK fs))
+      true)
+    (catch js/Error e false)))
+
 (defn mkdir
   "@param {string} p : path of directory to create"
   [pathstring]
@@ -91,3 +109,15 @@
    @param {string} newp  : new file path"
   [prevp newp]
   (.renameSync fs prevp newp))
+
+(defn readdir
+  "@param {string} dirpath : directory path to read
+   @return {IVector} vector of strings representing the directory contents"
+  [dirpath]
+  (vec (.readdirSync fs dirpath)))
+
+(defn dirname
+  "@param {string} p : path to get parent of
+   @return {string} the parent directory"
+  [p]
+  (.dirname path p))

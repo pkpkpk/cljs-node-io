@@ -198,32 +198,27 @@
             (deleteOnExit [this]
               (.on js/process "exit"  (fn [exit-code] (.delete this))))
             (equals ^boolean [this that] (= this that))
-            (exists ^boolean [_]
-              (try
-                (do
-                  (.accessSync fs @pathstring (.-F_OK fs))
-                  true)
-                (catch js/Error e false)))
+            (exists ^boolean [_](iofs/fexists? @pathstring))
             (getAbsoluteFile [this] (as-file (.getAbsolutePath this)))
             (getAbsolutePath [_] (.resolve path @pathstring))
             (getCanonicalFile [this] (as-file (.getCanonicalPath this)))
             (getCanonicalPath [_] (.normalize path @pathstring))
             (getName [_] (.-name (.parse path @pathstring)))
-            (getParent [_] (.dirname path @pathstring))
+            (getParent [_] (iofs/dirname @pathstring))
             (getParentFile [this] (as-file (.getParent this))) ;=> File|nil
             (getPath ^string [this] (if (.isAbsolute this) (.getPath (Uri. @pathstring))  @pathstring))
             (hashCode ^int [_] (hash @pathstring))
-            (isAbsolute ^boolean [_] (.isAbsolute path @pathstring))
+            (isAbsolute ^boolean [_] (iofs/absolute? @pathstring))
             (isDirectory ^boolean [_] (iofs/dir? @pathstring))
             (isFile ^boolean [_] (iofs/file? @pathstring))
             (isHidden ^boolean [_](iofs/hidden? @path))
             (lastModified ^int [_]
-              (let [stats (try (.statSync fs @pathstring) (catch js/Error e false))]
+              (let [stats (try (iofs/stat @pathstring) (catch js/Error e false))]
                 (if stats
                   (.valueOf (.-mtime stats))
                   0)))
             (length ^int [_]
-              (let [stats (try (.statSync fs @pathstring) (catch js/Error e false))]
+              (let [stats (try (iofs/stat @pathstring) (catch js/Error e false))]
                 (if stats
                   (if (.isDirectory stats)
                     nil
@@ -233,7 +228,7 @@
               (if-not (iofs/dir? @pathstring)
                 nil
                 (try
-                  (vec (.readdirSync fs @pathstring))
+                  (iofs/readdir @pathstring)
                   (catch js/Error e nil))))
             (list [this filterfn]
               (assert (= 2 (.-length filterfn)) "the file filterfn must accept 2 args, the dir File & name string")
