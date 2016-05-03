@@ -1,4 +1,5 @@
 (ns cljs-node-io.fs
+    (:require-macros [cljs-node-io.macros :refer [try-true]])
     (:require [cljs.nodejs :as nodejs :refer [require]]))
 
 (def fs (require "fs"))
@@ -93,16 +94,49 @@
    @param {string} p : file path to test
    @return {boolean}"
   [p]
-  (try
-    (do
-      (.accessSync fs p (.-F_OK fs))
-      true)
-    (catch js/Error e false)))
+  (try-true (.accessSync fs p (.-F_OK fs))))
+
+(defn readable?
+  "@param {string} p path to test for process read permission
+   @return {boolean}"
+  [p]
+  (try-true (.accessSync fs p (.-R_OK fs))))
+
+(defn writable?
+  "@param {string} p path to test for process write permission
+   @return {boolean}"
+  [p]
+  (try-true (.accessSync fs p (.-W_OK fs))))
+
+(defn executable?
+  "@param {string} p path to test for process executable permission
+   @return {boolean}"
+  [p]
+  (if-not (= "win32" (.-platform js/process))
+    (try-true (.accessSync fs p (.-X_OK fs)))
+    (throw (js/Error "Testing if a file is executable has no effect on Windows "))))
 
 (defn mkdir
   "@param {string} p : path of directory to create"
   [pathstring]
   (.mkdirSync fs pathstring))
+
+(defn rmdir
+  "@param {string} p path of directory to remove"
+  [p]
+  (try-true (.rmdirSync fs p)))
+
+(defn unlink
+  [p]
+  (try-true (.unlinkSync fs p)))
+
+(defn delete
+  "@param {string} pathstring
+   @return {boolean}"
+  [pathstring]
+  (if (dir? pathstring)
+    (rmdir pathstring)
+    (unlink pathstring)))
 
 (defn rename
   "@param {string} prevp : existing file path
@@ -121,3 +155,4 @@
    @return {string} the parent directory"
   [p]
   (.dirname path p))
+

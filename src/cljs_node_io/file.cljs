@@ -1,5 +1,6 @@
 (ns cljs-node-io.file "a port of java.io.File's reified files to node"
   (:import goog.Uri)
+  (:require-macros [cljs-node-io.macros :refer [try-true]])
   (:require [cljs.nodejs :as nodejs :refer [require]]
             [cljs.reader :refer [read-string]]
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
@@ -156,22 +157,9 @@
               (-write writer "#object [cljs-node-io.File")
               (-write writer (str "  "  (.getPath this)  " ]")))
             Object
-            ; access tests do nothing when pass, throw when fail
-            ; https://nodejs.org/api/fs.html#fs_fs_accesssync_path_mode
-            (canExecute ^boolean [this]
-              (if-not (= "win32" (.-platform js/process))
-                (try
-                  (if (nil? (.accessSync fs (.getPath this) (.-X_OK fs))) true)
-                  (catch js/Error e false))
-                (throw (js/Error "Testing if a file is executable has no effect on Windows "))))
-            (canRead ^boolean [this]
-              (try
-                (if (nil? (.accessSync fs (.getPath this) (.-R_OK fs))) true)
-                (catch js/Error e false)))
-            (canWrite ^boolean [this]
-              (try
-                (if (nil? (.accessSync fs (.getPath this) (.-W_OK fs))) true)
-                (catch js/Error e false)))
+            (canRead ^boolean [this] (iofs/readable? @pathstring)) ;untested
+            (canWrite ^boolean [this] (iofs/writable? @pathstring)) ;untested
+            (canExecute ^boolean [this] (iofs/executable? @pathstring)) ;untested
             (setReadable [_ r] (setReadable @pathstring r))
             (setReadable [_ r o] (setReadable @pathstring r o))
             (setWritable [_ w] (setWritable @pathstring w))
@@ -182,19 +170,8 @@
             (setLastModified [_ time] (iofs/utimes @pathstring time time)) ;sets atime + mtime
             (createNewFile ^boolean [this]
               (file-writer this {:flags "wx" :async? false})
-              (try
-                (do
-                  (.write this)
-                  true)
-                (catch js/Error e false)))
-            (delete ^boolean [this]
-              (if (iofs/dir? @pathstring)
-                (try
-                  (do (.rmdirSync fs @pathstring) true)
-                  (catch js/Error e false))
-                (try
-                   (do (.unlinkSync fs @pathstring) true)
-                   (catch js/Error e false))))
+              (try-true (.write this)))
+            (delete ^boolean [this] (iofs/delete @pathstring))
             (deleteOnExit [this]
               (.on js/process "exit"  (fn [exit-code] (.delete this))))
             (equals ^boolean [this that] (= this that))
