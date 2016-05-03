@@ -11,9 +11,9 @@
            (recur ~test))))
 
 (defmacro try-true
-  [expr]
+  [& exprs]
   `(try
      (do
-       ~expr
+       ~@exprs
        true)
      (catch ~'js/Error ~'e false)))
