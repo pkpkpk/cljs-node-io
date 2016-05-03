@@ -217,29 +217,17 @@
               (assert (= 2 (.-length filterfn)) "the file filterfn must accept 2 args, the dir File & name string")
               (if-let [files (.listFiles this)]
                 (filterv (partial filterfn @pathstring) files)))
-            (mkdir ^boolean [_]
-              (try
-                (do
-                  (iofs/mkdir @pathstring)
-                  true)
-                (catch js/Error e false)))
+            (mkdir ^boolean [_](try-true (iofs/mkdir @pathstring)))
             (mkdirs ^boolean [this]
               (let [p  (.getPath this)
                     dirs (get-non-dirs p)]
-                (try
-                  (do
-                    (doseq [d dirs]
-                      (iofs/mkdir d))
-                    true)
-                  (catch js/Error e false))))
+                (try-true (doseq [d dirs]
+                            (iofs/mkdir d)))))
             (renameTo ^boolean [this dest]
               (assert (string? dest) "destination must be a string")
-              (try
-                (do
-                  (iofs/rename @pathstring dest)
-                  (reset! pathstring dest)
-                  true)
-                (catch js/Error e false)))
+              (try-true
+                (iofs/rename @pathstring dest)
+                (reset! pathstring dest)))
             (toString [_]  @pathstring)
             (toURI [f] (Uri. (str "file:" @pathstring))))]
 (set! (.-constructor f) :File)
