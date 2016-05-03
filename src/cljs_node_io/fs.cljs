@@ -127,12 +127,14 @@
   (try-true (.rmdirSync fs p)))
 
 (defn unlink
-  [p]
-  (try-true (.unlinkSync fs p)))
+  "@param {string} pathstring : path of file to unlink
+   @return {boolean} whether the op succeeded"
+  [pathstring]
+  (try-true (.unlinkSync fs pathstring)))
 
 (defn delete
-  "@param {string} pathstring
-   @return {boolean}"
+  "@param {string} pathstring : can be file or directory
+   @return {boolean} whether the op succeeded"
   [pathstring]
   (if (dir? pathstring)
     (rmdir pathstring)
