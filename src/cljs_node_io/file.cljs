@@ -11,7 +11,6 @@
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
 (def fs (require "fs"))
-(def path (require "path"))
 (def os (require "os"))
 
 (defn setReadable*
@@ -76,7 +75,7 @@
   returns sequence of strings representing non-existing directory components
    of the passed pathstring, root first, in order "
   [^String pathstring]
-  (reverse (take-while #(not (iofs/dir? %)) (iterate #(.dirname path %) pathstring))))
+  (reverse (take-while #(not (iofs/dir? %)) (iterate #(iofs/dirname %) pathstring))))
 
 (defn file-reader
   "Depending on :async? option, this builds an appropriate read method 
@@ -177,10 +176,10 @@
             (equals ^boolean [this that] (= this that))
             (exists ^boolean [_](iofs/fexists? @pathstring))
             (getAbsoluteFile [this] (as-file (.getAbsolutePath this)))
-            (getAbsolutePath [_] (.resolve path @pathstring))
+            (getAbsolutePath [_] (iofs/resolve-path @pathstring))
             (getCanonicalFile [this] (as-file (.getCanonicalPath this)))
-            (getCanonicalPath [_] (.normalize path @pathstring))
-            (getName [_] (.-name (.parse path @pathstring)))
+            (getCanonicalPath [_] (iofs/normalize-path @pathstring))
+            (getName [_] (iofs/filename @pathstring))
             (getParent [_] (iofs/dirname @pathstring))
             (getParentFile [this] (as-file (.getParent this))) ;=> File|nil
             (getPath ^string [this] (if (.isAbsolute this) (.getPath (Uri. @pathstring))  @pathstring))
@@ -188,7 +187,7 @@
             (isAbsolute ^boolean [_] (iofs/absolute? @pathstring))
             (isDirectory ^boolean [_] (iofs/dir? @pathstring))
             (isFile ^boolean [_] (iofs/file? @pathstring))
-            (isHidden ^boolean [_](iofs/hidden? @path))
+            (isHidden ^boolean [_](iofs/hidden? @pathstring))
             (lastModified ^int [_]
               (let [stats (try (iofs/stat @pathstring) (catch js/Error e false))]
                 (if stats
@@ -212,7 +211,7 @@
               (if-let [files (.list this)]
                 (filterv (partial filterfn @pathstring) files)))
             (listFiles [this]
-              (.list this (fn [d name] (iofs/file? (str d (.-sep path)  name)))))
+              (.list this (fn [d name] (iofs/file? (str d  iofs/sep name)))))
             (listFiles [this filterfn]
               (assert (= 2 (.-length filterfn)) "the file filterfn must accept 2 args, the dir File & name string")
               (if-let [files (.listFiles this)]
@@ -238,8 +237,8 @@ f))
 (defmulti  filepath "signature->Filepath" filepath-dispatch)
 (defmethod filepath [Uri nil]  [u _] (.getPath u))
 (defmethod filepath [js/String nil]  [pathstring _] pathstring)
-(defmethod filepath [js/String js/String] [parent-str child-str] (str parent-str (.-sep path) child-str))
-(defmethod filepath [:File js/String] [parent-file child-str] (str (.getPath parent-file) (.-sep path) child-str))
+(defmethod filepath [js/String js/String] [parent-str child-str] (str parent-str iofs/sep child-str))
+(defmethod filepath [:File js/String] [parent-file child-str] (str (.getPath parent-file) iofs/sep child-str))
 (defmethod filepath :default [x y] (throw (js/TypeError.
                                             (str "Unrecognized path configuration passed to File constructor."
                                                  "\nYou passed " (pr-str x) " and " (pr-str y)
@@ -260,6 +259,6 @@ f))
   ([prefix suffix] (createTempFile prefix suffix nil))
   ([prefix suffix dir]
     (let [tmpd (or dir (.tmpdir os))
-          path (str tmpd (.-sep path) prefix (or suffix ".tmp"))
+          path (str tmpd iofs/sep prefix (or suffix ".tmp"))
           f    (File. path)]
       f)))

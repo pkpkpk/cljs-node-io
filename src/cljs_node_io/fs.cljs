@@ -5,6 +5,8 @@
 (def fs (require "fs"))
 (def path (js/require "path"))
 
+(def sep (.-sep path))
+
 (defn stat 
   [path]
   (.statSync fs path))
@@ -158,3 +160,16 @@
   [p]
   (.dirname path p))
 
+(defn filename
+  ([p] (.basename path p))
+  ([p ext] (.basename path p ext)))
+
+(defn resolve-path
+  "@param {string} p : pathstring to resolve to absolute path"
+  [p]
+  (.resolve path p)) ; this should dispatch on type, fs.resolve has multiple arities
+
+(defn normalize-path
+  "@param {string} p : pathstring to normalize"
+  [p]
+  (.normalize path p))
