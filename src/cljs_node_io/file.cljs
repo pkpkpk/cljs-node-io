@@ -130,107 +130,99 @@
                               "mode"     (or (:mode opts)  438)
                               "encoding" (or (:encoding opts) "utf8")}))))))
 
-
-
-(defn File*
-  "@param {string} pathstr The abstract file path
-   @return {IFile} a reified file"
-  [pathstr]
-  (let [pathstring  (atom pathstr)
-        f (reify
-            IFile
-            IEquiv
-            (-equiv [this that]
-              (let [pathntype (juxt #(.-getPath %) type)]
-                (= (pathntype this) (pathntype that))))
-            Coercions
-            (as-file [f] f)
-            (as-url [f] (.to-url f))
-            IOFactory
-            (make-reader [^File this opts] (file-reader this opts))
-            (make-writer [^File this opts] (file-writer this opts))
-            (make-input-stream [^File this opts] (FileInputStream. this opts))
-            (make-output-stream [^File this opts] (FileOutputStream. this  opts))
-            IPrintWithWriter
-            (-pr-writer [this writer opts] ;#object[java.io.File 0x751b0a12 "foo\\bar.txt"]
-              (-write writer "#object [cljs-node-io.File")
-              (-write writer (str "  "  (.getPath this)  " ]")))
-            Object
-            (canRead ^boolean [this] (iofs/readable? @pathstring)) ;untested
-            (canWrite ^boolean [this] (iofs/writable? @pathstring)) ;untested
-            (canExecute ^boolean [this] (iofs/executable? @pathstring)) ;untested
-            (setReadable [_ r] (setReadable @pathstring r))
-            (setReadable [_ r o] (setReadable @pathstring r o))
-            (setWritable [_ w] (setWritable @pathstring w))
-            (setWritable [_ w o] (setWritable @pathstring w o))
-            (setExecutable [_ e] (setExecutable @pathstring e))
-            (setExecutable [_ e o] (setExecutable @pathstring e o))
-            (setReadOnly [this] (.setWritable this false false))
-            (setLastModified [_ time] (iofs/utimes @pathstring time time)) ;sets atime + mtime
-            (createNewFile ^boolean [this]
-              (file-writer this {:flags "wx" :async? false})
-              (try-true (.write this)))
-            (delete ^boolean [this] (iofs/delete @pathstring))
-            (deleteOnExit [this]
-              (.on js/process "exit"  (fn [exit-code] (.delete this))))
-            (equals ^boolean [this that] (= this that))
-            (exists ^boolean [_](iofs/fexists? @pathstring))
-            (getAbsoluteFile [this] (as-file (.getAbsolutePath this)))
-            (getAbsolutePath [_] (iofs/resolve-path @pathstring))
-            (getCanonicalFile [this] (as-file (.getCanonicalPath this)))
-            (getCanonicalPath [_] (iofs/normalize-path @pathstring))
-            (getName [_] (iofs/filename @pathstring))
-            (getParent [_] (iofs/dirname @pathstring))
-            (getParentFile [this] (as-file (.getParent this))) ;=> File|nil
-            (getPath ^string [this] (if (.isAbsolute this) (.getPath (Uri. @pathstring))  @pathstring))
-            (hashCode ^int [_] (hash @pathstring))
-            (isAbsolute ^boolean [_] (iofs/absolute? @pathstring))
-            (isDirectory ^boolean [_] (iofs/dir? @pathstring))
-            (isFile ^boolean [_] (iofs/file? @pathstring))
-            (isHidden ^boolean [_](iofs/hidden? @pathstring))
-            (lastModified ^int [_]
-              (let [stats (try (iofs/stat @pathstring) (catch js/Error e false))]
-                (if stats
-                  (.valueOf (.-mtime stats))
-                  0)))
-            (length ^int [_]
-              (let [stats (try (iofs/stat @pathstring) (catch js/Error e false))]
-                (if stats
-                  (if (.isDirectory stats)
-                    nil
-                    (.-size stats))
-                  0)))
-            (list [_] ; ^ Vector|nil
-              (if-not (iofs/dir? @pathstring)
-                nil
-                (try
-                  (iofs/readdir @pathstring)
-                  (catch js/Error e nil))))
-            (list [this filterfn]
-              (assert (= 2 (.-length filterfn)) "the file filterfn must accept 2 args, the dir File & name string")
-              (if-let [files (.list this)]
-                (filterv (partial filterfn @pathstring) files)))
-            (listFiles [this]
-              (.list this (fn [d name] (iofs/file? (str d  iofs/sep name)))))
-            (listFiles [this filterfn]
-              (assert (= 2 (.-length filterfn)) "the file filterfn must accept 2 args, the dir File & name string")
-              (if-let [files (.listFiles this)]
-                (filterv (partial filterfn @pathstring) files)))
-            (mkdir ^boolean [_](try-true (iofs/mkdir @pathstring)))
-            (mkdirs ^boolean [this]
-              (let [p  (.getPath this)
-                    dirs (get-non-dirs p)]
-                (try-true (doseq [d dirs]
-                            (iofs/mkdir d)))))
-            (renameTo ^boolean [this dest]
-              (assert (string? dest) "destination must be a string")
-              (try-true
-                (iofs/rename @pathstring dest)
-                (reset! pathstring dest)))
-            (toString [_]  @pathstring)
-            (toURI [f] (Uri. (str "file:" @pathstring))))]
-(set! (.-constructor f) :File)
-f))
+(deftype File*
+  [^:mutable pathstring]
+  IFile
+  IEquiv
+  (-equiv [this that]
+    (let [pathntype (juxt #(.-getPath %) type)]
+      (= (pathntype this) (pathntype that))))
+  Coercions
+  (as-file [f] f)
+  (as-url [f] (.to-url f))
+  IOFactory
+  (make-reader [^File this opts] (file-reader this opts))
+  (make-writer [^File this opts] (file-writer this opts))
+  (make-input-stream [^File this opts] (FileInputStream. this opts))
+  (make-output-stream [^File this opts] (FileOutputStream. this  opts))
+  IPrintWithWriter
+  (-pr-writer [this writer opts] ;#object[java.io.File 0x751b0a12 "foo\\bar.txt"]
+    (-write writer "#object [cljs-node-io.File")
+    (-write writer (str "  "  (.getPath this)  " ]")))
+  Object
+  (canRead ^boolean [this] (iofs/readable? pathstring)) ;untested
+  (canWrite ^boolean [this] (iofs/writable? pathstring)) ;untested
+  (canExecute ^boolean [this] (iofs/executable? pathstring)) ;untested
+  (setReadable [_ r] (setReadable pathstring r))
+  (setReadable [_ r o] (setReadable pathstring r o))
+  (setWritable [_ w] (setWritable pathstring w))
+  (setWritable [_ w o] (setWritable pathstring w o))
+  (setExecutable [_ e] (setExecutable pathstring e))
+  (setExecutable [_ e o] (setExecutable pathstring e o))
+  (setReadOnly [this] (.setWritable this false false))
+  (setLastModified [_ time] (iofs/utimes pathstring time time)) ;sets atime + mtime
+  (createNewFile ^boolean [this]
+    (file-writer this {:flags "wx" :async? false})
+    (try-true (.write this)))
+  (delete ^boolean [this] (iofs/delete pathstring))
+  (deleteOnExit [this]
+    (.on js/process "exit"  (fn [exit-code] (.delete this))))
+  (equals ^boolean [this that] (= this that))
+  (exists ^boolean [_](iofs/fexists? pathstring))
+  (getAbsoluteFile [this] (as-file (.getAbsolutePath this)))
+  (getAbsolutePath [_] (iofs/resolve-path pathstring))
+  (getCanonicalFile [this] (as-file (.getCanonicalPath this)))
+  (getCanonicalPath [_] (iofs/normalize-path pathstring))
+  (getName [_] (iofs/filename pathstring))
+  (getParent [_] (iofs/dirname pathstring))
+  (getParentFile [this] (as-file (.getParent this))) ;=> File|nil
+  (getPath ^string [this] (if (.isAbsolute this) (.getPath (Uri. pathstring))  pathstring))
+  (hashCode ^int [_] (hash pathstring))
+  (isAbsolute ^boolean [_] (iofs/absolute? pathstring))
+  (isDirectory ^boolean [_] (iofs/dir? pathstring))
+  (isFile ^boolean [_] (iofs/file? pathstring))
+  (isHidden ^boolean [_](iofs/hidden? pathstring))
+  (lastModified ^int [_]
+    (let [stats (try (iofs/stat pathstring) (catch js/Error e false))]
+      (if stats
+        (.valueOf (.-mtime stats))
+        0)))
+  (length ^int [_]
+    (let [stats (try (iofs/stat pathstring) (catch js/Error e false))]
+      (if stats
+        (if (.isDirectory stats)
+          nil
+          (.-size stats))
+        0)))
+  (list [_] ; ^ Vector|nil
+    (if-not (iofs/dir? pathstring)
+      nil
+      (try
+        (iofs/readdir pathstring)
+        (catch js/Error e nil))))
+  (list [this filterfn]
+    (assert (= 2 (.-length filterfn)) "the file filterfn must accept 2 args, the dir File & name string")
+    (if-let [files (.list this)]
+      (filterv (partial filterfn pathstring) files)))
+  (listFiles [this]
+    (.list this (fn [d name] (iofs/file? (str d  iofs/sep name)))))
+  (listFiles [this filterfn]
+    (assert (= 2 (.-length filterfn)) "the file filterfn must accept 2 args, the dir File & name string")
+    (if-let [files (.listFiles this)]
+      (filterv (partial filterfn pathstring) files)))
+  (mkdir ^boolean [_](try-true (iofs/mkdir pathstring)))
+  (mkdirs ^boolean [this]
+    (let [p  (.getPath this)
+          dirs (get-non-dirs p)]
+      (try-true (doseq [d dirs]
+                  (iofs/mkdir d)))))
+  (renameTo ^boolean [this dest]
+    (assert (string? dest) "destination must be a string")
+    (try-true
+      (iofs/rename pathstring dest)
+      (set! pathstring dest)))
+  (toString [_]  pathstring)
+  (toURI [f] (Uri. (str "file:" pathstring))))
 
 (defn filepath-dispatch [x y] (mapv type [x y]))
 
@@ -238,7 +230,7 @@ f))
 (defmethod filepath [Uri nil]  [u _] (.getPath u))
 (defmethod filepath [js/String nil]  [pathstring _] pathstring)
 (defmethod filepath [js/String js/String] [parent-str child-str] (str parent-str iofs/sep child-str))
-(defmethod filepath [:File js/String] [parent-file child-str] (str (.getPath parent-file) iofs/sep child-str))
+(defmethod filepath [File* js/String] [parent-file child-str] (str (.getPath parent-file) iofs/sep child-str))
 (defmethod filepath :default [x y] (throw (js/TypeError.
                                             (str "Unrecognized path configuration passed to File constructor."
                                                  "\nYou passed " (pr-str x) " and " (pr-str y)
@@ -251,7 +243,7 @@ f))
    @constructor
    @return {IFile} a reified file"
   ([a] (File a nil))
-  ([a b] (File* (filepath a b))))
+  ([a b] (File*. (filepath a b))))
 
 (defn createTempFile
   "@return {IFile} a reified file"

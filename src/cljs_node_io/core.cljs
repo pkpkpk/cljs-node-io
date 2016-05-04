@@ -263,13 +263,18 @@
       :OutputStream
       false)))
 
+(defn rFile?
+  [o]
+  (implements? IFile o))
+
 (defmulti
   ^{:doc "Internal helper for copy"
     :private true
     :arglists '([input output opts])}
   do-copy
-  (fn [input output opts] [(or (stream-type input) (type input))
-                           (or (stream-type output) (type output))]))
+  (fn [input output opts]
+    [(or (stream-type input)  (if (rFile?  input) :File) (type input))
+     (or (stream-type output) (if (rFile? output) :File) (type output))]))
 
 
 (defmethod do-copy [:InputStream :OutputStream] [^InputStream input ^OutputStream output opts]
