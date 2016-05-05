@@ -1,14 +1,13 @@
 (ns cljs-node-io.streams
   (:import goog.Uri)
-  (:require [cljs.nodejs :as nodejs :refer [require]]
-            [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
+  (:require [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.protocols
               :refer [Coercions as-url as-file
-                      IInputStream IOutputStream
+                      IInputStream IOutputStream IFile
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
-(def fs (require "fs"))
-(def stream (require "stream"))
+(def fs (js/require "fs"))
+(def stream (js/require "stream"))
 
 (defn input-IOF!
   "adds IOFactory input impls that just defer back to the stream or throw as appropriate"
@@ -121,19 +120,24 @@
   [path]
   (= path (unsigned-bit-shift-right path 0)))
 
-(defn filepath-dispatch [f {:keys [fd]}]
-  (if (isFd? fd) :fd (type f)))
+(defn filepath-dispatch [f {:keys [fd]} k]
+  (if (isFd? fd)
+    :fd
+    (if (implements? IFile f)
+      :File
+      (type f))))
 
 
-(defmulti filepath filepath-dispatch) ;should check path validity, URI too
-(defmethod filepath :fd [fd ] nil)
-(defmethod filepath js/String [pathstring ] pathstring)
-(defmethod filepath Uri [u] (.getPath u))
-(defmethod filepath :File [file] (.getPath file))
-(defmethod filepath :default [x] (throw (js/Error.
-                                         (str "Unrecognized path configuration passed to FileStream constructor."
-                                              "\nYou passed " (pr-str x)
-                                              "\nYou must pass a [pathstring], [uri], [file], or include :fd in opts .\n" )))) ;throw?
+(defmulti  filepath filepath-dispatch) ;should check path validity, URI too
+(defmethod filepath :File     [file _ _] (.getPath file))
+(defmethod filepath :fd       [fd _ _] nil)
+(defmethod filepath Uri       [u _ _] (.getPath u))
+(defmethod filepath js/String [pathstring _ _] pathstring)
+(defmethod filepath :default  [x y k]
+  (throw (js/TypeError.
+           (str "Unrecognized path configuration passed to File" k "Stream constructor."
+                "\n    You passed " (pr-str x) " and " (pr-str y)
+                "\n    You must pass a [pathstring], [uri], [file], or include :fd in opts ." ))))
 
 (defn valid-opts [opts]
   (clj->js (merge {:encoding "utf8" :mode 438} opts)))
@@ -145,9 +149,8 @@
 
 (defn FileInputStream* [src opts]
   (assert (if (:mode opts) (integer? (:mode opts)) true) "mode must be an integer")
-  (let [filestreamobj (.createReadStream fs (filepath src) (valid-opts opts))
+  (let [filestreamobj (.createReadStream fs src (valid-opts opts))
         filedesc      (atom nil)
-        _             (set! (.-constructor filestreamobj) :FileInputStream)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
     (specify! filestreamobj
       IInputStream
@@ -162,18 +165,19 @@
     (input-IOF! filestreamobj)))
 
 (defn FileInputStream
-  ([file] (FileInputStream file nil))
-  ([file opts] (FileInputStream* file opts)))
+  "@constructor
+   @return {IInputStream}"
+  ([src] (FileInputStream src nil))
+  ([src opts] (FileInputStream* (filepath src opts "Input") opts)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn FileOutputStream* [src {:keys [append flags] :as opts}]
+(defn FileOutputStream* [target {:keys [append flags] :as opts}]
   (assert (if (:mode opts) (integer? (:mode opts)) true) "mode must be an integer")
   (let [flag          (or flags (if append "a" "w"))
         vopts         (valid-opts (assoc opts :flags flag))
-        filestreamobj (.createWriteStream fs (filepath src) vopts)
+        filestreamobj (.createWriteStream fs target vopts)
         filedesc      (atom nil)
-        _             (set! (.-constructor filestreamobj) :FileOutputStream)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
     (specify! filestreamobj
       IOutputStream
@@ -188,5 +192,7 @@
     (output-IOF! filestreamobj)))
 
 (defn FileOutputStream
-  ([file] (FileOutputStream file nil))
-  ([file opts] (FileOutputStream* file opts)))
+  "@constructor
+   @return {IOutputStream}"
+  ([target] (FileOutputStream target nil))
+  ([target opts] (FileOutputStream* (filepath target opts "Output") opts)))
