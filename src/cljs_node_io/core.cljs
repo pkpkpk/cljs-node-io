@@ -7,7 +7,7 @@
             [cljs.reader :refer [read-string]]
             [cljs-node-io.streams :refer [FileInputStream BufferReadStream] :as streams]
             [cljs-node-io.protocols
-              :refer [Coercions as-url as-file IInputStream IOutputStream
+              :refer [Coercions as-url as-file IInputStream IOutputStream IFile
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]
             [clojure.string :as st]
             [goog.string :as gstr])
@@ -16,7 +16,6 @@
 
 (nodejs/enable-util-print!)
 
-(def fs (require "fs"))
 (def path (require "path"))
 
 (extend-type js/Buffer
@@ -223,8 +222,8 @@
   "taken from clojurescript/examples/nodels.cljs"
   [dir]
   (tree-seq
-    (fn [f] (.isDirectory (.statSync fs f) ))
-    (fn [d] (map #(.join path d %) (.readdirSync fs d)))
+    (fn [f] (.isDirectory (file f) ))
+    (fn [d] (map #(.join path d %) (.list (file d))))
     dir))
 
 (defn xml-seq
