@@ -14,13 +14,16 @@
 (defn to-bit [number] (if-not (zero? number) 1 0))
 
 (defn bita->int
-  "takes an array of 1s an 0s and converts it to an integer"
+  "@param {!Array<!Number>} bita : an array of 1s an 0s
+   @return {!Number} integer"
   [bita]
   (js/parseInt (.join bita "") 2))
 
-(defn filemode [path]
-  (let [s (.statSync fs path)
-        mode (aget s "mode")
+(defn stat->perm-bita
+  "@param {!fs.Stats} s : a fs.Stats object
+   @return {!Array<Number>}"
+  [s]
+  (let [mode (aget s "mode")
         ownr (bit-and mode 256)
         ownw (bit-and mode 128)
         ownx (bit-and mode 64)
@@ -33,7 +36,11 @@
         a #js [ownr ownw ownx grpr grpw grpx othr othw othx]]
     (amap a i res (to-bit (aget a i)))))
 
-(defn filemode-int [p] (bita->int (filemode p)))
+(defn permissions
+  "@param {!string} p
+   @return {!Number}"
+  [filepath]
+  (-> (stat filepath) stat->perm-bita bita->int))
 
 (defn chmod
   "@param {string} path

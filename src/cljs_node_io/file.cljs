@@ -1,8 +1,7 @@
 (ns cljs-node-io.file "a port of java.io.File's reified files to node"
   (:import goog.Uri)
   (:require-macros [cljs-node-io.macros :refer [try-true]])
-  (:require [cljs.nodejs :as nodejs :refer [require]]
-            [cljs.reader :refer [read-string]]
+  (:require [cljs.reader :refer [read-string]]
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
             [cljs-node-io.fs :as iofs]
@@ -10,14 +9,14 @@
               :refer [Coercions as-url as-file IFile
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
-(def fs (require "fs"))
-(def os (require "os"))
+(def fs (js/require "fs"))
+(def os (js/require "os"))
 
 (defn setReadable*
-  "@param {number} mode : the file's existing mode
-   @param {boolean} readable : add or remove read permission
-   @param {boolean} ownerOnly : restrict operation to user bit only
-   @return {number} A int for chmod that only effects the targeted mode bits"
+  "@param {!number} mode : the file's existing mode
+   @param {!boolean} readable : add or remove read permission
+   @param {!boolean} ownerOnly : restrict operation to user bit only
+   @return {!number} A int for chmod that only effects the targeted mode bits"
   [mode readable ownerOnly]
   (condp = [readable ownerOnly]
     [true true]   (bit-or mode 256) ; add-user-read
@@ -28,15 +27,15 @@
 (defn setReadable
   ([path readable] (setReadable path readable true))
   ([path readable ownerOnly]
-   (let [mode (iofs/filemode-int path)
+   (let [mode (iofs/permissions path)
          n    (setReadable* mode readable ownerOnly)]
      (iofs/chmod path n))))
 
 (defn setWritable*
-  "@param {number} mode : the file's existing mode
-   @param {boolean} writable : add or remove write permission
-   @param {boolean} ownerOnly : restrict operation to user bit only
-   @return {number} A int for chmod that only effects the targeted mode bits"
+  "@param {!number} mode : the file's existing mode
+   @param {!boolean} writable : add or remove write permission
+   @param {!boolean} ownerOnly : restrict operation to user bit only
+   @return {!number} A int for chmod that only effects the targeted mode bits"
   [mode writable ownerOnly]
   (condp = [writable ownerOnly]
     [true true]   (bit-or mode 128) ; add-user-write
@@ -47,15 +46,15 @@
 (defn setWritable
   ([path writable] (setWritable path writable true))
   ([path writable ownerOnly]
-   (let [mode (iofs/filemode-int path)
+   (let [mode (iofs/permissions path)
          n    (setWritable* mode writable ownerOnly)]
      (iofs/chmod path n))))
 
 (defn setExecutable*
-  "@param {number} mode : the file's existing mode
-   @param {boolean} executable : add or remove execute permission
-   @param {boolean} ownerOnly : restrict operation to user bit only
-   @return {number} A int for chmod that only effects the targeted mode bits"
+  "@param {!number} mode : the file's existing mode
+   @param {!boolean} executable : add or remove execute permission
+   @param {!boolean} ownerOnly : restrict operation to user bit only
+   @return {!number} A int for chmod that only effects the targeted mode bits"
   [mode executable ownerOnly]
   (condp = [executable ownerOnly]
     [true true]   (bit-or mode 64) ; add-user-execute
@@ -66,16 +65,17 @@
 (defn setExecutable
   ([path executable] (setExecutable path executable true))
   ([path executable ownerOnly]
-   (let [mode (iofs/filemode-int path)
+   (let [mode (iofs/permissions path)
          n    (setExecutable* mode executable ownerOnly)]
      (iofs/chmod path n))))
 
 (defn get-non-dirs
-  "@param {string} pathstring
-  returns sequence of strings representing non-existing directory components
-   of the passed pathstring, root first, in order "
+  "Returns sequence of strings representing non-existing directory components
+   of the passed pathstring, root first, in order
+   @param {string} pathstring
+   @return {ISeq}"
   [^String pathstring]
-  (reverse (take-while #(not (iofs/dir? %)) (iterate #(iofs/dirname %) pathstring))))
+  (reverse (take-while (complement iofs/dir?) (iterate iofs/dirname pathstring))))
 
 (defn file-reader
   "Depending on :async? option, this builds an appropriate read method 
