@@ -43,20 +43,20 @@
   (-> (stat filepath) stat->perm-bita bita->int))
 
 (defn chmod
-  "@param {string} path
-   @param {Number} mode must be an integer"
+  "@param {!string} path
+   @param {!Number} mode must be an integer"
   [path mode]
   (.chmodSync fs path mode))
 
 (defn chown
-  "@param {string} path
-   @param {Number} uid
-   @param {Number} gid"
+  "@param {!string} path
+   @param {!Number} uid
+   @param {!Number} gid"
   [path uid gid]
   (.chownSync fs path uid gid))
 
 (defn gid-uid
-  "@return {IMap}"
+  "@return {!IMap}"
   []
   {:gid (.getgid js/process) :uid (.getuid js/process)})
 
@@ -65,14 +65,14 @@
   (.utimesSync fs path atime mtime))
 
 (defn hidden?
-  "@param {string} pathstr
-   @return {boolean} is the file hidden (unix only)"
+  "@param {!string} pathstr
+   @return {!boolean} is the file hidden (unix only)"
   [pathstr]
   (.test (js/RegExp. "(^|\\/)\\.[^\\/\\.]" ) pathstr))
 
 (defn dir?
-  "@param {string} pathstring
-   @return {boolean} iff abstract pathname exists and is a directory"
+  "@param {!string} pathstring
+   @return {!boolean} iff abstract pathname exists and is a directory"
   ^boolean
   [^String pathstring]
   (assert (string? pathstring) "directory? takes a string, perhaps you passed a file instead")
@@ -82,8 +82,8 @@
       false)))
 
 (defn file?
-  "@param {string} pathstring
-   @return {boolean} iff abstract pathname exists and is a file"
+  "@param {!string} pathstring
+   @return {!boolean} iff abstract pathname exists and is a file"
   ^boolean
   [^String pathstring]
   (assert (string? pathstring) "file? takes a string, perhaps you passed a file instead")
@@ -93,90 +93,93 @@
       false)))
 
 (defn absolute?
-  "@param {string} p : path to test
-   @return {boolean} is p an absolute path"
+  "@param {!string} p : path to test
+   @return {!boolean} is p an absolute path"
   [p]
   (.isAbsolute path p))
 
 (defn fexists?
   "test if a file exists
-   @param {string} p : file path to test
-   @return {boolean}"
+   @param {!string} p : file path to test
+   @return {!boolean}"
   [p]
   (try-true (.accessSync fs p (.-F_OK fs))))
 
 (defn readable?
-  "@param {string} p path to test for process read permission
-   @return {boolean}"
+  "@param {!string} p path to test for process read permission
+   @return {!boolean}"
   [p]
   (try-true (.accessSync fs p (.-R_OK fs))))
 
 (defn writable?
-  "@param {string} p path to test for process write permission
-   @return {boolean}"
+  "@param {!string} p path to test for process write permission
+   @return {!boolean}"
   [p]
   (try-true (.accessSync fs p (.-W_OK fs))))
 
 (defn executable?
-  "@param {string} p path to test for process executable permission
-   @return {boolean}"
+  "@param {!string} p path to test for process executable permission
+   @return {!boolean}"
   [p]
   (if-not (= "win32" (.-platform js/process))
     (try-true (.accessSync fs p (.-X_OK fs)))
     (throw (js/Error "Testing if a file is executable has no effect on Windows "))))
 
 (defn mkdir
-  "@param {string} p : path of directory to create"
+  "@param {!string} pathstring : path of directory to create"
   [pathstring]
   (.mkdirSync fs pathstring))
 
 (defn rmdir
-  "@param {string} p path of directory to remove"
-  [p]
-  (try-true (.rmdirSync fs p)))
+  "@param {!string} pathstring : path of directory to remove"
+  [pathstring]
+  (try-true (.rmdirSync fs pathstring)))
 
 (defn unlink
-  "@param {string} pathstring : path of file to unlink
-   @return {boolean} whether the op succeeded"
+  "@param {!string} pathstring : path of file to unlink
+   @return {!boolean} whether the op succeeded"
   [pathstring]
   (try-true (.unlinkSync fs pathstring)))
 
 (defn delete
-  "@param {string} pathstring : can be file or directory
-   @return {boolean} whether the op succeeded"
+  "@param {!string} pathstring : can be file or directory
+   @return {!boolean} whether the op succeeded"
   [pathstring]
   (if (dir? pathstring)
     (rmdir pathstring)
     (unlink pathstring)))
 
 (defn rename
-  "@param {string} prevp : existing file path
-   @param {string} newp  : new file path"
+  "@param {!string} prevp : existing file path
+   @param {!string} newp  : new file path"
   [prevp newp]
   (.renameSync fs prevp newp))
 
 (defn readdir
-  "@param {string} dirpath : directory path to read
-   @return {IVector} vector of strings representing the directory contents"
+  "@param {!string} dirpath : directory path to read
+   @return {!IVector} vector of strings representing the directory contents"
   [dirpath]
   (vec (.readdirSync fs dirpath)))
 
 (defn dirname
-  "@param {string} p : path to get parent of
-   @return {string} the parent directory"
-  [p]
-  (.dirname path p))
+  "@param {!string} pathstring : path to get parent of
+   @return {!string} the parent directory"
+  [pathstring]
+  (.dirname path pathstring))
 
 (defn filename
+  "@return {!string}"
   ([p] (.basename path p))
   ([p ext] (.basename path p ext)))
 
 (defn resolve-path
-  "@param {string} p : pathstring to resolve to absolute path"
-  [p]
-  (.resolve path p)) ; this should dispatch on type, fs.resolve has multiple arities
+  "@param {!string} pathstring : pathstring to resolve to absolute path
+   @return {!string}"
+  [pathstring]
+  (.resolve path pathstring)) ; this should dispatch on type, fs.resolve has multiple arities
 
 (defn normalize-path
-  "@param {string} p : pathstring to normalize"
-  [p]
-  (.normalize path p))
+  "@param {!string} pathstring : pathstring to normalize
+   @return {!string}"
+  [pathstring]
+  (.normalize path pathstring))
