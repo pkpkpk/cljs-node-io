@@ -174,6 +174,7 @@
   (getCanonicalFile [this] (as-file (.getCanonicalPath this)))
   (getCanonicalPath [_] (iofs/normalize-path pathstring))
   (getName [_] (iofs/filename pathstring))
+  (getExt  [_] (iofs/ext pathstring))
   (getParent [_] (iofs/dirname pathstring))
   (getParentFile [this] (as-file (.getParent this))) ;=> File|nil
   (getPath ^string [this] (if (.isAbsolute this) (.getPath (Uri. pathstring))  pathstring))

@@ -183,3 +183,8 @@
    @return {!string}"
   [pathstring]
   (.normalize path pathstring))
+
+(defn ext
+  "@param {string} pathstring : file to get extension from
+   @return {string}"
+  [pathstring]  (.extname path pathstring))
