@@ -2,14 +2,16 @@
     (:require-macros [cljs-node-io.macros :refer [try-true]])
     (:require [cljs.nodejs :as nodejs :refer [require]]))
 
-(def fs (require "fs"))
+(def fs (js/require "fs"))
 (def path (js/require "path"))
 
 (def sep (.-sep path))
 
-(defn stat 
-  [path]
-  (.statSync fs path))
+(defn stat
+  "@param {!string} filepath 
+   @return {!fs.Stats} file stats object"
+  [pathstring]
+  (.statSync fs pathstring))
 
 (defn to-bit [number] (if-not (zero? number) 1 0))
 
