@@ -8,7 +8,7 @@
 (def sep (.-sep path))
 
 (defn stat
-  "@param {!string} filepath 
+  "@param {!string} pathstring
    @return {!fs.Stats} file stats object"
   [pathstring]
   (.statSync fs pathstring))
@@ -39,7 +39,7 @@
     (amap a i res (to-bit (aget a i)))))
 
 (defn permissions
-  "@param {!string} p
+  "@param {!string} filepath
    @return {!Number}"
   [filepath]
   (-> (stat filepath) stat->perm-bita bita->int))

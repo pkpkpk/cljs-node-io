@@ -24,6 +24,10 @@
     [false false] (bit-and mode  (bit-not 256) (bit-not 32) (bit-not 4)))) ;remove all reads
 
 (defn setReadable
+  "toggles the readable permission bit(s) for the specified filepath.
+   If readable, set 1 else 0
+   If ownerOnly (default) set just user, else set for group & other as well.
+   Does not affect other permission bits."
   ([path readable] (setReadable path readable true))
   ([path readable ownerOnly]
    (let [mode (iofs/permissions path)
@@ -43,6 +47,10 @@
     [false false] (bit-and mode  (bit-not 128) (bit-not 16) (bit-not 2)))) ;remove all writes
 
 (defn setWritable
+  "toggles the writable permission bit(s) for the specified filepath.
+   If writable, set 1 else 0
+   If ownerOnly (default) set just user, else set for group & other as well.
+   Does not affect other permission bits."
   ([path writable] (setWritable path writable true))
   ([path writable ownerOnly]
    (let [mode (iofs/permissions path)
@@ -62,6 +70,10 @@
     [false false] (bit-and mode  (bit-not 64) (bit-not 8) (bit-not 1)))) ;remove all executes
 
 (defn setExecutable
+  "toggles the executable permission bit(s) for the specified filepath.
+   If executable, set 1 else 0
+   If ownerOnly (default) set just user, else set for group & other as well.
+   Does not affect other permission bits."
   ([path executable] (setExecutable path executable true))
   ([path executable ownerOnly]
    (let [mode (iofs/permissions path)
@@ -71,8 +83,8 @@
 (defn get-non-dirs
   "Returns sequence of strings representing non-existing directory components
    of the passed pathstring, root first, in order
-   @param {string} pathstring
-   @return {ISeq}"
+   @param {!string} pathstring
+   @return {!ISeq}"
   [^String pathstring]
   (reverse (take-while (complement iofs/dir?) (iterate iofs/dirname pathstring))))
 
@@ -82,9 +94,9 @@
     - opts {map}: :encoding {string}, :async? {bool}
     - if :async? true, file.read() => channel which receives err|str on successful read
     - if :encoding is \"\" (an explicit empty string), file.read() => raw buffer
-   @param {IFile} file to build read method for
-   @param {IMap} opts
-   @return {IFile} the same file with a read method attached"
+   @param {!IFile} file to build read method for
+   @param {!IMap} opts
+   @return {!IFile} the same file with a read method attached"
   [file opts]
   (if (:async? opts)
     (specify! file Object
@@ -99,9 +111,9 @@
      - opts {map}: :encoding {string}, :append {bool}, :async? {bool}
      - if content is a Buffer instance, opt encoding is ignored
      - if :async? file.write() => channel which receives err|true on successful write.
-   @param {IFile} file to build write method for
-   @param {IMap} opts a map of options
-   @return {IFile} the same file with a write method attached"
+   @param {!IFile} file to build write method for
+   @param {!IMap} opts a map of options
+   @return {!IFile} the same file with a write method attached"
   [file opts]
   (if (:async? opts)
     (specify! file Object
@@ -221,12 +233,12 @@
    The java File constructor is polymorphic and accepts one or two args:
     (Uri), (pathstring), (parentstring, childstring), (File, childstring)
    @constructor
-   @return {IFile} a reified file"
+   @return {!IFile} a reified file"
   ([a] (File a nil))
   ([a b] (File*. (filepath a b))))
 
 (defn createTempFile
-  "@return {IFile} a reified file"
+  "@return {!IFile} a reified file"
   ([prefix] (createTempFile prefix nil nil))
   ([prefix suffix] (createTempFile prefix suffix nil))
   ([prefix suffix dir]
