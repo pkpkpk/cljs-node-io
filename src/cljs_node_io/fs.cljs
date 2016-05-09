@@ -1,6 +1,6 @@
 (ns cljs-node-io.fs
-    (:require-macros [cljs-node-io.macros :refer [try-true]])
-    (:require [cljs.nodejs :as nodejs :refer [require]]))
+  (:require-macros [cljs-node-io.macros :refer [try-true]])
+  (:require [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]))
 
 (def fs (js/require "fs"))
 (def path (js/require "path"))
@@ -190,3 +190,35 @@
   "@param {string} pathstring : file to get extension from
    @return {string}"
   [pathstring]  (.extname path pathstring))
+
+
+(defn readFile
+  ([pathstring] (readFile pathstring "utf8"))
+  ([pathstring enc] (.readFileSync fs pathstring enc)))
+
+(defn areadFile
+  ([p](areadFile p "utf8"))
+  ([p enc] ;if (= encoding "") => returns buffer
+    (let [c (chan)]
+      (.readFile fs p enc (fn [err data] (put! c (if err err data))))
+      c))
+  ([p enc cb] (.readFile fs p enc cb)))
+
+(defn writeFile
+  [pathstring content opts]
+  (.writeFileSync fs pathstring content
+                  #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
+                      "mode"     (or (:mode opts)  438)
+                      "encoding" (or (:encoding opts) "utf8")}))
+
+(defn awriteFile
+  [pathstring content opts]
+  (let [filename pathstring
+        c (chan)
+        cb (fn [err] (put! c (or err true)))]
+    (.writeFile fs filename content
+                #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
+                    "mode"     (or (:mode opts) 438)
+                    "encoding" (or (:encoding opts) "utf8")}
+                cb)
+    c))

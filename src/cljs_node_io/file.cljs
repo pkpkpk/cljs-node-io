@@ -9,7 +9,6 @@
               :refer [Coercions as-url as-file IFile
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
-(def fs (js/require "fs"))
 (def os (js/require "os"))
 
 (defn setReadable*
@@ -89,16 +88,10 @@
   [file opts]
   (if (:async? opts)
     (specify! file Object
-      (read [this]
-            (let [c (chan) ]
-              (.readFile fs (.getPath this) (or (:encoding opts) "utf8") ;if no encoding, returns buffer
-                (fn [err data]
-                  (put! c (if err err data))))
-              c)))
-    ;sync reader
+      (read [this] (iofs/areadFile (.getPath this) (or (:encoding opts) "utf8"))))
     (specify! file Object
       (read [this]
-        (.readFileSync fs (.getPath this) (or (:encoding opts) "utf8")))))) ;if no encoding, returns buffer . catch err?
+        (iofs/readFile (.getPath this) (or (:encoding opts) "utf8"))))))
 
 (defn file-writer
   "Depending on the :async? option, this builds an appropriate write method
@@ -112,23 +105,9 @@
   [file opts]
   (if (:async? opts)
     (specify! file Object
-      (write [this content]
-        (let [filename (.getPath this)
-              c (chan)
-              cb (fn [err] (put! c (or err true)))]
-          (.writeFile fs filename content
-                      #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
-                          "mode"     (or (:mode opts) 438)
-                          "encoding" (or (:encoding opts) "utf8")}
-                      cb)
-          c)))
+      (write [this content] (iofs/awriteFile (.getPath this) content opts)))
     (specify! file Object ;sync
-      (write [this content]
-        (let [filename (.getPath this)]
-          (.writeFileSync fs filename content
-                          #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
-                              "mode"     (or (:mode opts)  438)
-                              "encoding" (or (:encoding opts) "utf8")}))))))
+      (write [this content] (iofs/writeFile (.getPath this) content opts)))))
 
 (deftype File*
   [^:mutable pathstring]
