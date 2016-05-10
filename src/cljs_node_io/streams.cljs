@@ -86,9 +86,9 @@
                        (swap! offset + size))
                      ; offset>=buffer length...totally consumed
                      (.push this nil))))
-         strm (ReadableStream (merge opts {:read read}))
-         _    (set! (.-constructor strm) :BufferReadStream)]
-     strm)))
+         strm (ReadableStream (merge opts {:read read}))]
+     (specify! strm
+      IInputStream))))
 
 (defn BufferWriteStream
   "Creates WritableStream to a buffer. The buffer is formed from concatenated
@@ -103,7 +103,6 @@
                  (.push data chunk)
                  (callback))
          strm  (WritableStream (merge opts {:write write}))
-         _     (set! (.-constructor strm) :BufferWriteStream)
          _     (set! (.-buf strm) data)
          _     (.on strm "finish"
                 (fn []
@@ -111,7 +110,9 @@
                     (reset! buf b)
                     (cb b))))]
      (specify! strm
+      IOutputStream
       Object
+      ; (destroy [this] )
       (toString [_] (if @buf (.toString @buf)))
       (toBuffer [_] @buf)))))
 
