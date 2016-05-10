@@ -193,32 +193,47 @@
 
 
 (defn readFile
+  "if :encoding is \"\" (an explicit empty string) => raw buffer"
   ([pathstring] (readFile pathstring "utf8"))
   ([pathstring enc] (.readFileSync fs pathstring enc)))
 
 (defn areadFile
+  "if :encoding is \"\" (an explicit empty string) => raw buffer
+   => channel which receives err|str on successful read"
   ([p](areadFile p "utf8"))
-  ([p enc] ;if (= encoding "") => returns buffer
+  ([p enc]
     (let [c (chan)]
       (.readFile fs p enc (fn [err data] (put! c (if err err data))))
       c))
   ([p enc cb] (.readFile fs p enc cb)))
 
 (defn writeFile
+  "synchronously writes content to file represented by pathstring.
+   @param {!string} pathstring : file to write to
+   @param {(string|buffer.Buffer)} content : if buffer, :encoding is ignored
+   @param {?IMap} opts : :encoding {string}, :append {bool}, :flags {string}, :mode {int}
+    - flags override append"
   [pathstring content opts]
   (.writeFileSync fs pathstring content
                   #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
                       "mode"     (or (:mode opts)  438)
                       "encoding" (or (:encoding opts) "utf8")}))
 
-(defn awriteFile
-  [pathstring content opts]
-  (let [filename pathstring
-        c (chan)
-        cb (fn [err] (put! c (or err true)))]
-    (.writeFile fs filename content
-                #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
-                    "mode"     (or (:mode opts) 438)
-                    "encoding" (or (:encoding opts) "utf8")}
-                cb)
-    c))
+(defn awriteFile ;add custom cb arity
+  "by default returns channel which receives err|true on successful write.
+  or pass in custom callback"
+  ([pathstring content opts]
+   (let [c (chan)
+         cb (fn [err] (put! c (or err true)))]
+     (.writeFile fs pathstring content
+                 #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
+                     "mode"     (or (:mode opts) 438)
+                     "encoding" (or (:encoding opts) "utf8")}
+                 cb)
+     c))
+  ([pathstring content opts cb]
+   (.writeFile fs pathstring content
+               #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
+                   "mode"     (or (:mode opts) 438)
+                   "encoding" (or (:encoding opts) "utf8")}
+               cb)))
