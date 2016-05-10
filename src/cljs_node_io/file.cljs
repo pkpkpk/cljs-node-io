@@ -88,39 +88,6 @@
   [^String pathstring]
   (reverse (take-while (complement iofs/dir?) (iterate iofs/dirname pathstring))))
 
-(defn file-reader
-  "Depending on :async? option, this builds an appropriate read method 
-   and attaches it to the reified file, returning the passed file.
-    - opts {map}: :encoding {string}, :async? {bool}
-    - if :async? true, file.read() => channel which receives err|str on successful read
-    - if :encoding is \"\" (an explicit empty string), file.read() => raw buffer
-   @param {!IFile} file to build read method for
-   @param {!IMap} opts
-   @return {!IFile} the same file with a read method attached"
-  [file opts]
-  (if (:async? opts)
-    (specify! file Object
-      (read [this] (iofs/areadFile (.getPath this) (or (:encoding opts) "utf8"))))
-    (specify! file Object
-      (read [this]
-        (iofs/readFile (.getPath this) (or (:encoding opts) "utf8"))))))
-
-(defn file-writer
-  "Depending on the :async? option, this builds an appropriate write method
-   and attaches it to the reified file, returning the passed file.
-     - opts {map}: :encoding {string}, :append {bool}, :async? {bool}
-     - if content is a Buffer instance, opt encoding is ignored
-     - if :async? file.write() => channel which receives err|true on successful write.
-   @param {!IFile} file to build write method for
-   @param {!IMap} opts a map of options
-   @return {!IFile} the same file with a write method attached"
-  [file opts]
-  (if (:async? opts)
-    (specify! file Object
-      (write [this content] (iofs/awriteFile (.getPath this) content opts)))
-    (specify! file Object ;sync
-      (write [this content] (iofs/writeFile (.getPath this) content opts)))))
-
 (deftype File*
   [^:mutable pathstring]
   IFile
@@ -132,15 +99,21 @@
   (as-file [f] f)
   (as-url [f] (.to-url f))
   IOFactory
-  (make-reader [^File this opts] (file-reader this opts))
-  (make-writer [^File this opts] (file-writer this opts))
-  (make-input-stream [^File this opts] (FileInputStream. this opts))
-  (make-output-stream [^File this opts] (FileOutputStream. this  opts))
+  (make-reader [this opts] (make-reader (make-input-stream  this opts) opts))
+  (make-writer [this opts] (make-writer (make-output-stream this opts) opts))
+  (make-input-stream [this opts] (FileInputStream. this opts))
+  (make-output-stream [this opts] (FileOutputStream. this  opts))
   IPrintWithWriter
   (-pr-writer [this writer opts] ;#object[java.io.File 0x751b0a12 "foo\\bar.txt"]
     (-write writer "#object [cljs-node-io.File")
     (-write writer (str "  "  (.getPath this)  " ]")))
   Object
+  (read [this](iofs/readFile pathstring))
+  (read [this enc](iofs/readFile pathstring enc))
+  (aread [this](iofs/areadFile pathstring))
+  (aread [this enc](iofs/areadFile pathstring enc))
+  (write [this content opts] (iofs/writeFile pathstring content opts))
+  (awrite [this content opts] (iofs/awriteFile pathstring content opts))
   (canRead ^boolean [this] (iofs/readable? pathstring)) ;untested
   (canWrite ^boolean [this] (iofs/writable? pathstring)) ;untested
   (canExecute ^boolean [this] (iofs/executable? pathstring)) ;untested
@@ -152,9 +125,7 @@
   (setExecutable [_ e o] (setExecutable pathstring e o))
   (setReadOnly [this] (.setWritable this false false))
   (setLastModified [_ time] (iofs/utimes pathstring time time)) ;sets atime + mtime
-  (createNewFile ^boolean [this]
-    (file-writer this {:flags "wx" :async? false})
-    (try-true (.write this)))
+  (createNewFile ^boolean [this] (try-true (.write this "" {:flags "wx"})))
   (delete ^boolean [this] (iofs/delete pathstring))
   (deleteOnExit [this]
     (.on js/process "exit"  (fn [exit-code] (.delete this))))
@@ -216,9 +187,7 @@
   (toString [_]  pathstring)
   (toURI [f] (Uri. (str "file:" pathstring))))
 
-(defn filepath-dispatch [x y] (mapv type [x y]))
-
-(defmulti  filepath "signature->Filepath" filepath-dispatch)
+(defmulti  filepath "signature->Filepath" (fn [x y] (mapv type [x y])))
 (defmethod filepath [Uri nil]  [u _] (.getPath u))
 (defmethod filepath [js/String nil]  [pathstring _] pathstring)
 (defmethod filepath [js/String js/String] [parent-str child-str] (str parent-str iofs/sep child-str))
