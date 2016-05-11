@@ -87,8 +87,7 @@
                      ; offset>=buffer length...totally consumed
                      (.push this nil))))
          strm (ReadableStream (merge opts {:read read}))]
-     (specify! strm
-      IInputStream))))
+     (input-IOF! strm))))
 
 (defn BufferWriteStream
   "Creates WritableStream to a buffer. The buffer is formed from concatenated
@@ -109,8 +108,7 @@
                   (let [b (js/Buffer.concat data)]
                     (reset! buf b)
                     (cb b))))]
-     (specify! strm
-      IOutputStream
+     (specify! (output-IOF! strm)
       Object
       ; (destroy [this] )
       (toString [_] (if @buf (.toString @buf)))
