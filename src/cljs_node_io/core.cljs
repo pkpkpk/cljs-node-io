@@ -18,16 +18,9 @@
 
 (def path (require "path"))
 
-(extend-type js/Buffer
-  IEquiv
-  (-equiv [this that] (.equals this that))
-  IOFactory
-  (make-reader [b opts] (make-reader (make-input-stream b opts) opts))
-  (make-input-stream [b opts] (BufferReadStream. b opts))
-  (make-writer [x opts] (fn [x opts] (make-writer (make-output-stream x opts) opts)))
-  (make-output-stream [x opts](fn [x opts]
-                                (throw (js/Error.
-                                        (str "IllegalArgumentException : Cannot open <" (pr-str x) "> as an OutputStream."))))))
+(extend-protocol IEquiv
+  js/Buffer
+  (-equiv [this that] (.equals this that)))
 
 (extend-protocol Coercions
   nil
@@ -39,9 +32,40 @@
   Uri
   (as-url [u] (.getPath u))
   (as-file [u]
-    (if (= "file" (.getScheme u))
-      (as-file (.getPath u)) ;goog.Uri handles decoding woohoo
+    (if (= "file" (.getScheme u)) ;"file://home/.../cljs-node-io/foo.edn"
+      (as-file (.getPath u))
       (throw (js/Error. (str "IllegalArgumentException : Not a file: " u))))))
+
+(extend-protocol IOFactory
+  Uri
+  (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
+  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
+  (make-input-stream [x opts] (make-input-stream
+                                (if (= "file" (.getScheme x))
+                                  (FileInputStream. (as-file x))
+                                  (.openStream x ))
+                                opts)) ;<---not implemented, setup for other protocols ie HTTP
+  (make-output-stream [x opts] (if (= "file" (.getScheme x))
+                                 (make-output-stream (as-file x) opts)
+                                 (throw (js/Error. (str "IllegalArgumentException: Can not write to non-file URL <" x ">")))))
+
+  string
+  (make-reader [x opts] (make-reader (as-file x) opts))
+  (make-writer [x opts] (make-writer (as-file x) opts))
+  (make-input-stream [^String x opts](try
+                                        (make-input-stream (Uri. x) opts)
+                                        (catch js/Error e
+                                          (make-input-stream (File. x) opts))))
+  (make-output-stream [^String x opts] (try
+                                        (make-output-stream (Uri. x) opts)
+                                          (catch js/Error err
+                                              (make-output-stream (File. x) opts))))
+  js/Buffer
+  (make-reader [b opts] (make-reader (make-input-stream b opts) opts))
+  (make-input-stream [b opts] (BufferReadStream. b opts))
+  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
+  (make-output-stream [x opts](throw (js/Error.  ;use Buffer.concat if you want to do this
+                                 (str "IllegalArgumentException : Cannot open <" (pr-str x) "> as an OutputStream.")))))
 
 (defn ^String as-relative-path
   "Take an as-file-able thing and return a string if it is
@@ -53,7 +77,7 @@
       (.getPath f))))
 
 
-(defn ^File file
+(defn file
   "Returns a reified file, passing each arg to as-file.  Multiple-arg
    versions treat the first argument as parent and subsequent args as
    children relative to the parent."
@@ -71,44 +95,36 @@
       silently
       (throw (js/Error. (str "Couldn't delete " f)))))
 
-(defn reader
-  "Attempts to coerce its argument into an open java.io.Reader.
-   Default implementations are provided for Reader, BufferedReader,
-   InputStream, File, URI, byte arrays, character arrays,
-   and String.
-   If argument is a String, it tries to resolve it first as a URI, then
-   as a local file name.  URIs with a 'file' protocol are converted to
-   local file names."
+(defn reader ;InputStream, File, goog.URI, Buffers and String.
+  "For all streams it defers back to the stream. Note: stream objects are event driven.
+     + buffers => BufferReadStream
+     + files + strings => FileInputStream
+   + goog.Uri's are treated as local files. No other protocols are supported at this time."
   [x & opts]
   (make-reader x (when opts (apply hash-map opts))))
 
 (defn writer
-  "Attempts to coerce its argument into an open java.io.Writer.
-   Default implementations are provided for Writer, BufferedWriter,
-   OutputStream, File, URI, and String.
-   If the argument is a String, it tries to resolve it first as a URI, then
-   as a local file name.  URIs with a 'file' protocol are converted to
-   local file names."
+  "For all streams it defers back to the stream. Note: stream objects are event driven.
+   + Files & Strings become FileOutputStreams.
+   + goog.Uri's are treated as local files. No other protocols are supported at this time."
   [x & opts]
   (make-writer x (when opts (apply hash-map opts))))
 
 (defn input-stream
-  "Attempts to coerce its argument into an IInputStream
-   Default implementations are defined for InputStream, File, URI, and Buffers
-   If the argument is a String, it tries to resolve it first as a URI, then
-   as a local file name.  URIs with a 'file' protocol are converted to
-   local file names.
-   @return {IInputStream}"
+  "For all streams it defers back to the stream. Note: stream objects are event driven.
+     + buffers => BufferReadStream
+     + files + strings => FileInputStream
+   + goog.Uri's are treated as local files. No other protocols are supported at this time.
+   @return {!IInputStream}"
   [x & opts]
   (make-input-stream x (when opts (apply hash-map opts))))
 
 (defn output-stream
-  "Attempts to coerce its argument into an IOutputStream.
-   Default implementations are defined for OutputStream, File, URI, Strings
-   If the argument is a String, it tries to resolve it first as a URI, then
-   as a local file name.  URIs with a 'file' protocol are converted to
-   local file names.
-   @return {IOutputStream}"
+  "For all streams it defers back to the stream. Note: stream objects are event driven.
+   + Files & Strings become FileOutputStreams.
+   + goog.Uri's are treated as local files. No other protocols are supported at
+   this time.
+   @return {!IOutputStream}"
   [x & opts]
   (make-output-stream x (when opts (apply hash-map opts))))
 
@@ -118,48 +134,24 @@
   [b]
   (js/Buffer.isBuffer b))
 
-(extend-protocol IOFactory
-  Uri
-  (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
-  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  (make-input-stream [x opts] (make-input-stream
-                                (if (= "file" (.getScheme x))
-                                  (FileInputStream. (as-file x))
-                                  (.openStream x)) opts))
-  (make-output-stream [x opts] (if (= "file" (.getScheme x))
-                                 (make-output-stream (as-file x) opts)
-                                 (throw (js/Error. (str "IllegalArgumentException: Can not write to non-file URL <" x ">")))))
-
-  string
-  (make-reader [x opts] (make-reader (as-file x) opts))
-  (make-writer [x opts] (make-writer (as-file x) opts))
-  (make-input-stream [^String x opts](try
-                                        (make-input-stream (Uri. x) opts)
-                                        (catch js/Error e
-                                          (make-input-stream (File. x) opts))))
-  (make-output-stream [^String x opts] (try
-                                        (make-output-stream (Uri. x) opts)
-                                          (catch js/Error err
-                                              (make-output-stream (File. x) opts)))))
-
 (defn error? [e] (instance? js/Error e))
 
-
 (defn slurp
-  "Returns a string synchronously by default
-   Opts:
-     :encoding \"\" (an explicit empty string), returns raw buffer instead of string.
+  "Returns a string synchronously. Unlike JVM, does not use FileInputStream.
+   Only option at this time is :encoding
+   If :encoding \"\" (an explicit empty string), returns raw buffer instead of string.
    @return {(string|buffer.Buffer)}"
-  ([f & opts]
-   (let [r (apply reader f opts)]
-     (.read r) )))
+  [p & opts]
+  (let [opts (apply hash-map opts)
+        f    (as-file p)]
+    (.read f (:encoding opts))))
 
 (defn aslurp
-  "sugar for (slurp f :async? true ...)
-   @return {Channel} a which will receive err|data"
-  [f & opts]
-  (let [r (apply reader f (concat opts '(:async? true)))]
-    (.read r)))
+  "@return {Channel} a which will receive err|data"
+  [p & opts]
+  (let [opts (apply hash-map opts)
+        f (as-file p)]
+    (.aread f (:encoding opts))))
 
 (defn reader-method
   "@param {string} filepath
@@ -177,18 +169,19 @@
 (defn sslurp
   "augmented 'super' slurp for convenience. edn|json => clj data-structures
   @returns {Object}"
-  [f & opts]
-  (let [ff    (apply reader f opts)
-        rdr  (reader-method (.getPath ff))]
-    (rdr (.read ff))))
+  [p & opts]
+  (let [opts (apply hash-map opts)
+        f    (as-file p)
+        rdr  (reader-method (.getPath f))]
+    (rdr (.read f))))
 
 (defn saslurp
   "augmented 'super' aslurp for convenience. edn|json => clj data-structures put into a ch
    @return {Channel} which receives edn data or error "
-  [f & opts]
-  (let [file  (apply reader f (concat opts '(:async? true)))
-        rdr   (reader-method (.getPath file))
-        from  (.read file)
+  [p & opts]
+  (let [f     (as-file p)
+        rdr   (reader-method (.getPath f))
+        from  (aslurp f opts)
         to    (chan 1 (map #(if (error? %) % (rdr %))) )
         _     (pipe from to)]
     to))
@@ -198,16 +191,18 @@
    :encoding {string} encoding to write the string. Ignored when content is a buffer
    :append - {bool} - if true add content to end of file
    @return {nil} or throws"
-  [f content & options]
-  (let [w (apply writer f options)]
-    (.write w (str content))))
+  [p content & options]
+  (let [opts (apply hash-map options)
+        f    (as-file p)]
+    (.write f (str content) opts)))
 
 (defn aspit
   "Async spit. Wait for result before writing again!
    @return {Channel} recieves error or true on write success"
-  [f content & options]
-  (let [w (apply writer f (concat options '(:async? true)))]
-    (.write w (str content))))
+  [p content & options]
+  (let [opts (apply hash-map options)
+        f    (as-file p)]
+    (.awrite f (str content) opts)))
 
 ; (defn line-seq
 ;   "Returns the lines of text from rdr as a lazy sequence of strings.
