@@ -10,16 +10,17 @@
 
 (deftest test-createNewFile-and-delete
   (let [f (createTempFile "foo" ".txt")]
-    (is (= false (.exists f)))
-    (is (= 0     (.length f)))
-    (is (= true  (.createNewFile f)))
-    (is (= false (zero? (.length f))))
-    (is (= true  (.exists f)))
-    (is (= nil   (.list f)))
-    (is (= false (.createNewFile f)))
-    (is (= true  (.delete f)))
-    (is (= false (.exists f)))
-    (is (= false (.delete f)))))
+    (are [x y] (= x y)
+      false (.exists f)
+      0     (.length f)
+      true  (.createNewFile f)
+      true   (zero? (.length f))
+      true  (.exists f)
+      nil   (.list f)
+      false (.createNewFile f)
+      true  (.delete f)
+      false (.exists f)
+      false (.delete f))))
 
 
 (deftest test-directory-functions
@@ -31,26 +32,26 @@
         deep  (createTempFile "deep" nil d3)]
     (.delete d)
     ; create & delete empty directory
-    (is (= false (.exists d)))
-    (is (= true  (.mkdir d)))
-    (is (= true  (.exists d)))
-    (is (= true  (.isDirectory d)))
-    (is (= true  (empty? (.list d))))
-    (is (= true  (.delete d)))
-    (is (= false (.exists d)))
-    (is (= false (.isDirectory d)))
-    ; dir with a file & subdir siblings
-    (is (= true (.mkdir d)))
-    (is (= true (.createNewFile foo)))
-    (is (= true (.createNewFile bar)))
-    (is (= true (.mkdir d2)))
-    (is (= ["bar.tmp" "foo.tmp" "subdir"] (.list d)))
-    (is (= ["bar.tmp" "foo.tmp"] (.listFiles d)))
-    (is (= ["foo.tmp"] (.list d (fn [d name] (starts-with? name "foo") ) )))
-    (is (= ["bar.tmp" "subdir"] (.list d (fn [d name] (not (starts-with? name "foo")) ) )))
-    (is (= ["bar.tmp"] (.listFiles d (fn [d name] (not (starts-with? name "foo")) ) )))
-    (is (= false (.delete d)))
-    (is (= true (.exists foo)))
+    (are [x y] (= x y)
+      false (.exists d)
+      true  (.mkdir d)
+      true  (.exists d)
+      true  (.isDirectory d)
+      true  (empty? (.list d))
+      true  (.delete d)
+      false (.exists d)
+      false (.isDirectory d)
+      true (.mkdir d)
+      true (.createNewFile foo)
+      true (.createNewFile bar)
+      true (.mkdir d2)
+      ["bar.tmp" "foo.tmp" "subdir"] (.list d)
+      ["bar.tmp" "foo.tmp"] (.listFiles d)
+      ["foo.tmp"] (.list d (fn [d name] (starts-with? name "foo") ) )
+      ["bar.tmp" "subdir"] (.list d (fn [d name] (not (starts-with? name "foo")) ) )
+      ["bar.tmp"] (.listFiles d (fn [d name] (not (starts-with? name "foo")) ) )
+      false (.delete d)
+      true (.exists foo))
     (is (every? true? (mapv #(.delete %) (list foo bar d2 d))))
     ;derive parent dirs from subdir via mkdir
     (is (every? false? (mapv #(.exists %) (list deep d3 d2 d))))
@@ -59,42 +60,45 @@
     (is (every? true? (mapv #(.delete %) (list deep d3 d2 d))))))
 
 (deftest test-setReadable*
-  ; rwxrwxrwx
-  (is (= 511 (setReadable* 511 true true)))
-  (is (= 511 (setReadable* 511 true false)))
-  (is (= 255 (setReadable* 511 false true)))
-  (is (= 219 (setReadable* 511 false false)))
-  ; ----r--r--
-  (is (=  292 (setReadable* 36 true true)))
-  (is (=  292 (setReadable* 36 true false)))
-  (is (=  36  (setReadable* 36 false true)))
-  (is (=  0   (setReadable* 36 false false))))
+  (are [x y] (= x y)
+    ; rwxrwxrwx
+    511 (setReadable* 511 true true)
+    511 (setReadable* 511 true false)
+    255 (setReadable* 511 false true)
+    219 (setReadable* 511 false false)
+    ; ----r--r--
+    292 (setReadable* 36 true true)
+    292 (setReadable* 36 true false)
+    36  (setReadable* 36 false true)
+    0   (setReadable* 36 false false)))
 
-(deftest test-setWritable*
-  ; rwxrwxrwx
-  (is (= 511 (setWritable* 511 true true)))
-  (is (= 511 (setWritable* 511 true false)))
-  (is (= 383 (setWritable* 511 false true)))
-  (is (= 365 (setWritable* 511 false false)))
-  ; -----w--w-
-  (is (=  146 (setWritable* 18 true true)))
-  (is (=  146 (setWritable* 18 true false)))
-  (is (=  18  (setWritable* 18 false true)))
-  (is (=  0   (setWritable* 18 false false))) 
-  ; -----w----
-  (is (=  144 (setWritable* 16 true true)))
-  (is (=  146 (setWritable* 16 true false)))
-  (is (=  16  (setWritable* 16 false true)))
-  (is (=  0   (setWritable* 16 false false))))
+(deftest test-setWritable*  
+  (are [x y] (= x y)
+    ; rwxrwxrwx
+    511 (setWritable* 511 true true)
+    511 (setWritable* 511 true false)
+    383 (setWritable* 511 false true)
+    365 (setWritable* 511 false false)
+    ; -----w--w-
+    146 (setWritable* 18 true true)
+    146 (setWritable* 18 true false)
+     18 (setWritable* 18 false true)
+      0 (setWritable* 18 false false)
+    ; -----w----
+    144 (setWritable* 16 true true)
+    146 (setWritable* 16 true false)
+     16 (setWritable* 16 false true)
+      0 (setWritable* 16 false false)))
 
 (deftest test-setExecutable*
-  ; rwxrwxrwx
-  (is (= 511 (setExecutable* 511 true true)))
-  (is (= 511 (setExecutable* 511 true false)))
-  (is (= 447 (setExecutable* 511 false true)))
-  (is (= 438 (setExecutable* 511 false false)))
-  ; ------x--x
-  (is (=  73 (setExecutable* 9 true true)))
-  (is (=  73 (setExecutable* 9 true false)))
-  (is (=  9  (setExecutable* 9 false true)))
-  (is (=  0  (setExecutable* 9 false false))))
+  (are [x y] (= x y)
+    ; rwxrwxrwx
+    511 (setExecutable* 511 true true)
+    511 (setExecutable* 511 true false)
+    447 (setExecutable* 511 false true)
+    438 (setExecutable* 511 false false)
+    ; ------x--x
+    73 (setExecutable* 9 true true)
+    73 (setExecutable* 9 true false)
+     9 (setExecutable* 9 false true)
+     0 (setExecutable* 9 false false)))
