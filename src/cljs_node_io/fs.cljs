@@ -4,7 +4,9 @@
 
 (def fs (js/require "fs"))
 (def path (js/require "path"))
+(def os (js/require "os"))
 
+(def tmpdir (.tmpdir os))
 (def sep (.-sep path))
 
 (defn stat

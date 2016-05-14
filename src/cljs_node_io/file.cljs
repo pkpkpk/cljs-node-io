@@ -9,14 +9,12 @@
               :refer [Coercions as-url as-file IFile
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
-(def os (js/require "os"))
-
 (defn setReadable*
   "@param {!number} mode : the file's existing mode
    @param {!boolean} readable : add or remove read permission
    @param {!boolean} ownerOnly : restrict operation to user bit only
    @return {!number} A int for chmod that only effects the targeted mode bits"
-  [mode readable ownerOnly]
+  [mode ^boolean readable ^boolean ownerOnly]
   (condp = [readable ownerOnly]
     [true true]   (bit-or mode 256) ; add-user-read
     [false true]  (bit-and mode (bit-not 256)) ; remove-user-read
@@ -29,7 +27,7 @@
    If ownerOnly (default) set just user, else set for group & other as well.
    Does not affect other permission bits."
   ([path readable] (setReadable path readable true))
-  ([path readable ownerOnly]
+  ([path ^boolean readable ^boolean ownerOnly]
    (let [mode (iofs/permissions path)
          n    (setReadable* mode readable ownerOnly)]
      (iofs/chmod path n))))
@@ -39,7 +37,7 @@
    @param {!boolean} writable : add or remove write permission
    @param {!boolean} ownerOnly : restrict operation to user bit only
    @return {!number} A int for chmod that only effects the targeted mode bits"
-  [mode writable ownerOnly]
+  [mode ^boolean writable ^boolean ownerOnly]
   (condp = [writable ownerOnly]
     [true true]   (bit-or mode 128) ; add-user-write
     [false true]  (bit-and mode (bit-not 128)) ; remove-user-write
@@ -51,8 +49,8 @@
    If writable, set 1 else 0
    If ownerOnly (default) set just user, else set for group & other as well.
    Does not affect other permission bits."
-  ([path writable] (setWritable path writable true))
-  ([path writable ownerOnly]
+  ([path ^boolean writable] (setWritable path writable true))
+  ([path ^boolean writable ^boolean ownerOnly]
    (let [mode (iofs/permissions path)
          n    (setWritable* mode writable ownerOnly)]
      (iofs/chmod path n))))
@@ -62,7 +60,7 @@
    @param {!boolean} executable : add or remove execute permission
    @param {!boolean} ownerOnly : restrict operation to user bit only
    @return {!number} A int for chmod that only effects the targeted mode bits"
-  [mode executable ownerOnly]
+  [mode ^boolean executable ^boolean ownerOnly]
   (condp = [executable ownerOnly]
     [true true]   (bit-or mode 64) ; add-user-execute
     [false true]  (bit-and mode (bit-not 64)) ; remove-user-execute
@@ -74,8 +72,8 @@
    If executable, set 1 else 0
    If ownerOnly (default) set just user, else set for group & other as well.
    Does not affect other permission bits."
-  ([path executable] (setExecutable path executable true))
-  ([path executable ownerOnly]
+  ([path ^boolean executable] (setExecutable path executable true))
+  ([path ^boolean executable ^boolean ownerOnly]
    (let [mode (iofs/permissions path)
          n    (setExecutable* mode executable ownerOnly)]
      (iofs/chmod path n))))
@@ -211,7 +209,7 @@
   ([prefix] (createTempFile prefix nil nil))
   ([prefix suffix] (createTempFile prefix suffix nil))
   ([prefix suffix dir]
-    (let [tmpd (or dir (.tmpdir os))
+    (let [tmpd (or dir iofs/tmpdir)
           path (str tmpd iofs/sep prefix (or suffix ".tmp"))
           f    (File. path)]
       f)))
