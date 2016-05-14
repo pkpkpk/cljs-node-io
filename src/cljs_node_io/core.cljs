@@ -267,36 +267,41 @@
     :arglists '([input output opts])}
   do-copy
   (fn [input output opts]
-    [(or (stream-type input)  (if (rFile?  input) :File) (type input))
-     (or (stream-type output) (if (rFile? output) :File) (type output))]))
+    (if (string? input)
+      (recur (as-file input) output opts)
+      (if (string? output)
+        (recur input (as-file output) opts)
+        [(or (stream-type input)  (if (rFile?  input) :File) (type input))
+         (or (stream-type output) (if (rFile? output) :File) (type output))]))))
 
 
-(defmethod do-copy [:InputStream :OutputStream] [^InputStream input ^OutputStream output opts]
+(defmethod do-copy [:InputStream :OutputStream] [input output opts]
   (do (.pipe input output) nil))
 
-(defmethod do-copy [:File :File] [^File input ^File output opts]
+(defmethod do-copy [:File :File] [input output opts]
   (let [in  (-> input streams/FileInputStream. )
         out (-> output streams/FileOutputStream. )]
     (do-copy in out opts)))
 
-(defmethod do-copy [:File :OutputStream] [^File input ^OutputStream output opts]
+(defmethod do-copy [:File :OutputStream] [input output opts]
   (let [in (streams/FileInputStream. input)]
     (do-copy in output opts)))
 
-(defmethod do-copy [:InputStream File] [^InputStream input ^File output opts]
+(defmethod do-copy [:InputStream :File] [input output opts]
   (let [out  (streams/FileOutputStream. output)]
     (do-copy input out opts)))
 
 (defmethod do-copy [js/Buffer :OutputStream] [input output opts]
   (do-copy (streams/BufferReadStream. input opts) output opts))
 
-(defmethod do-copy [js/Buffer :File] [input ^File output opts]
+(defmethod do-copy [js/Buffer :File] [input output opts]
   (do-copy (streams/BufferReadStream. input opts) output opts))
 
 (defn copy
   "Copies input to output. Returns nil or throws.
-  Input may be an InputStream, File, Buffer, or String.
-  Output may be an OutputStream or File.
+   Input may be an InputStream, File, Buffer, or string.
+   Output may be an String, OutputStream or File. 
+   Unlike JVM, strings are coerced to files. If you have big chunks of data, use a buffer.
   :encoding = destination encoding to use when copying a Buffer"
   [input output & opts]
   (do-copy input output (when opts (apply hash-map opts))))
