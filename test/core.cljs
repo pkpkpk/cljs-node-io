@@ -61,13 +61,13 @@
       (go
         (.delete f)
         (is (= false (.exists f)))
-        (is (= true (<! (aspit f ascii-content :append false))))
-        (is (= ascii-content (<! (aslurp f :encoding ""))))
-        (is (= "buffer" (<! (aslurp f :encoding "ascii"))))
+        (is (= [nil] (<! (aspit f ascii-content :append false))))
+        (is (=  [nil ascii-content] (<! (aslurp f :encoding ""))))
+        (is (= [nil "buffer"] (<! (aslurp f :encoding "ascii"))))
         ;unicode
         (doseq [enc [ "utf8" "utf-8" "utf16le" "utf-16le" "ucs2" "ucs-2"]]
-          (= true (<! (aspit f uni-content :encoding enc :append false)))
-          (is (= uni-content (<! (aslurp f :encoding enc)))))
+          (is (= [nil] (<! (aspit f uni-content :encoding enc :append false))))
+          (is (= [nil uni-content] (<! (aslurp f :encoding enc)))))
         (= true (.delete f))
         (done)))))
 

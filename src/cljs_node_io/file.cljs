@@ -26,11 +26,11 @@
    If readable, set 1 else 0
    If ownerOnly (default) set just user, else set for group & other as well.
    Does not affect other permission bits."
-  ([path readable] (setReadable path readable true))
-  ([path ^boolean readable ^boolean ownerOnly]
-   (let [mode (iofs/permissions path)
+  ([pathstr readable] (setReadable pathstr readable true))
+  ([pathstr ^boolean readable ^boolean ownerOnly]
+   (let [mode (iofs/permissions (iofs/stat pathstr))
          n    (setReadable* mode readable ownerOnly)]
-     (iofs/chmod path n))))
+     (iofs/chmod pathstr n))))
 
 (defn setWritable*
   "@param {!number} mode : the file's existing mode
@@ -49,11 +49,11 @@
    If writable, set 1 else 0
    If ownerOnly (default) set just user, else set for group & other as well.
    Does not affect other permission bits."
-  ([path ^boolean writable] (setWritable path writable true))
-  ([path ^boolean writable ^boolean ownerOnly]
-   (let [mode (iofs/permissions path)
+  ([pathstr ^boolean writable] (setWritable pathstr writable true))
+  ([pathstr ^boolean writable ^boolean ownerOnly]
+   (let [mode (iofs/permissions (iofs/stat pathstr))
          n    (setWritable* mode writable ownerOnly)]
-     (iofs/chmod path n))))
+     (iofs/chmod pathstr n))))
 
 (defn setExecutable*
   "@param {!number} mode : the file's existing mode
@@ -72,11 +72,11 @@
    If executable, set 1 else 0
    If ownerOnly (default) set just user, else set for group & other as well.
    Does not affect other permission bits."
-  ([path ^boolean executable] (setExecutable path executable true))
-  ([path ^boolean executable ^boolean ownerOnly]
-   (let [mode (iofs/permissions path)
+  ([pathstr ^boolean executable] (setExecutable pathstr executable true))
+  ([pathstr ^boolean executable ^boolean ownerOnly]
+   (let [mode (iofs/permissions (iofs/stat pathstr))
          n    (setExecutable* mode executable ownerOnly)]
-     (iofs/chmod path n))))
+     (iofs/chmod pathstr n))))
 
 (defn get-non-dirs
   "Returns sequence of strings representing non-existing directory components
@@ -106,9 +106,9 @@
     (-write writer "#object [cljs-node-io.File")
     (-write writer (str "  "  (.getPath this)  " ]")))
   Object
-  (read [this](iofs/readFile pathstring))
+  (read [this](iofs/readFile pathstring "utf8"))
   (read [this enc](iofs/readFile pathstring enc))
-  (aread [this](iofs/areadFile pathstring))
+  (aread [this](iofs/areadFile pathstring "utf8"))
   (aread [this enc](iofs/areadFile pathstring enc))
   (write [this content opts] (iofs/writeFile pathstring content opts))
   (awrite [this content opts] (iofs/awriteFile pathstring content opts))
@@ -124,13 +124,13 @@
   (setReadOnly [this] (.setWritable this false false))
   (setLastModified [_ time] (iofs/utimes pathstring time time)) ;sets atime + mtime
   (createNewFile ^boolean [this] (try-true (.write this "" {:flags "wx"})))
-  (delete ^boolean [this] (iofs/delete pathstring))
+  (delete ^boolean [this] (try-true (iofs/delete pathstring)))
   (deleteOnExit [this]
     (.on js/process "exit"  (fn [exit-code] (.delete this))))
   (equals ^boolean [this that] (= this that))
   (exists ^boolean [_](iofs/fexists? pathstring))
   (getAbsoluteFile [this] (as-file (.getAbsolutePath this)))
-  (getAbsolutePath [_] (iofs/resolve-path pathstring))
+  (getAbsolutePath [_] (iofs/realpath pathstring))
   (getCanonicalFile [this] (as-file (.getCanonicalPath this)))
   (getCanonicalPath [_] (iofs/normalize-path pathstring))
   (getName [_] (iofs/filename pathstring))
@@ -166,16 +166,16 @@
     (if-let [files (.list this)]
       (filterv (partial filterfn pathstring) files)))
   (listFiles [this]
-    (.list this (fn [d name] (iofs/file? (str d  iofs/sep name)))))
+    (mapv  #(File*. (str pathstring iofs/sep %)) (.list this))) ;is path handling correct here?
   (listFiles [this filterfn]
     (assert (= 2 (.-length filterfn)) "the file filterfn must accept 2 args, the dir File & name string")
     (if-let [files (.listFiles this)]
-      (filterv (partial filterfn pathstring) files)))
+      (filterv (partial filterfn pathstring) files))) ;trandsucers?
   (mkdir ^boolean [_](try-true (iofs/mkdir pathstring)))
   (mkdirs ^boolean [this]
     (let [p  (.getPath this)
           dirs (get-non-dirs p)]
-      (try-true (doseq [d dirs]
+      (try-true (doseq [d dirs] ;;;;try true movd to fs?
                   (iofs/mkdir d)))))
   (renameTo ^boolean [this dest]
     (assert (string? dest) "destination must be a string")

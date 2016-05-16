@@ -1,6 +1,8 @@
 (ns cljs-node-io.fs
-  (:require-macros [cljs-node-io.macros :refer [try-true]])
-  (:require [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]))
+  (:require-macros [cljs-node-io.macros :refer [try-true with-chan]]
+                   [cljs.core.async.macros :refer [go]])
+  (:require [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
+            [cljs.core.async.impl.protocols :refer [Channel]]))
 
 (def fs (js/require "fs"))
 (def path (js/require "path"))
@@ -10,10 +12,39 @@
 (def sep (.-sep path))
 
 (defn stat
-  "@param {!string} pathstring
+  "Synchronous stat
+   @param {!string} pathstring
    @return {!fs.Stats} file stats object"
   [pathstring]
   (.statSync fs pathstring))
+
+(defn astat
+  "Asynchronous stat
+   @param {!string} pathstr
+   @return {!Channel} receives [err fs.Stats]"
+  [pathstr]
+  (let [c  (chan)]
+    (.stat fs pathstr
+      (fn [err data] (put! c [err data])))
+    c))
+
+(defn lstat
+  "Synchronous lstat Identical to stat(), except that if path is a symbolic link,
+   then the link itself is stat-ed, not the file that it refers to
+   @param {!string} pathstring
+   @return {!fs.Stats} file stats object"
+  [pathstr]
+  (.lstatSync fs pathstr))
+
+(defn alstat
+  "Asynchronous lstat
+   @param {!string} pathstr
+   @return {!Channel} receives [err fs.Stats]"
+  [pathstr]
+  (let [c  (chan)]
+    (.lstat fs pathstr
+      (fn [err data] (put! c [err data])))
+    c))
 
 (defn to-bit [number] (if-not (zero? number) 1 0))
 
@@ -41,32 +72,19 @@
     (amap a i res (to-bit (aget a i)))))
 
 (defn permissions
-  "@param {!string} filepath
+  "@param {!fs.stat} filepath
    @return {!Number}"
-  [filepath]
-  (-> (stat filepath) stat->perm-bita bita->int))
-
-(defn chmod
-  "@param {!string} path
-   @param {!Number} mode must be an integer"
-  [path mode]
-  (.chmodSync fs path mode))
-
-(defn chown
-  "@param {!string} path
-   @param {!Number} uid
-   @param {!Number} gid"
-  [path uid gid]
-  (.chownSync fs path uid gid))
+  [st]
+  (-> st stat->perm-bita bita->int))
 
 (defn gid-uid
   "@return {!IMap}"
   []
   {:gid (.getgid js/process) :uid (.getuid js/process)})
 
-(defn utimes
-  [path atime mtime]
-  (.utimesSync fs path atime mtime))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; predicates/
 
 (defn hidden?
   "@param {!string} pathstr
@@ -85,16 +103,47 @@
       (.isDirectory stats)
       false)))
 
+(defn adir?
+  "Asynchronous directory predicate.
+   @param {!string} pathstr
+   @return {!Channel} receives boolean"
+  [pathstr]
+  (let [c  (chan)
+        stat-ch (astat pathstr)]
+    (take! stat-ch
+      (fn [[err stats]]
+        (put! c
+          (if-not err
+            (.isDirectory stats)
+            false))))
+    c))
+
 (defn file?
-  "@param {!string} pathstring
+  "Synchronous file predicate
+   @param {!string} pathstring
    @return {!boolean} iff abstract pathname exists and is a file"
   ^boolean
   [^String pathstring]
   (assert (string? pathstring) "file? takes a string, perhaps you passed a file instead")
-  (let [stats (try (.statSync fs pathstring) (catch js/Error e false))]
+  (let [stats (try (lstat pathstring) (catch js/Error e false))]
     (if stats
       (.isFile stats)
       false)))
+
+(defn afile?
+  "Asynchronous file predicate.
+   @param {!string} pathstr
+   @return {!Channel} receives boolean"
+  [pathstr]
+  (let [c  (chan)
+        stat-ch (alstat pathstr)]
+    (take! stat-ch
+      (fn [[err stats]]
+        (put! c
+          (if-not err
+            (.isFile stats)
+            false))))
+    c))
 
 (defn absolute?
   "@param {!string} p : path to test
@@ -103,23 +152,56 @@
   (.isAbsolute path p))
 
 (defn fexists?
-  "test if a file exists
+  "Synchronously test if a file or directory exists
    @param {!string} p : file path to test
    @return {!boolean}"
-  [p]
-  (try-true (.accessSync fs p (.-F_OK fs))))
+  [pathstr]
+  (try-true (.accessSync fs pathstr (.-F_OK fs))))
+
+(defn afexists?
+  "Asynchronously test if a file or directory exists
+   @param {!string} pathstr
+   @return {!Channel} receives boolean"
+  [pathstr]
+  (let [c (chan)]
+    (.access fs pathstr
+      (fn [err]
+        (put! c (if err false true))))
+    c))
 
 (defn readable?
-  "@param {!string} p path to test for process read permission
+  "Synchronously test if a file is readable to the process
+   @param {!string} p path to test for process read permission
    @return {!boolean}"
   [p]
   (try-true (.accessSync fs p (.-R_OK fs))))
 
+(defn areadable?
+  "Asynchronously test if a file is readable to the process
+   @param {!string} pathstr
+   @return {!Channel} receives boolean"
+  [pathstr]
+  (let [c (chan)]
+    (.access fs pathstr (.-R_OK fs)
+      (fn [err] (put! c (if-not err true err))))
+    c))
+
 (defn writable?
-  "@param {!string} p path to test for process write permission
+  "Synchronously test if a file is writable to the process
+   @param {!string} p path to test for process write permission
    @return {!boolean}"
   [p]
   (try-true (.accessSync fs p (.-W_OK fs))))
+
+(defn awritable?
+  "Asynchronously test if a file is writable to the process
+   @param {!string} p path to test for process write permission
+   @return {!Channel} receives err|true"
+  [pathstr]
+  (let [c (chan)]
+    (.access fs pathstr (.-W_OK fs)
+      (fn [err] (put! c (if-not err true err))))
+    c))
 
 (defn executable?
   "@param {!string} p path to test for process executable permission
@@ -129,41 +211,40 @@
     (try-true (.accessSync fs p (.-X_OK fs)))
     (throw (js/Error "Testing if a file is executable has no effect on Windows "))))
 
-(defn mkdir
-  "@param {!string} pathstring : path of directory to create"
-  [pathstring]
-  (.mkdirSync fs pathstring))
+(defn aexecutable?
+  "Asynchronously test if a file is executable to the process
+   @param {!string} p path to test for process execute permission
+   @return {!Channel} receives err|true"
+  [pathstr]
+  (let [c (chan)]
+    (.access fs pathstr (.-X_OK fs)
+      (fn [err] (put! c (if-not err true err))))
+    c))
 
-(defn rmdir
-  "@param {!string} pathstring : path of directory to remove"
-  [pathstring]
-  (try-true (.rmdirSync fs pathstring)))
+(defn slink?
+  "Synchronous test for symbolic link"
+  [pathstr]
+  (let [stats (try (lstat pathstr) (catch js/Error e false))]
+    (if-not stats
+      false
+      (.isSymbolicLink stats))))
 
-(defn unlink
-  "@param {!string} pathstring : path of file to unlink
-   @return {!boolean} whether the op succeeded"
-  [pathstring]
-  (try-true (.unlinkSync fs pathstring)))
+(defn aslink?
+  "Asynchronously test if path is a symbolic link"
+  [pathstr]
+  (let [c  (chan)
+        stat-ch (alstat pathstr)]
+    (take! stat-ch
+      (fn [[err stats]]
+        (put! c
+          (if-not err
+            (.isSymbolicLink stats)
+            false))))
+    c))
 
-(defn delete
-  "@param {!string} pathstring : can be file or directory
-   @return {!boolean} whether the op succeeded"
-  [pathstring]
-  (if (dir? pathstring)
-    (rmdir pathstring)
-    (unlink pathstring)))
-
-(defn rename
-  "@param {!string} prevp : existing file path
-   @param {!string} newp  : new file path"
-  [prevp newp]
-  (.renameSync fs prevp newp))
-
-(defn readdir
-  "@param {!string} dirpath : directory path to read
-   @return {!IVector} vector of strings representing the directory contents"
-  [dirpath]
-  (vec (.readdirSync fs dirpath)))
+;; /predicates
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; path utilities/
 
 (defn dirname
   "@param {!string} pathstring : path to get parent of
@@ -177,10 +258,9 @@
   ([p ext] (.basename path p ext)))
 
 (defn resolve-path
-  "@param {!string} pathstring : pathstring to resolve to absolute path
+  "@param {!...string} paths : pathstring(s) to resolve to absolute path
    @return {!string}"
-  [pathstring]
-  (.resolve path pathstring)) ; this should dispatch on type, fs.resolve has multiple arities
+  [& paths] (.apply (.-resolve path) nil (apply array paths )))
 
 (defn normalize-path
   "@param {!string} pathstring : pathstring to normalize
@@ -193,49 +273,269 @@
    @return {string}"
   [pathstring]  (.extname path pathstring))
 
+(defn realpath
+  "Synchronous realpath
+   @param {!string} pathstr
+   @return {!string} resolved path"
+  [pathstr]
+  (.realpathSync fs pathstr))
+
+(defn arealpath
+  "Asynchronous realpath
+   @param {!string} pathstr
+   @return {!Channel} [err resolvedPath]"
+  [pathstr]
+  (let [c (chan)]
+    (.realpath fs pathstr
+      (fn [err resolvedPath] (put! c [err resolvedPath])))
+    c))
+
+;; /path utilities
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; side-effecting IO ops/
+
+(defn chmod
+  "Synchronous chmod
+   @param {!string} path
+   @param {!Number} mode must be an integer"
+  [pathstr mode]
+  (.chmodSync fs pathstr mode))
+
+(defn achmod
+  "Asynchronous chmod
+   @param {!string} pathstr
+   @param {!Number} mode
+   @return {!Channel} receives [err]"
+  [pathstr mode]
+  (with-chan (.chmod fs pathstr mode)))
+
+(defn lchmod
+  "Synchronous lchmod
+   @param {!string} path
+   @param {!Number} mode must be an integer"
+  [pathstr mode]
+  (.lchmodSync fs pathstr mode))
+
+(defn alchmod
+  "Asynchronous lchmod
+   @param {!string} pathstr
+   @param {!Number} mode
+   @return {!Channel} receives [err]"
+  [pathstr mode]
+  (with-chan (.lchmod fs pathstr mode)))
+
+(defn chown
+  "Synchronous chown
+   @param {!string} pathstr
+   @param {!Number} uid
+   @param {!Number} gid"
+  [pathstr uid gid]
+  (.chownSync fs pathstr uid gid))
+
+(defn achown
+  "Asynchronous chown
+   @param {!string} pathstr
+   @param {!Number} uid
+   @param {!Number} gid
+   @return {!Channel} receives [err]"
+  [pathstr uid gid]
+  (with-chan (.chown fs pathstr uid gid)))
+
+(defn lchown
+  "Synchronous lchown
+   @param {!string} pathstr
+   @param {!Number} uid
+   @param {!Number} gid"
+  [pathstr uid gid]
+  (.lchownSync fs pathstr uid gid))
+
+(defn alchown
+  "Asynchronous lchown
+   @param {!string} pathstr
+   @param {!Number} uid
+   @param {!Number} gid
+   @return {!Channel} receives [err]"
+  [pathstr uid gid]
+  (with-chan (.lchown fs pathstr uid gid)))
+
+(defn utimes
+  "synchronous utimes
+   - If the value is NaN or Infinity, the value would get converted to Date.now()
+   - numerable strings ie '12235' are converted to numbers  "
+  [pathstr atime mtime]
+  (.utimesSync fs pathstr atime mtime))
+
+(defn autimes
+  "asynchronous utimes
+   - If the value is NaN or Infinity, the value would get converted to Date.now()
+   - numerable strings ie '12235' are converted to numbers
+   @return {!Channel} receives [err]"
+  [pathstr atime mtime]
+  (with-chan (.utimes fs pathstr atime mtime)))
+
+(defn mkdir
+  "Synchronously create a directory
+   @param {!string} pathstring : path of directory to create
+   @return {!boolean}"
+  [pathstring]
+  (.mkdirSync fs pathstring))
+
+(defn amkdir
+  "Asynchronously create a directory
+   @param {!string} pathstr
+   @return {!Channel} receives [err]"
+  [pathstr]
+  (with-chan (.mkdir fs pathstr)))
+
+(defn rmdir
+  "Synchronously remove a directory
+   @param {!string} pathstring : path of directory to remove
+   @param {!boolean}
+   @return {nil} or throws"
+  [pathstring]
+  (.rmdirSync fs pathstring))
+
+(defn armdir
+  "Asynchronously remove a directory
+   @param {!string} pathstr
+   @return {!Channel} receives [err]"
+  [pathstr]
+  (with-chan (.rmdir fs pathstr)))
+
+(defn link
+  "Synchronous link. Will not overwrite newpath if it exists.
+   @param {!string} srcpath
+   @param {!string} dstpath
+   @return {nil} or throws"
+  [srcpath dstpath]
+  (.linkSync fs srcpath dstpath))
+
+(defn alink
+  "Synchronous link. Will not overwrite newpath if it exists.
+   @param {!string} srcpath
+   @param {!string} dstpath
+   @return {!Channel} receives [err]"
+  [srcpath dstpath]
+  (with-chan (.link fs srcpath dstpath)))
+
+(defn symlink
+  "Synchronous symlink.
+   @param {!string} target, what gets pointed to
+   @param {!string} pathstr, the new symbolic link that points to target
+   @return {nil} or throws"
+  [target pathstr]
+  (.symlinkSync fs target pathstr))
+
+(defn asymlink
+  "Synchronous symlink.
+   @param {!string} target, what gets pointed to
+   @param {!string} pathstr, the new symbolic link that points to target
+   @return {!Channel} receives [err]"
+  [target pathstr]
+  (with-chan (.symlink fs target pathstr)))
+
+(defn unlink
+  "Synchronously unlink a file.
+   @param {!string} pathstring : path of file to unlink
+   @return {nil} or throws"
+  [pathstring]
+  (.unlinkSync fs pathstring))
+
+(defn aunlink
+  "Asynchronously unlink a file
+   @param {!string} pathstr
+   @return {!Channel} receives [err]"
+  [pathstr]
+  (with-chan (.unlink fs pathstr)))
+
+(defn delete
+  "Synchronously delete the file or directory path
+   @param {!string} pathstring : can be file or directory
+   @return {nil} or throws"
+  [pathstring]
+  (if (dir? pathstring)
+    (rmdir pathstring)
+    (unlink pathstring)))
+
+(defn adelete
+  "Asynchronously delete the file or directory path
+   @param {!string} pathstr
+   @return {!Channel} receives [e]"
+  [pathstr]
+  (let [c (chan)
+        dc (adir? pathstr)]
+    (take! dc
+      (fn [d?]
+        (take! (if d? (armdir pathstr) (aunlink pathstr))
+          (fn [ev] (put! c ev)))))
+    c))
+
+(defn rename
+  "Synchronously rename a file.
+   @param {!string} oldpath : file to rename
+   @param {!string} newpath : what to rename it to
+   @return {!boolean}"
+  [oldpath newpath]
+  (.renameSync fs oldpath newpath))
+
+(defn arename
+  "Asynchronously rename a file
+   @param {!string} oldpath : file to rename
+   @param {!string} newpath : what to rename it to
+   @return {!Channel} receives err|true"
+  [oldpath newpath]
+  (with-chan (.rename fs oldpath newpath)))
+
+(defn readdir ; optional cache arg?
+  "Synchronously reads directory content
+   @param {!string} dirpath : directory path to read
+   @return {!IVector} Vector<strings> representing directory content"
+  [dirpath]
+  (vec (.readdirSync fs dirpath)))
+
+(defn areaddir
+  "Asynchronously reads directory content
+   @param {!string} dirpath
+   @return {!Channel} recives [err, Vector<strings>]
+    where strings are representing directory content"
+  [dirpath]
+  (with-chan (.readdir fs dirpath) vec))
 
 (defn readFile
-  "if :encoding is \"\" (an explicit empty string) => raw buffer"
-  ([pathstring] (readFile pathstring "utf8"))
-  ([pathstring enc] (.readFileSync fs pathstring enc)))
+  "if enc is \"\" (an explicit empty string) => raw buffer"
+  [pathstring enc] (.readFileSync fs pathstring enc))
 
 (defn areadFile
-  "if :encoding is \"\" (an explicit empty string) => raw buffer
-   => channel which receives err|str on successful read"
-  ([p](areadFile p "utf8"))
-  ([p enc]
-    (let [c (chan)]
-      (.readFile fs p enc (fn [err data] (put! c (if err err data))))
-      c))
-  ([p enc cb] (.readFile fs p enc cb)))
+  "@param {!string} pathstr
+   @param {!string} enc : if \"\" (an explicit empty string) => raw buffer
+   @return {!Channel} receives err|(str|Buffer) on successful read"
+  [pathstr enc]
+  (with-chan (.readFile fs pathstr enc)))
 
 (defn writeFile
   "synchronously writes content to file represented by pathstring.
    @param {!string} pathstring : file to write to
    @param {(string|buffer.Buffer)} content : if buffer, :encoding is ignored
    @param {?IMap} opts : :encoding {string}, :append {bool}, :flags {string}, :mode {int}
-    - flags override append"
+    - flags override append
+   Returns nil or throws"
   [pathstring content opts]
   (.writeFileSync fs pathstring content
                   #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
                       "mode"     (or (:mode opts)  438)
                       "encoding" (or (:encoding opts) "utf8")}))
 
-(defn awriteFile ;add custom cb arity
-  "by default returns channel which receives err|true on successful write.
-  or pass in custom callback"
-  ([pathstring content opts]
-   (let [c (chan)
-         cb (fn [err] (put! c (or err true)))]
-     (.writeFile fs pathstring content
-                 #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
-                     "mode"     (or (:mode opts) 438)
-                     "encoding" (or (:encoding opts) "utf8")}
-                 cb)
-     c))
-  ([pathstring content opts cb]
-   (.writeFile fs pathstring content
-               #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
-                   "mode"     (or (:mode opts) 438)
-                   "encoding" (or (:encoding opts) "utf8")}
-               cb)))
+(defn awriteFile
+  "Asynchronously write to a file.
+   @param {!string} pathstring : file to write to
+   @param {(string|buffer.Buffer)} content : if buffer, :encoding is ignored
+   @param {?IMap} opts : :encoding {string}, :append {bool}, :flags {string}, :mode {int}
+    - flags override append
+   @return {!Channel} recieves [err]"
+  [pathstring content opts]
+  (with-chan
+    (.writeFile fs pathstring content
+                #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
+                    "mode"     (or (:mode opts) 438)
+                    "encoding" (or (:encoding opts) "utf8")})))
+

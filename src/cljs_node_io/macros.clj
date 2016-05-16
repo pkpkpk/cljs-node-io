@@ -1,14 +1,4 @@
-(ns cljs-node-io.macros
-   (:refer-clojure :exclude [with-open]))
-
-;https://github.com/markmandel/while-let
-(defmacro while-let
-  "Repeatedly executes body while test expression is true, evaluating the body with binding-form bound to the value of test."
-  [[form test] & body]
-  `(loop [~form ~test]
-       (when ~form
-           ~@body
-           (recur ~test))))
+(ns cljs-node-io.macros)
 
 (defmacro try-true
   [& exprs]
@@ -17,3 +7,18 @@
        ~@exprs
        true)
      (catch ~'js/Error ~'e false)))
+
+
+(defmacro with-chan
+  ([form]
+   (let [cb `((fn [& ~'args] (~'put! ~'c (apply vector ~'args))))]
+     `(let [~'c (~'chan)]
+        ~(concat form cb)
+        ~'c)))
+  ([form datafn]
+   (let [cb `((fn [~'e ~'data] (~'put! ~'c [~'e (~datafn ~'data)])))]
+     `(let [~'c (~'chan)]
+        ~(concat form cb)
+        ~'c))))
+
+

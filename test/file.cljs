@@ -24,7 +24,7 @@
 
 
 (deftest test-directory-functions
-  (let [d  (createTempFile "TEST_DIRECTORY" "")
+  (let [d  (createTempFile "T_DIR" "")
         d2 (createTempFile "subdir" "" d)
         d3 (createTempFile "subdir2" "" d2)
         foo  (createTempFile "foo" nil d)
@@ -46,10 +46,14 @@
       true (.createNewFile bar)
       true (.mkdir d2)
       ["bar.tmp" "foo.tmp" "subdir"] (.list d)
-      ["bar.tmp" "foo.tmp"] (.listFiles d)
-      ["foo.tmp"] (.list d (fn [d name] (starts-with? name "foo") ) )
-      ["bar.tmp" "subdir"] (.list d (fn [d name] (not (starts-with? name "foo")) ) )
-      ["bar.tmp"] (.listFiles d (fn [d name] (not (starts-with? name "foo")) ) )
+      ["/tmp/T_DIR/bar.tmp"
+       "/tmp/T_DIR/foo.tmp"
+       "/tmp/T_DIR/subdir"] (mapv #(.getPath %)(.listFiles d))
+      ["foo.tmp"] (.list d (fn [d name] (starts-with? name "foo")))
+      ["bar.tmp" "subdir"] (.list d (fn [d name] (not (starts-with? name "foo"))))
+      (mapv File
+        ["/tmp/T_DIR/bar.tmp"
+         "/tmp/T_DIR/subdir"]) (.listFiles d (fn [d f] (not (starts-with? (.getName f) "foo"))))
       false (.delete d)
       true (.exists foo))
     (is (every? true? (mapv #(.delete %) (list foo bar d2 d))))
