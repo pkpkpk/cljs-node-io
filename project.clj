@@ -4,17 +4,17 @@
 
 
   :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.8.40"]
-                 [org.clojure/core.async "0.2.374"]]
+                 [org.clojure/clojurescript "1.9.36"]
+                 [andare "0.1.0"]]
 
-  :plugins [[lein-cljsbuild "1.1.1"]
-            [lein-figwheel "0.5.2"]]
+  :plugins [[lein-cljsbuild "1.1.3"]
+            [lein-figwheel "0.5.4-SNAPSHOT"]]
 
 
   :clean-targets ["target"]
 
   :cljsbuild {:builds [{:id "dev"
-                        :source-paths ["src" "test"]
+                        :source-paths ["dev" "src" "test"]
                         :figwheel true
                         :compiler {:parallel-build true
                                    :main cljs-node-io.core
@@ -33,10 +33,11 @@
                                     :main cljs-node-io.core
                                     :externs ["node_externs.js"]
                                     :output-to "target/test/simple.js"
-                                    :output-dir "target/test/out-simple"
+                                    :output-dir "target/test/"
                                     :source-map "target/test/simple.js.map"
                                     :language-in :ecmascript5
-                                    ;  :verbose true
+                                    ; :static-fns true ;=> err
+                                    :optimize-constants true
                                      :closure-warnings
                                       {:check-types :error
                                        :undefined-names :off
