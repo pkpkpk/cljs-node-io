@@ -1,5 +1,5 @@
 (ns cljs-node-io.fs
-  (:require-macros [cljs-node-io.macros :refer [try-true with-chan]]
+  (:require-macros [cljs-node-io.macros :refer [try-true with-chan with-bool-chan]]
                    [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
             [cljs.core.async.impl.protocols :refer [Channel]]))
@@ -23,10 +23,7 @@
    @param {!string} pathstr
    @return {!Channel} receives [err fs.Stats]"
   [pathstr]
-  (let [c  (chan)]
-    (.stat fs pathstr
-      (fn [err data] (put! c [err data])))
-    c))
+  (with-chan (.stat fs pathstr)))
 
 (defn lstat
   "Synchronous lstat Identical to stat(), except that if path is a symbolic link,
@@ -41,10 +38,7 @@
    @param {!string} pathstr
    @return {!Channel} receives [err fs.Stats]"
   [pathstr]
-  (let [c  (chan)]
-    (.lstat fs pathstr
-      (fn [err data] (put! c [err data])))
-    c))
+  (with-chan (.lstat fs pathstr)))
 
 (defn to-bit [number] (if-not (zero? number) 1 0))
 
@@ -86,18 +80,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; predicates/
 
-(defn hidden?
+(defn ^boolean hidden?
   "@param {!string} pathstr
    @return {!boolean} is the file hidden (unix only)"
   [pathstr]
   (.test (js/RegExp. "(^|\\/)\\.[^\\/\\.]" ) pathstr))
 
-(defn dir?
+(defn ^boolean dir?
   "@param {!string} pathstring
    @return {!boolean} iff abstract pathname exists and is a directory"
-  ^boolean
-  [^String pathstring]
-  (assert (string? pathstring) "directory? takes a string, perhaps you passed a file instead")
+  [pathstring]
   (let [stats (try (.statSync fs pathstring) (catch js/Error e false))]
     (if stats
       (.isDirectory stats)
@@ -118,13 +110,11 @@
             false))))
     c))
 
-(defn file?
+(defn ^boolean file?
   "Synchronous file predicate
    @param {!string} pathstring
    @return {!boolean} iff abstract pathname exists and is a file"
-  ^boolean
-  [^String pathstring]
-  (assert (string? pathstring) "file? takes a string, perhaps you passed a file instead")
+  [pathstring]
   (let [stats (try (lstat pathstring) (catch js/Error e false))]
     (if stats
       (.isFile stats)
@@ -139,19 +129,16 @@
         stat-ch (alstat pathstr)]
     (take! stat-ch
       (fn [[err stats]]
-        (put! c
-          (if-not err
-            (.isFile stats)
-            false))))
+        (put! c (if-not err (.isFile stats) false))))
     c))
 
-(defn absolute?
+(defn ^boolean absolute?
   "@param {!string} p : path to test
    @return {!boolean} is p an absolute path"
   [p]
   (.isAbsolute path p))
 
-(defn fexists?
+(defn ^boolean fexists?
   "Synchronously test if a file or directory exists
    @param {!string} p : file path to test
    @return {!boolean}"
@@ -163,13 +150,9 @@
    @param {!string} pathstr
    @return {!Channel} receives boolean"
   [pathstr]
-  (let [c (chan)]
-    (.access fs pathstr
-      (fn [err]
-        (put! c (if err false true))))
-    c))
+  (with-bool-chan (.access fs pathstr (.-F_OK fs))))
 
-(defn readable?
+(defn ^boolean readable?
   "Synchronously test if a file is readable to the process
    @param {!string} p path to test for process read permission
    @return {!boolean}"
@@ -181,12 +164,9 @@
    @param {!string} pathstr
    @return {!Channel} receives boolean"
   [pathstr]
-  (let [c (chan)]
-    (.access fs pathstr (.-R_OK fs)
-      (fn [err] (put! c (if-not err true err))))
-    c))
+  (with-bool-chan (.access fs pathstr (.-R_OK fs))))
 
-(defn writable?
+(defn ^boolean writable?
   "Synchronously test if a file is writable to the process
    @param {!string} p path to test for process write permission
    @return {!boolean}"
@@ -196,14 +176,11 @@
 (defn awritable?
   "Asynchronously test if a file is writable to the process
    @param {!string} p path to test for process write permission
-   @return {!Channel} receives err|true"
+   @return {!Channel} receives boolean"
   [pathstr]
-  (let [c (chan)]
-    (.access fs pathstr (.-W_OK fs)
-      (fn [err] (put! c (if-not err true err))))
-    c))
+  (with-bool-chan (.access fs pathstr (.-W_OK fs))))
 
-(defn executable?
+(defn ^boolean executable?
   "@param {!string} p path to test for process executable permission
    @return {!boolean}"
   [p]
@@ -214,14 +191,11 @@
 (defn aexecutable?
   "Asynchronously test if a file is executable to the process
    @param {!string} p path to test for process execute permission
-   @return {!Channel} receives err|true"
+   @return {!Channel} receives boolean"
   [pathstr]
-  (let [c (chan)]
-    (.access fs pathstr (.-X_OK fs)
-      (fn [err] (put! c (if-not err true err))))
-    c))
+  (with-bool-chan (.access fs pathstr (.-X_OK fs))))
 
-(defn slink?
+(defn ^boolean slink?
   "Synchronous test for symbolic link"
   [pathstr]
   (let [stats (try (lstat pathstr) (catch js/Error e false))]
@@ -230,16 +204,15 @@
       (.isSymbolicLink stats))))
 
 (defn aslink?
-  "Asynchronously test if path is a symbolic link"
+  "Asynchronously test if path is a symbolic link
+   @param {!string} pathstr
+   @return {!Channel} receives boolean"
   [pathstr]
   (let [c  (chan)
         stat-ch (alstat pathstr)]
     (take! stat-ch
       (fn [[err stats]]
-        (put! c
-          (if-not err
-            (.isSymbolicLink stats)
-            false))))
+        (put! c (if-not err (.isSymbolicLink stats) false))))
     c))
 
 ;; /predicates
@@ -283,12 +256,23 @@
 (defn arealpath
   "Asynchronous realpath
    @param {!string} pathstr
-   @return {!Channel} [err resolvedPath]"
+   @return {!Channel} [err resolvedPathstr]"
   [pathstr]
-  (let [c (chan)]
-    (.realpath fs pathstr
-      (fn [err resolvedPath] (put! c [err resolvedPath])))
-    c))
+  (with-chan (.realpath fs pathstr)))
+
+(defn readlink
+  "Synchronous readlink
+   @param {!string} pathstr : the symbolic link to read
+   @return {!string} the symbolic link's string value"
+  [pathstr]
+  (.readlinkSync fs pathstr))
+
+(defn areadlink
+  "Asynchronous readlink
+   @param {!string} pathstr : the symbolic link to read
+   @return {!Channel} receives [err linkstring]"
+  [pathstr]
+  (with-chan (.readlink fs pathstr)))
 
 ;; /path utilities
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -460,7 +444,7 @@
 (defn adelete
   "Asynchronously delete the file or directory path
    @param {!string} pathstr
-   @return {!Channel} receives [e]"
+   @return {!Channel} receives [err]"
   [pathstr]
   (let [c (chan)
         dc (adir? pathstr)]
@@ -485,6 +469,21 @@
    @return {!Channel} receives err|true"
   [oldpath newpath]
   (with-chan (.rename fs oldpath newpath)))
+
+(defn truncate
+  "Synchronous truncate
+   @param {!string} pathstr
+   @param {!number} len"
+  [pathstr len]
+  (.truncateSync fs pathstr len))
+
+(defn atruncate
+  "Asynchronous truncate
+   @param {!string} pathstr
+   @param {!number} len
+   @return {!Channel} receives [err]"
+  [pathstr len]
+  (with-chan (.truncate fs pathstr len)))
 
 (defn readdir ; optional cache arg?
   "Synchronously reads directory content
