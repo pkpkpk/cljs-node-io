@@ -130,7 +130,7 @@
 
 (defn ^boolean Buffer?
   "sugar over Buffer.isBuffer
-   @return {boolean}"
+   @return {!boolean}"
   [b]
   (js/Buffer.isBuffer b))
 
@@ -147,15 +147,15 @@
     (.read f (:encoding opts))))
 
 (defn aslurp
-  "@return {Channel} a which will receive err|data"
+  "@return {!Channel} a which will receive [err data]"
   [p & opts]
   (let [opts (apply hash-map opts)
         f (as-file p)]
     (.aread f (:encoding opts))))
 
 (defn reader-method
-  "@param {string} filepath
-   @return {function(string):Object} appropriate reader based on the file's extension"
+  "@param {!string} filepath
+   @return {!function(string):Object} appropriate reader based on the file's extension"
   [filepath]
   (condp = (.extname path filepath)
     ".edn"  (fn [contents] (read-string contents))
@@ -168,7 +168,7 @@
 
 (defn sslurp
   "augmented 'super' slurp for convenience. edn|json => clj data-structures
-  @returns {Object}"
+   @returns {!Object} edn"
   [p & opts]
   (let [opts (apply hash-map opts)
         f    (as-file p)
@@ -177,7 +177,7 @@
 
 (defn saslurp
   "augmented 'super' aslurp for convenience. edn|json => clj data-structures put into a ch
-   @return {Channel} which receives edn data or error "
+   @return {!Channel} which receives [err edn] "
   [p & opts]
   (let [f     (as-file p)
         rdr   (reader-method (.getPath f))
@@ -198,7 +198,7 @@
 
 (defn aspit
   "Async spit. Wait for result before writing again!
-   @return {Channel} recieves error or true on write success"
+   @return {!Channel} recieves [err true]"
   [p content & options]
   (let [opts (apply hash-map options)
         f    (as-file p)]
