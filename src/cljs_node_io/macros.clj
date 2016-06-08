@@ -31,3 +31,7 @@
   [form]
   (let [cb `(fn [~'e] (~'put! ~'c (if-not ~'e true false)))]
     `(with-chan* ~form ~cb)))
+
+(defmacro go-let
+  [bindings & body]
+  `(~'go (let ~bindings ~@body)))
