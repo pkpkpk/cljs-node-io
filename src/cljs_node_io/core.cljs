@@ -1,11 +1,10 @@
 (ns cljs-node-io.core
   (:require-macros [cljs.core.async.macros :refer [go go-loop alt!]])
-  (:require [cljs.nodejs :as nodejs :refer [require]]
-            [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
+  (:require [cljs.core.async :as async :refer [put! take! chan <! pipe alts!]]
             [cljs.core.async.impl.protocols :refer [Channel]]
             [cljs-node-io.file :refer [File]]
             [cljs.reader :refer [read-string]]
-            [cljs-node-io.streams :refer [FileInputStream BufferReadStream] :as streams]
+            [cljs-node-io.streams :refer [FileInputStream FileOutputStream BufferReadStream]]
             [cljs-node-io.protocols
               :refer [Coercions as-url as-file IInputStream IOutputStream IFile
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]
@@ -14,9 +13,9 @@
   (:import goog.Uri
            [goog.string StringBuffer]))
 
-(nodejs/enable-util-print!)
 
-(def path (require "path"))
+
+(def path (js/require "path"))
 
 (extend-protocol IEquiv
   js/Buffer
@@ -144,14 +143,14 @@
   [p & opts]
   (let [opts (apply hash-map opts)
         f    (as-file p)]
-    (.read f (:encoding opts))))
+    (.read f (or (:encoding opts) "utf8"))))
 
 (defn aslurp
   "@return {!Channel} a which will receive [err data]"
   [p & opts]
   (let [opts (apply hash-map opts)
         f (as-file p)]
-    (.aread f (:encoding opts))))
+    (.aread f (or (:encoding opts) "utf8"))))
 
 (defn reader-method
   "@param {!string} filepath
@@ -267,44 +266,45 @@
     :arglists '([input output opts])}
   do-copy
   (fn [input output opts]
-    (if (string? input)
-      (recur (as-file input) output opts)
-      (if (string? output)
-        (recur input (as-file output) opts)
-        [(or (stream-type input)  (if (rFile?  input) :File) (type input))
-         (or (stream-type output) (if (rFile? output) :File) (type output))]))))
+    [(or (stream-type input)  (if (rFile?  input) :File) (type input))
+     (or (stream-type output) (if (rFile? output) :File) (type output))]))
 
 
-(defmethod do-copy [:InputStream :OutputStream] [input output opts]
+(defmethod do-copy [:InputStream :OutputStream] [input output _]
   (do (.pipe input output) nil))
 
 (defmethod do-copy [:File :File] [input output opts]
-  (let [in  (-> input streams/FileInputStream. )
-        out (-> output streams/FileOutputStream. )]
+  (let [in  (FileInputStream. input {:encoding ""})
+        out (FileOutputStream. output (merge {:encoding ""} opts))]
     (do-copy in out opts)))
 
 (defmethod do-copy [:File :OutputStream] [input output opts]
-  (let [in (streams/FileInputStream. input)]
+  (let [in (FileInputStream. input {:encoding ""})] ;;bin by default
     (do-copy in output opts)))
 
 (defmethod do-copy [:InputStream :File] [input output opts]
-  (let [out  (streams/FileOutputStream. output)]
+  (let [out (FileOutputStream. output (merge {:encoding ""} opts))]
     (do-copy input out opts)))
 
 (defmethod do-copy [js/Buffer :OutputStream] [input output opts]
-  (do-copy (streams/BufferReadStream. input opts) output opts))
+  (do-copy (BufferReadStream. input opts) output nil))
 
 (defmethod do-copy [js/Buffer :File] [input output opts]
-  (do-copy (streams/BufferReadStream. input opts) output opts))
+  (do-copy (BufferReadStream. input opts) output opts))
 
 (defn copy
   "Copies input to output. Returns nil or throws.
    Input may be an InputStream, File, Buffer, or string.
    Output may be an String, OutputStream or File. 
-   Unlike JVM, strings are coerced to files. If you have big chunks of data, use a buffer.
-  :encoding = destination encoding to use when copying a Buffer"
+   Unlike JVM, strings are coerced to files. If you have a big string, use a buffer.    
+   By default no encoding ops occur, just read & written as binary. 
+   Options are passed to the output stream.
+    :encoding = destination encoding to use
+    ex: (copy 'foo.txt' 'bar.txt' :encoding 'utf8')"
   [input output & opts]
-  (do-copy input output (when opts (apply hash-map opts))))
+  (let [input  (if (string? input) (as-file input) input)
+        output (if (string? output) (as-file output) output)]
+    (do-copy input output (when opts (apply hash-map opts)))))
 
 (defn -main [& args] nil)
 (set! *main-cli-fn* -main)
