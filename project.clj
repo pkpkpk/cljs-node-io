@@ -4,19 +4,23 @@
 
 
   :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.9.36"]
+                 [com.cognitect/transit-cljs "0.8.239"]
+                 [com.cognitect/transit-clj "0.8.285"]
+                 [org.clojure/clojurescript "1.9.89"]
+                 [org.clojure/test.check "0.9.0" :scope "test"]
                  [andare "0.1.0"]]
 
   :plugins [[lein-cljsbuild "1.1.3"]
-            [lein-figwheel "0.5.4-SNAPSHOT"]]
+            [lein-figwheel "0.5.4-7"]]
 
 
   :clean-targets ["target"]
 
   :cljsbuild {:builds [{:id "dev"
-                        :source-paths ["dev" "src" "test"]
+                        :source-paths ["src" "test"]
                         :figwheel true
                         :compiler {:parallel-build true
+                                   :cache-analysis true
                                    :main cljs-node-io.core
                                    :output-to "target/out/cljs_node_io.js"
                                    :output-dir "target/out"
@@ -39,7 +43,7 @@
                                     ; :static-fns true ;=> err
                                     :optimize-constants true
                                      :closure-warnings
-                                      {:check-types :error
+                                      {:check-types :error ; CLJS-1627
                                        :undefined-names :off
                                        :externs-validation :off
                                        :missing-properties :off}}}]
