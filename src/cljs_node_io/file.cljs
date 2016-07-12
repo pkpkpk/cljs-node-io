@@ -129,14 +129,14 @@
     (.on js/process "exit"  (fn [exit-code] (.delete this))))
   (equals ^boolean [this that] (= this that))
   (exists ^boolean [_](iofs/fexists? pathstring))
-  (getAbsoluteFile [this] (as-file (.getAbsolutePath this)))
+  (getAbsoluteFile [this] (File*. (.getAbsolutePath this)))
   (getAbsolutePath [_] (iofs/realpath pathstring))
-  (getCanonicalFile [this] (as-file (.getCanonicalPath this)))
+  (getCanonicalFile [this] (File*. (.getCanonicalPath this)))
   (getCanonicalPath [_] (iofs/normalize-path pathstring))
   (getName [_] (iofs/filename pathstring))
   (getExt  [_] (iofs/ext pathstring))
   (getParent [_] (iofs/dirname pathstring))
-  (getParentFile [this] (as-file (.getParent this))) ;=> File|nil
+  (getParentFile [this] (File*. (.getParent this))) ;=> File|nil
   (getPath ^string [this] (if (.isAbsolute this) (.getPath (Uri. pathstring))  pathstring))
   (hashCode ^int [_] (hash pathstring))
   (isAbsolute ^boolean [_] (iofs/absolute? pathstring))

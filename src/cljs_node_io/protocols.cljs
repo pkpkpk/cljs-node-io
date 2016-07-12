@@ -2,8 +2,8 @@
 
 (defprotocol Coercions
   "Coerce between various 'resource-namish' things."
-  (^{:tag :File} as-file [x] "Coerce argument to a file.")
-  (^{:tag :URL} as-url [x] "Coerce argument to a URL."))
+  (as-file [x] "Coerce argument to a file.")
+  (as-url [x] "Coerce argument to a URL."))
 
 
 (defprotocol IOFactory
