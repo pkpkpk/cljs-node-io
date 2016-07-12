@@ -26,9 +26,9 @@
   (with-chan (.stat fs pathstr)))
 
 (defn lstat
-  "Synchronous lstat Identical to stat(), except that if path is a symbolic link,
+  "Synchronous lstat identical to stat(), except that if path is a symbolic link,
    then the link itself is stat-ed, not the file that it refers to
-   @param {!string} pathstring
+   @param {!string} pathstr
    @return {!fs.Stats} file stats object"
   [pathstr]
   (.lstatSync fs pathstr))
@@ -39,6 +39,20 @@
    @return {!Channel} receives [err fs.Stats]"
   [pathstr]
   (with-chan (.lstat fs pathstr)))
+
+(defn stat->clj
+  "Convert a fs.Stats object to edn. Function are swapped out for their return values.
+   This is useful at repl but not particularly efficient.
+   @param {!fs.Stats} st
+   @return {!IMap}"
+  [st]
+  (let [ks (goog.object.getKeys st)
+        vs (goog.object.getValues st)]
+    (into {}
+      (comp
+        (remove #(= (nth % 0) "_checkModeProperty"))
+        (map (fn [[k v]] [(keyword k) (if (fn? v) (.apply v st) v)])))
+      (map vector ks vs))))
 
 (defn to-bit [number] (if-not (zero? number) 1 0))
 
@@ -66,15 +80,13 @@
     (amap a i res (to-bit (aget a i)))))
 
 (defn permissions
-  "@param {!fs.stat} filepath
+  "@param {!fs.Stats} st
    @return {!Number}"
-  [st]
-  (-> st stat->perm-bita bita->int))
+  [st] (-> st stat->perm-bita bita->int))
 
 (defn gid-uid
   "@return {!IMap}"
-  []
-  {:gid (.getgid js/process) :uid (.getuid js/process)})
+  []{:gid (.getgid js/process) :uid (.getuid js/process)})
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -91,9 +103,9 @@
    @return {!boolean} iff abstract pathname exists and is a directory"
   [pathstring]
   (let [stats (try (.statSync fs pathstring) (catch js/Error e false))]
-    (if stats
-      (.isDirectory stats)
-      false)))
+    (if-not stats
+      false
+      (.isDirectory stats))))
 
 (defn adir?
   "Asynchronous directory predicate.
@@ -116,9 +128,9 @@
    @return {!boolean} iff abstract pathname exists and is a file"
   [pathstring]
   (let [stats (try (lstat pathstring) (catch js/Error e false))]
-    (if stats
-      (.isFile stats)
-      false)))
+    (if-not stats
+      false
+      (.isFile stats))))
 
 (defn afile?
   "Asynchronous file predicate.
@@ -140,7 +152,7 @@
 
 (defn ^boolean fexists?
   "Synchronously test if a file or directory exists
-   @param {!string} p : file path to test
+   @param {!string} pathstr : file path to test
    @return {!boolean}"
   [pathstr]
   (try-true (.accessSync fs pathstr (.-F_OK fs))))
@@ -154,10 +166,10 @@
 
 (defn ^boolean readable?
   "Synchronously test if a file is readable to the process
-   @param {!string} p path to test for process read permission
+   @param {!string} pathstr path to test for process read permission
    @return {!boolean}"
-  [p]
-  (try-true (.accessSync fs p (.-R_OK fs))))
+  [pathstr]
+  (try-true (.accessSync fs pathstr (.-R_OK fs))))
 
 (defn areadable?
   "Asynchronously test if a file is readable to the process
@@ -175,22 +187,22 @@
 
 (defn awritable?
   "Asynchronously test if a file is writable to the process
-   @param {!string} p path to test for process write permission
+   @param {!string} pathstr : path to test for process write permission
    @return {!Channel} receives boolean"
   [pathstr]
   (with-bool-chan (.access fs pathstr (.-W_OK fs))))
 
 (defn ^boolean executable?
-  "@param {!string} p path to test for process executable permission
+  "@param {!string} pathstr path to test for process executable permission
    @return {!boolean}"
-  [p]
+  [pathstr]
   (if-not (= "win32" (.-platform js/process))
-    (try-true (.accessSync fs p (.-X_OK fs)))
+    (try-true (.accessSync fs pathstr (.-X_OK fs)))
     (throw (js/Error "Testing if a file is executable has no effect on Windows "))))
 
 (defn aexecutable?
   "Asynchronously test if a file is executable to the process
-   @param {!string} p path to test for process execute permission
+   @param {!string} pathstr : path to test for process execute permission
    @return {!Channel} receives boolean"
   [pathstr]
   (with-bool-chan (.access fs pathstr (.-X_OK fs))))
@@ -231,8 +243,7 @@
   ([p ext] (.basename path p ext)))
 
 (defn resolve-path
-  "@param {!...string} paths : pathstring(s) to resolve to absolute path
-   @return {!string}"
+  "@return {!string}"
   [& paths] (.apply (.-resolve path) nil (apply array paths )))
 
 (defn normalize-path
@@ -280,7 +291,7 @@
 
 (defn chmod
   "Synchronous chmod
-   @param {!string} path
+   @param {!string} pathstr
    @param {!Number} mode must be an integer"
   [pathstr mode]
   (.chmodSync fs pathstr mode))
@@ -295,7 +306,7 @@
 
 (defn lchmod
   "Synchronous lchmod
-   @param {!string} path
+   @param {!string} pathstr
    @param {!Number} mode must be an integer"
   [pathstr mode]
   (.lchmodSync fs pathstr mode))
@@ -374,7 +385,6 @@
 (defn rmdir
   "Synchronously remove a directory
    @param {!string} pathstring : path of directory to remove
-   @param {!boolean}
    @return {nil} or throws"
   [pathstring]
   (.rmdirSync fs pathstring))
@@ -466,7 +476,7 @@
   "Asynchronously rename a file
    @param {!string} oldpath : file to rename
    @param {!string} newpath : what to rename it to
-   @return {!Channel} receives err|true"
+   @return {!Channel} receives [err]"
   [oldpath newpath]
   (with-chan (.rename fs oldpath newpath)))
 
@@ -507,7 +517,7 @@
 (defn areadFile
   "@param {!string} pathstr
    @param {!string} enc : if \"\" (an explicit empty string) => raw buffer
-   @return {!Channel} receives err|(str|Buffer) on successful read"
+   @return {!Channel} receives [err (str|Buffer)] on successful read"
   [pathstr enc]
   (with-chan (.readFile fs pathstr enc)))
 
