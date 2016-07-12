@@ -138,17 +138,20 @@
                 "\n    You passed " (pr-str x) " and " (pr-str y)
                 "\n    You must pass a [pathstring], [uri], [file], or include :fd in opts ." ))))
 
-(defn valid-opts [opts]
-  (clj->js (merge {:encoding "utf8" :mode 438} opts)))
-; kewyword for buffer instead of ""?
-
 (def fp (juxt type #(.-path %))) ; filestream fingerprint
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn FileInputStream* [src opts]
-  (assert (if (:mode opts) (integer? (:mode opts)) true) "mode must be an integer")
-  (let [filestreamobj (.createReadStream fs src (valid-opts opts))
+(defn FileInputStream*
+  "@param {!string} src : filepath to read from
+   @param {!IMap} opts : map of options
+   @return {!IInputStream}"
+  [src {:keys [flags encoding fd mode autoClose?] :as opts}]
+  (let [options #js {"encoding" (or encoding nil)
+                     "flags" (or flags "r")
+                     "fd" (or fd nil)
+                     "mode" (or mode 438)
+                     "autoClose" (or autoClose? true)}
+        filestreamobj (.createReadStream fs src options)
         filedesc      (atom nil)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
     (specify! filestreamobj
@@ -169,13 +172,17 @@
   ([src] (FileInputStream src nil))
   ([src opts] (FileInputStream* (filepath src opts "Input") opts)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn FileOutputStream* [target {:keys [append flags] :as opts}]
-  (assert (if (:mode opts) (integer? (:mode opts)) true) "mode must be an integer")
-  (let [flag          (or flags (if append "a" "w"))
-        vopts         (valid-opts (assoc opts :flags flag))
-        filestreamobj (.createWriteStream fs target vopts)
+(defn FileOutputStream*
+  "@param {!string} target: filepath to write to
+   @params {!IMap} opts : map of options
+   @return {!IOutputStream}"
+  [target {:keys [append flags encoding mode fd] :as opts}]
+  (let [options  #js {"defaultEncoding" (or encoding "utf8")
+                      "flags" (or flags (if append "a" "w"))
+                      "fd" (or fd nil)
+                      "mode" (or mode 438)}
+        filestreamobj (.createWriteStream fs target options)
         filedesc      (atom nil)
         _             (.on filestreamobj "open" (fn [fd] (reset! filedesc fd )))]
     (specify! filestreamobj
@@ -194,4 +201,4 @@
   "@constructor
    @return {IOutputStream}"
   ([target] (FileOutputStream target nil))
-  ([target opts] (FileOutputStream* (filepath target opts "Output") opts)))
+  ([target opts](FileOutputStream* (filepath target opts "Output") opts)))
