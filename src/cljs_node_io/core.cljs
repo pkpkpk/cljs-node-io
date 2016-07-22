@@ -129,11 +129,16 @@
 
 (defn ^boolean Buffer?
   "sugar over Buffer.isBuffer
+   @param {*}
    @return {!boolean}"
   [b]
   (js/Buffer.isBuffer b))
 
-(defn error? [e] (instance? js/Error e))
+(defn ^boolean Error?
+  "@param {*} e
+   @return {!boolean}"
+  [e] 
+  (instance? js/Error e))
 
 (defn slurp
   "Returns a string synchronously. Unlike JVM, does not use FileInputStream.
@@ -146,49 +151,16 @@
     (.read f (or (:encoding opts) "utf8"))))
 
 (defn aslurp
-  "@return {!Channel} a which will receive [err data]"
+  "@return {!Channel} a which will receive [?err ?data]"
   [p & opts]
   (let [opts (apply hash-map opts)
         f (as-file p)]
     (.aread f (or (:encoding opts) "utf8"))))
 
-(defn reader-method
-  "@param {!string} filepath
-   @return {!function(string):Object} appropriate reader based on the file's extension"
-  [filepath]
-  (condp = (.extname path filepath)
-    ".edn"  (fn [contents] (read-string contents))
-    ".json" (fn [contents] (js->clj (js/JSON.parse contents) :keywordize-keys true))
-    ;xml, csv, transit?
-    ;; does it make sense to throw here?
-    (throw (js/Error. "sslurp was given an unrecognized file format.
-                       The file's extension must be json or edn"))))
-
-
-(defn sslurp
-  "augmented 'super' slurp for convenience. edn|json => clj data-structures
-   @returns {!Object} edn"
-  [p & opts]
-  (let [opts (apply hash-map opts)
-        f    (as-file p)
-        rdr  (reader-method (.getPath f))]
-    (rdr (.read f))))
-
-(defn saslurp
-  "augmented 'super' aslurp for convenience. edn|json => clj data-structures put into a ch
-   @return {!Channel} which receives [err edn] "
-  [p & opts]
-  (let [f     (as-file p)
-        rdr   (reader-method (.getPath f))
-        from  (aslurp f opts)
-        to    (chan 1 (map #(if (error? %) % (rdr %))) )
-        _     (pipe from to)]
-    to))
-
 (defn spit
   "Writes content synchronously to file f.
    :encoding {string} encoding to write the string. Ignored when content is a buffer
-   :append - {bool} - if true add content to end of file
+   :append - {boolean} - if true add content to end of file
    @return {nil} or throws"
   [p content & options]
   (let [opts (apply hash-map options)
@@ -197,7 +169,7 @@
 
 (defn aspit
   "Async spit. Wait for result before writing again!
-   @return {!Channel} recieves [err true]"
+   @return {!Channel} recieves [?err]"
   [p content & options]
   (let [opts (apply hash-map options)
         f    (as-file p)]
@@ -235,26 +207,26 @@
   (when-let [parent (.getParentFile ^File (apply file f more))]
     (.mkdirs parent)))
 
-(defn input-stream?
+(defn ^boolean input-stream?
   "@param {*} obj object to test
-   @return {boolean} is object an input-stream?"
+   @return {!boolean} is object an input-stream?"
   [obj]
   (implements? IInputStream obj))
 
-(defn output-stream?
+(defn ^boolean output-stream?
   "@param {*} obj object to test
-   @return {boolean} is object an input-stream?"
+   @return {!boolean} is object an input-stream?"
   [obj]
   (implements? IOutputStream obj))
 
 (defn stream-type
-  "@param {Object} obj The object to test"
+  "@param {*} obj The object to test
+   @return {?Keyword}"
   [obj]
-  (if (input-stream? obj)
+  (if ^boolean (input-stream? obj)
     :InputStream
-    (if (output-stream? obj)
-      :OutputStream
-      false)))
+    (if ^boolean (output-stream? obj)
+      :OutputStream)))
 
 (defn rFile?
   [o]

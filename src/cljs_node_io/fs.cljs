@@ -253,8 +253,8 @@
   (.normalize path pathstring))
 
 (defn ext
-  "@param {string} pathstring : file to get extension from
-   @return {string}"
+  "@param {!string} pathstring : file to get extension from
+   @return {!string}"
   [pathstring]  (.extname path pathstring))
 
 (defn realpath
@@ -300,7 +300,7 @@
   "Asynchronous chmod
    @param {!string} pathstr
    @param {!Number} mode
-   @return {!Channel} receives [err]"
+   @return {!Channel} receives [?err]"
   [pathstr mode]
   (with-chan (.chmod fs pathstr mode)))
 
@@ -315,7 +315,7 @@
   "Asynchronous lchmod
    @param {!string} pathstr
    @param {!Number} mode
-   @return {!Channel} receives [err]"
+   @return {!Channel} receives [?err]"
   [pathstr mode]
   (with-chan (.lchmod fs pathstr mode)))
 
@@ -332,7 +332,7 @@
    @param {!string} pathstr
    @param {!Number} uid
    @param {!Number} gid
-   @return {!Channel} receives [err]"
+   @return {!Channel} receives [?err]"
   [pathstr uid gid]
   (with-chan (.chown fs pathstr uid gid)))
 
@@ -349,7 +349,7 @@
    @param {!string} pathstr
    @param {!Number} uid
    @param {!Number} gid
-   @return {!Channel} receives [err]"
+   @return {!Channel} receives [?err]"
   [pathstr uid gid]
   (with-chan (.lchown fs pathstr uid gid)))
 
@@ -364,7 +364,7 @@
   "asynchronous utimes
    - If the value is NaN or Infinity, the value would get converted to Date.now()
    - numerable strings ie '12235' are converted to numbers
-   @return {!Channel} receives [err]"
+   @return {!Channel} receives [?err]"
   [pathstr atime mtime]
   (with-chan (.utimes fs pathstr atime mtime)))
 
@@ -378,7 +378,7 @@
 (defn amkdir
   "Asynchronously create a directory
    @param {!string} pathstr
-   @return {!Channel} receives [err]"
+   @return {!Channel} receives [?err]"
   [pathstr]
   (with-chan (.mkdir fs pathstr)))
 
@@ -408,7 +408,7 @@
   "Synchronous link. Will not overwrite newpath if it exists.
    @param {!string} srcpath
    @param {!string} dstpath
-   @return {!Channel} receives [err]"
+   @return {!Channel} receives [?err]"
   [srcpath dstpath]
   (with-chan (.link fs srcpath dstpath)))
 
@@ -424,7 +424,7 @@
   "Synchronous symlink.
    @param {!string} target, what gets pointed to
    @param {!string} pathstr, the new symbolic link that points to target
-   @return {!Channel} receives [err]"
+   @return {!Channel} receives [?err]"
   [target pathstr]
   (with-chan (.symlink fs target pathstr)))
 
@@ -438,7 +438,7 @@
 (defn aunlink
   "Asynchronously unlink a file
    @param {!string} pathstr
-   @return {!Channel} receives [err]"
+   @return {!Channel} receives [?err]"
   [pathstr]
   (with-chan (.unlink fs pathstr)))
 
@@ -454,7 +454,7 @@
 (defn adelete
   "Asynchronously delete the file or directory path
    @param {!string} pathstr
-   @return {!Channel} receives [err]"
+   @return {!Channel} receives [?err]"
   [pathstr]
   (let [c (chan)
         dc (adir? pathstr)]
@@ -476,14 +476,14 @@
   "Asynchronously rename a file
    @param {!string} oldpath : file to rename
    @param {!string} newpath : what to rename it to
-   @return {!Channel} receives [err]"
+   @return {!Channel} receives [?err]"
   [oldpath newpath]
   (with-chan (.rename fs oldpath newpath)))
 
 (defn truncate
   "Synchronous truncate
    @param {!string} pathstr
-   @param {!number} len"
+   @param {!number} length"
   [pathstr len]
   (.truncateSync fs pathstr len))
 
@@ -517,7 +517,7 @@
 (defn areadFile
   "@param {!string} pathstr
    @param {!string} enc : if \"\" (an explicit empty string) => raw buffer
-   @return {!Channel} receives [err (str|Buffer)] on successful read"
+   @return {!Channel} receives [?err ?(str|Buffer)] on successful read"
   [pathstr enc]
   (with-chan (.readFile fs pathstr enc)))
 
@@ -540,7 +540,7 @@
    @param {(string|buffer.Buffer)} content : if buffer, :encoding is ignored
    @param {?IMap} opts : :encoding {string}, :append {bool}, :flags {string}, :mode {int}
     - flags override append
-   @return {!Channel} recieves [err]"
+   @return {!Channel} recieves [?err]"
   [pathstring content opts]
   (with-chan
     (.writeFile fs pathstring content

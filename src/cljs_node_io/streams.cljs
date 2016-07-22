@@ -92,13 +92,13 @@
 (defn BufferWriteStream
   "Creates WritableStream to a buffer. The buffer is formed from concatenated
    chunks passed to write method. cb is called with the buffer on the 'finish' event.
-  'finish' must be triggered to recieve buffer"
+   'finish' must be triggered to recieve buffer
+   @return {!stream.Writable}"
   ([cb] (BufferWriteStream cb nil))
   ([cb opts]
    (let [data  #js[]
          buf   (atom nil)
          write (fn [chunk _ callback]
-                ;  (assert (js/Buffer.isBuffer chunk) "data given to the write method must be buffer instances")
                  (.push data chunk)
                  (callback))
          strm  (WritableStream (merge opts {:write write}))
@@ -115,19 +115,19 @@
       (toBuffer [_] @buf)))))
 
 
-(defn ^Boolean isFd? "is File-descriptor?"
+(defn ^boolean fd? "is File-descriptor?"
   [path]
   (= path (unsigned-bit-shift-right path 0)))
 
-(defn filepath-dispatch [f {:keys [fd]} k]
-  (if (isFd? fd)
+(defn- filepath-dispatch [f {:keys [fd]} k]
+  (if (fd? fd)
     :fd
     (if (implements? IFile f)
       :File
       (type f))))
 
 
-(defmulti  filepath filepath-dispatch) ;should check path validity, URI too
+(defmulti  filepath filepath-dispatch)
 (defmethod filepath :File     [file _ _] (.getPath file))
 (defmethod filepath :fd       [fd _ _] nil)
 (defmethod filepath Uri       [u _ _] (.getPath u))
@@ -138,13 +138,13 @@
                 "\n    You passed " (pr-str x) " and " (pr-str y)
                 "\n    You must pass a [pathstring], [uri], [file], or include :fd in opts ." ))))
 
-(def fp (juxt type #(.-path %))) ; filestream fingerprint
+(def fp (juxt type #(.-path %)))
 
 
-(defn FileInputStream*
+(defn- FileInputStream*
   "@param {!string} src : filepath to read from
    @param {!IMap} opts : map of options
-   @return {!IInputStream}"
+   @return {!stream.Readable}"
   [src {:keys [flags encoding fd mode autoClose?] :as opts}]
   (let [options #js {"encoding" (or encoding nil)
                      "flags" (or flags "r")
@@ -167,16 +167,15 @@
     (input-IOF! filestreamobj)))
 
 (defn FileInputStream
-  "@constructor
-   @return {IInputStream}"
+  "@return {!stream.Readable}"
   ([src] (FileInputStream src nil))
   ([src opts] (FileInputStream* (filepath src opts "Input") opts)))
 
 
-(defn FileOutputStream*
+(defn- FileOutputStream*
   "@param {!string} target: filepath to write to
    @params {!IMap} opts : map of options
-   @return {!IOutputStream}"
+   @return {!stream.Writable}"
   [target {:keys [append flags encoding mode fd] :as opts}]
   (let [options  #js {"defaultEncoding" (or encoding "utf8")
                       "flags" (or flags (if append "a" "w"))
@@ -198,7 +197,6 @@
     (output-IOF! filestreamobj)))
 
 (defn FileOutputStream
-  "@constructor
-   @return {IOutputStream}"
+  "@return {!stream.Writable}"
   ([target] (FileOutputStream target nil))
   ([target opts](FileOutputStream* (filepath target opts "Output") opts)))

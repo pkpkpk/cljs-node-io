@@ -25,91 +25,70 @@
 * ### copy
   * `(copy input output & opts)` -> nil | throws
   - Copies input to output.  Returns nil or throws IOException.
-  - Input may be an InputStream, Reader, File, byte[], or String.
-  - Output may be an OutputStream, Writer, or File.
-  - Does not close any streams except those it opens itself (on a File)
+  - Input may be an `InputStream`, `File`, `buffer`, or `string` where string is interpreted as a file path
+  - Output may be an `OutputStream`, `File`, or `string` where string is interpreted as a file path
   - opts : k/v pairs :
-    - `:buffer-size` : int
-      - buffer size to use, default is 1024.
-    - `:encoding` : string
-      - encoding to use if converting between byte and char streams.
+    - `:encoding` : `string`
+      - encoding to write withq
 
+* ### slurp :`(slurp f & opts)`
+  + Returns a string synchronously. Unlike JVM, does not use FileInputStream.
+  + __f__ : `string`|`File`
+  + Only option at this time is :encoding
+    - If `:encoding ""` (an explicit empty string), returns raw buffer instead of string.
+  + __Return__: `string`|`Buffer`
 
-+ ### spit
-  - Opposite of slurp.  Opens f with writer, writes content. Options passed to a file/file-writer.
-  - `(spit f content & opts)`
-   * content : `string` | `Buffer`
-     - if buffer, encoding is ignored
-      - __you are responsible for feeding spit an appropriate string representation for non-clj objects.__
-          - To print json you must use `(js/JSON.stringify js-data ...)`
-          - clj data-structures print fine automatically, use sslurp/spit to read & write edn data.
-   * returns nil
-   * default opts:
-      - `:append false`
++ ### aslurp : `(aslurp f & opts)`
+  + asynchronous slurp
+  + __f__: `string` | `File`
+  + __default opts__:
       - `:encoding "utf8"`
-      - `:mode  436`
-      - `:flags "w"`
-      - `:async? false`
-      - ~~:stream? false~~
-    * flags take precedence over append        
-  - defaults to synchronous write, use *aspit* for *async* writes
+        - If `:encoding ""` (an explicit empty string), returns raw buffer instead of string.
+  + __Return__ : `Channel<[err data]>`
+   - a 2 element vector where err is nil when data is successfully read
 
-
-+ ### aspit
-  - asynchronous version of spit
-  - `(aspit f content & opts)`
-    + content : `string` | `Buffer`
-      - if buffer, encoding is ignored
-    + returns channel receiving `true` | `error`
-  - default opts:
++ ### spit : `(spit f content & opts)`
+  + synchronously writes content to filepath
+  + __f__: `string`|`File`
+  + __content__ : `string` | `Buffer`
+    - if buffer, encoding is ignored
+    - __you are responsible for feeding spit an appropriate string representation for non-clj objects.__
+        - To print json you must use `(js/JSON.stringify js-data ...)`
+  + __default opts__:
     - `:append false`
+      - overridden by explicitly set flags
     - `:encoding "utf8"`
     - `:mode  436`
     - `:flags "w"`
-    - `:async? true`
-    - ~~:stream? false~~
-  - flags take precedence over append
-  - Note that it is unsafe to use fs.writeFile multiple times on the same file without waiting for the callback. For this scenario, `FileOutputStream` is strongly recommended.
+  + __Return__: `nil` or throws
+
++ ### aspit :`(aspit f content & opts)`
+  + asynchronous spit
+  + __f__ : `string`| `File`
+  + __content__ : `string` | `Buffer`
+  + __default opts__:
+    - `:append false`
+      - overridden by explicitly set flags
+    - `:encoding "utf8"`
+      - if content is a buffer, encoding is ignored
+    - `:mode  436`
+    - `:flags "w"`
+  + __Return__ `Channel<[?err]>`
+   - a single element vector containing error object or nil on success
+  + Note that it is unsafe to use fs.writeFile multiple times on the same file without waiting for the callback. For this scenario, `FileOutputStream` is strongly recommended.
 
 
-* ### slurp
-  -  opens a reader on f and returns its contents. Returns a string synchronously by default
-  - `(slurp f & opts)`
-    * default opts:
-      - `:encoding "utf8"`
-      - `:flags "r"`
-      - `:async? false`
-      - ~~:stream? false~~
-    * If `:encoding ""` (an explicit empty string), returns raw buffer instead of string.
-    * If `:async? true`, returns channel which will receive err|data specified by encoding via put! cb
+<hr>
+## Predicates
 
-
-
-+ ### aslurp
-  - async slurp, returns a chan to receive err|data
-  - `(slurp f & opts)`
-    - default opts:
-      - `:encoding "utf8"`
-      - `:flags "r"`
-      - `:async? true`
-      - ~~:stream? false~~
-    - If `:encoding ""` (an explicit empty string), ch receives raw buffer instead of string.
-
-
-+ ### sslurp
-  - *super* slurp, convenience over slurp
-  - automatically reads edn+json file into clj data-structures
-
-
-+ ### saslurp
-  - super aslurp
-
-
-+ ### file-seq
-  - A lazy tree seq on files in a directory
-
-
-
-+ ### error?
-  + `(error? Object)` -> Boolean
++ ### Error? : `(Error? obj)` -> `boolean`
   - a predicate fn that checks if an object is an instance of js/Error
+
++ ### Buffer? : `(Buffer? obj)` -> `boolean`
+  - sugar over Buffer.isBuffer
+
++ ### input-stream? : `(input-stream? obj)` -> `boolean`
+  - checks if an object implements IInputStream
+
++ ### output-stream? : `(output-stream? obj)` -> `boolean`
+  - checks if an object implements IOutputStream
