@@ -54,15 +54,13 @@
         (map (fn [[k v]] [(keyword k) (if (fn? v) (.apply v st) v)])))
       (map vector ks vs))))
 
-(defn to-bit [number] (if-not (zero? number) 1 0))
-
-(defn bita->int
+(defn- bita->int
   "@param {!Array<!Number>} bita : an array of 1s an 0s
    @return {!Number} integer"
   [bita]
   (js/parseInt (.join bita "") 2))
 
-(defn stat->perm-bita
+(defn- stat->perm-bita
   "@param {!fs.Stats} s : a fs.Stats object
    @return {!Array<Number>}"
   [s]
@@ -77,14 +75,14 @@
         othw (bit-and mode 2)
         othx (bit-and mode 1)
         a #js [ownr ownw ownx grpr grpw grpx othr othw othx]]
-    (amap a i res (to-bit (aget a i)))))
+    (amap a i res (if-not (zero? (aget a i)) 1 0))))
 
 (defn permissions
   "@param {!fs.Stats} st
    @return {!Number}"
   [st] (-> st stat->perm-bita bita->int))
 
-(defn gid-uid
+(defn gid-uid ;delete?
   "@return {!IMap}"
   []{:gid (.getgid js/process) :uid (.getuid js/process)})
 
@@ -102,6 +100,7 @@
   "@param {!string} pathstring
    @return {!boolean} iff abstract pathname exists and is a directory"
   [pathstring]
+  (assert (string? pathstring))
   (let [stats (try (.statSync fs pathstring) (catch js/Error e false))]
     (if-not stats
       false
@@ -112,6 +111,7 @@
    @param {!string} pathstr
    @return {!Channel} receives boolean"
   [pathstr]
+  (assert (string? pathstr))
   (let [c  (chan)
         stat-ch (astat pathstr)]
     (take! stat-ch
@@ -127,6 +127,7 @@
    @param {!string} pathstring
    @return {!boolean} iff abstract pathname exists and is a file"
   [pathstring]
+  (assert (string? pathstring))
   (let [stats (try (lstat pathstring) (catch js/Error e false))]
     (if-not stats
       false
@@ -137,6 +138,7 @@
    @param {!string} pathstr
    @return {!Channel} receives boolean"
   [pathstr]
+  (assert (string? pathstr))
   (let [c  (chan)
         stat-ch (alstat pathstr)]
     (take! stat-ch
@@ -147,14 +149,16 @@
 (defn ^boolean absolute?
   "@param {!string} p : path to test
    @return {!boolean} is p an absolute path"
-  [p]
-  (.isAbsolute path p))
+  [pathstr]
+  (assert (string? pathstr))
+  (path.isAbsolute pathstr))
 
 (defn ^boolean fexists?
   "Synchronously test if a file or directory exists
    @param {!string} pathstr : file path to test
    @return {!boolean}"
   [pathstr]
+  (assert (string? pathstr))
   (try-true (.accessSync fs pathstr (.-F_OK fs))))
 
 (defn afexists?
@@ -162,6 +166,7 @@
    @param {!string} pathstr
    @return {!Channel} receives boolean"
   [pathstr]
+  (assert (string? pathstr))
   (with-bool-chan (.access fs pathstr (.-F_OK fs))))
 
 (defn ^boolean readable?
@@ -207,19 +212,21 @@
   [pathstr]
   (with-bool-chan (.access fs pathstr (.-X_OK fs))))
 
-(defn ^boolean slink?
+(defn ^boolean symlink?
   "Synchronous test for symbolic link"
   [pathstr]
+  (assert (string? pathstr))
   (let [stats (try (lstat pathstr) (catch js/Error e false))]
     (if-not stats
       false
       (.isSymbolicLink stats))))
 
-(defn aslink?
+(defn asymlink?
   "Asynchronously test if path is a symbolic link
    @param {!string} pathstr
    @return {!Channel} receives boolean"
   [pathstr]
+  (assert (string? pathstr))
   (let [c  (chan)
         stat-ch (alstat pathstr)]
     (take! stat-ch
@@ -229,7 +236,7 @@
 
 ;; /predicates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; path utilities/
+;; path utilities + Reads
 
 (defn dirname
   "@param {!string} pathstring : path to get parent of
@@ -237,7 +244,7 @@
   [pathstring]
   (.dirname path pathstring))
 
-(defn filename
+(defn basename
   "@return {!string}"
   ([p] (.basename path p))
   ([p ext] (.basename path p ext)))
@@ -285,9 +292,26 @@
   [pathstr]
   (with-chan (.readlink fs pathstr)))
 
-;; /path utilities
+(defn readdir ; optional cache arg?
+  "Synchronously reads directory content
+   @param {!string} dirpath : directory path to read
+   @return {!IVector} Vector<strings> representing directory content"
+  [dirpath]
+  (assert (string? dirpath))
+  (vec (.readdirSync fs dirpath)))
+
+(defn areaddir
+  "Asynchronously reads directory content
+   @param {!string} dirpath
+   @return {!Channel} recives [err, Vector<strings>]
+    where strings are representing directory content"
+  [dirpath]
+  (assert (string? dirpath))
+  (with-chan (.readdir fs dirpath) vec))
+
+;; /path utilities + reads
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; side-effecting IO ops/
+;; writes/
 
 (defn chmod
   "Synchronous chmod
@@ -442,7 +466,7 @@
   [pathstr]
   (with-chan (.unlink fs pathstr)))
 
-(defn delete
+(defn rm
   "Synchronously delete the file or directory path
    @param {!string} pathstring : can be file or directory
    @return {nil} or throws"
@@ -451,7 +475,7 @@
     (rmdir pathstring)
     (unlink pathstring)))
 
-(defn adelete
+(defn arm
   "Asynchronously delete the file or directory path
    @param {!string} pathstr
    @return {!Channel} receives [?err]"
@@ -462,6 +486,44 @@
       (fn [d?]
         (take! (if d? (armdir pathstr) (aunlink pathstr))
           (fn [ev] (put! c ev)))))
+    c))
+
+(defn rm-r
+  "@param {!string} pathstr : path to a directory to recursively delete. Deletes a passed file as well.
+   @return {nil} or throws"
+  [pathstr]
+  (assert (string? pathstr))
+  (assert (false? (boolean (#{"" "/" "\\" "\\\\" "//"} pathstr))) 
+    (str "you just tried to delete root, " (pr-str pathstr) ", be more careful."))
+  (if (dir? pathstr)
+    (do
+      (doseq [p (mapv (partial resolve-path pathstr) (readdir pathstr))]
+        (rm-r p))
+      (rmdir pathstr))
+    (unlink pathstr)))
+
+(defn arm-r
+  "asynchronous recursive delete. Crawls in order provided by readdir and makes unlink/rmdir calls sequentially
+   after the previous has completed. Breaks on any err which is returned as [err].
+   @param {!string} pathstr
+   @return {!Channel} receives [?err]"
+  [pathstr]
+  (assert (string? pathstr))
+  (let [c (chan)]
+    (go
+     (if (<! (adir? pathstr))
+       (let [[rderr names] (<! (areaddir pathstr))]
+         (if-not rderr
+           (do
+             (loop [children (mapv (partial resolve-path pathstr) names)]
+               (if-not (nil? children)
+                 (let [[arm-r-err] (<! (arm-r (first children)))]
+                   (if (instance? js/Error arm-r-err)
+                     (>! c arm-r-err)
+                     (recur (next children))))))
+             (>! c (<! (armdir pathstr))))
+           (>! c [rderr])))
+       (>! c (<! (aunlink pathstr)))))
     c))
 
 (defn rename
@@ -495,20 +557,9 @@
   [pathstr len]
   (with-chan (.truncate fs pathstr len)))
 
-(defn readdir ; optional cache arg?
-  "Synchronously reads directory content
-   @param {!string} dirpath : directory path to read
-   @return {!IVector} Vector<strings> representing directory content"
-  [dirpath]
-  (vec (.readdirSync fs dirpath)))
-
-(defn areaddir
-  "Asynchronously reads directory content
-   @param {!string} dirpath
-   @return {!Channel} recives [err, Vector<strings>]
-    where strings are representing directory content"
-  [dirpath]
-  (with-chan (.readdir fs dirpath) vec))
+;; /writes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; read+write Files
 
 (defn readFile
   "if enc is \"\" (an explicit empty string) => raw buffer"
@@ -547,4 +598,3 @@
                 #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
                     "mode"     (or (:mode opts) 438)
                     "encoding" (or (:encoding opts) "utf8")})))
-
