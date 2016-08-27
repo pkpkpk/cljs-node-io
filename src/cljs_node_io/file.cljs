@@ -9,6 +9,8 @@
               :refer [Coercions as-url as-file IFile
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
+(def path (js/require "path"))
+
 (defn setReadable*
   "@param {!number} mode : the file's existing mode
    @param {!boolean} readable : add or remove read permission
@@ -124,7 +126,7 @@
   (setReadOnly [this] (.setWritable this false false))
   (setLastModified [_ time] (iofs/utimes pathstring time time)) ;sets atime + mtime
   (createNewFile ^boolean [this] (try-true (.write this "" {:flags "wx"})))
-  (delete ^boolean [this] (try-true (iofs/delete pathstring)))
+  (delete ^boolean [this] (try-true (iofs/rm pathstring)))
   (deleteOnExit [this]
     (.on js/process "exit"  (fn [exit-code] (.delete this))))
   (equals ^boolean [this that] (= this that))
@@ -133,11 +135,11 @@
   (getAbsolutePath [_] (iofs/realpath pathstring))
   (getCanonicalFile [this] (File*. (.getCanonicalPath this)))
   (getCanonicalPath [_] (iofs/normalize-path pathstring))
-  (getName [_] (iofs/filename pathstring))
+  (getName [_] (iofs/basename pathstring))
   (getExt  [_] (iofs/ext pathstring))
   (getParent [_] (iofs/dirname pathstring))
   (getParentFile [this] (File*. (.getParent this))) ;=> File|nil
-  (getPath ^string [this] (if (.isAbsolute this) (.getPath (Uri. pathstring))  pathstring))
+  (getPath [_] pathstring)
   (hashCode ^int [_] (hash pathstring))
   (isAbsolute ^boolean [_] (iofs/absolute? pathstring))
   (isDirectory ^boolean [_] (iofs/dir? pathstring))
@@ -162,13 +164,11 @@
         (iofs/readdir pathstring)
         (catch js/Error e nil))))
   (list [this filterfn]
-    (assert (= 2 (.-length filterfn)) "the file filterfn must accept 2 args, the dir File & name string")
     (if-let [files (.list this)]
       (filterv (partial filterfn pathstring) files)))
   (listFiles [this]
     (mapv  #(File*. (str pathstring iofs/sep %)) (.list this))) ;is path handling correct here?
   (listFiles [this filterfn]
-    (assert (= 2 (.-length filterfn)) "the file filterfn must accept 2 args, the dir File & name string")
     (if-let [files (.listFiles this)]
       (filterv (partial filterfn pathstring) files))) ;trandsucers?
   (mkdir ^boolean [_](try-true (iofs/mkdir pathstring)))
@@ -181,6 +181,7 @@
     (assert (string? dest) "destination must be a string")
     (try-true
       (iofs/rename pathstring dest)
+      (iofs/unlink pathstring)
       (set! pathstring dest)))
   (toString [_]  pathstring)
   (toURI [f] (Uri. (str "file:" pathstring))))
@@ -188,8 +189,8 @@
 (defmulti  filepath "signature->Filepath" (fn [x y] (mapv type [x y])))
 (defmethod filepath [Uri nil]  [u _] (.getPath u))
 (defmethod filepath [js/String nil]  [pathstring _] pathstring)
-(defmethod filepath [js/String js/String] [parent-str child-str] (str parent-str iofs/sep child-str))
-(defmethod filepath [File* js/String] [parent-file child-str] (str (.getPath parent-file) iofs/sep child-str))
+(defmethod filepath [js/String js/String] [parent-str child-str] (path.join parent-str child-str))
+(defmethod filepath [File* js/String] [parent-file child-str] (path.join (.getPath parent-file) child-str))
 (defmethod filepath :default [x y] (throw (js/TypeError.
                                             (str "Unrecognized path configuration passed to File constructor."
                                                  "\nYou passed " (pr-str x) " and " (pr-str y)
