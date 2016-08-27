@@ -13,13 +13,11 @@
   (:import goog.Uri
            [goog.string StringBuffer]))
 
-
-
 (def path (js/require "path"))
 
 (extend-protocol IEquiv
   js/Buffer
-  (-equiv [this that] (.equals this that)))
+  (-equiv [this that] (try (.equals this that) (catch js/Error e false))))
 
 (extend-protocol Coercions
   nil
@@ -66,11 +64,11 @@
   (make-output-stream [x opts](throw (js/Error.  ;use Buffer.concat if you want to do this
                                  (str "IllegalArgumentException : Cannot open <" (pr-str x) "> as an OutputStream.")))))
 
-(defn ^String as-relative-path
+(defn as-relative-path
   "Take an as-file-able thing and return a string if it is
    a relative path, else IllegalArgumentException."
   [x]
-  (let [^File f (as-file x)]
+  (let [f (as-file x)]
     (if (.isAbsolute f)
       (throw (js/Error. (str "IllegalArgumentException: " f " is not a relative path")))
       (.getPath f))))
@@ -277,6 +275,3 @@
   (let [input  (if (string? input) (as-file input) input)
         output (if (string? output) (as-file output) output)]
     (do-copy input output (when opts (apply hash-map opts)))))
-
-(defn -main [& args] nil)
-(set! *main-cli-fn* -main)

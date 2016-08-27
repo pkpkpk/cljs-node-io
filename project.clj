@@ -6,7 +6,7 @@
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [com.cognitect/transit-cljs "0.8.239"]
                  [com.cognitect/transit-clj "0.8.285"]
-                 [org.clojure/clojurescript "1.9.89"]
+                 [org.clojure/clojurescript "1.9.225"]
                  [org.clojure/test.check "0.9.0" :scope "test"]
                  [andare "0.1.0"]]
 
@@ -21,7 +21,7 @@
                         :figwheel true
                         :compiler {:parallel-build true
                                    :cache-analysis true
-                                   :main cljs-node-io.core
+                                   :main cljs-node-io.test.runner
                                    :output-to "target/out/cljs_node_io.js"
                                    :output-dir "target/out"
                                    :target :nodejs
@@ -34,7 +34,7 @@
                          :compiler {:optimizations :simple
                                     :target :nodejs
                                     :parallel-build true
-                                    :main cljs-node-io.core
+                                    :main cljs-node-io.test.runner
                                     :externs ["node_externs.js"]
                                     :output-to "target/test/simple.js"
                                     :output-dir "target/test/"
