@@ -10,7 +10,9 @@
 (def stream (js/require "stream"))
 
 (defn input-IOF!
-  "adds IOFactory input impls that just defer back to the stream or throw as appropriate"
+  "adds IOFactory input impls that just defer back to the stream or throw as appropriate
+   @param {!stream.Readable} streamobj
+   @return {!stream.Readable}"
   [streamobj]
   (specify! streamobj
     IInputStream
@@ -21,7 +23,9 @@
     (make-output-stream [this _] (throw (js/Error. (str "ILLEGAL ARGUMENT: Cannot open <" (pr-str this) "> as an OutputStream."))))))
 
 (defn output-IOF!
-  "adds IOFactory output impls that just defer back to the stream or throw as appropriate"
+  "adds IOFactory output impls that just defer back to the stream or throw as appropriate
+   @param {!stream.Writable} streamobj
+   @return {!stream.Writable}"
   [streamobj]
   (specify! streamobj
     IOutputStream
@@ -32,7 +36,9 @@
     (make-output-stream [this _] this)))
 
 (defn duplex-IOF!
-  "defer back to the stream in all cases"
+  "defer back to the stream in all cases
+   @param {!stream.Duplex} streamobj
+   @return {!stream.Duplex}"
   [streamobj]
   (specify! streamobj
     IInputStream
@@ -45,28 +51,36 @@
 
 
 (defn ReadableStream
-  [{:keys [read] :as opts}]
+  "@param {!IMap} opts
+   @return {!stream.Readable}"
+  [opts]
   (assert (map? opts) "you must pass a map of constructor options containing at least a :read k-v pair")
-  (assert (fn? read) "you must supply an internal :read function when creating a read stream")
+  (assert (fn? (get opts :read)) "you must supply an internal :read function when creating a read stream")
   (input-IOF! (new stream.Readable (clj->js opts))))
 
 (defn WritableStream
-  [{:keys [write] :as opts}]
+  "@param {!IMap} opts
+   @return {!stream.Writable}"
+  [opts]
   (assert (map? opts) "you must pass a map of constructor options containing at least a :write k-v pair")
-  (assert (fn? write) "you must supply an internal :write function when creating writable streams")
+  (assert (fn? (get opts :write)) "you must supply an internal :write function when creating writable streams")
   (output-IOF! (new stream.Writable (clj->js opts))))
 
 (defn DuplexStream
-  [{:keys [read write] :as opts}]
+  "@param {!IMap} opts
+   @return {!stream.Duplex}"
+  [opts]
   (assert (map? opts) "you must pass a map of constructor options containing at least :read & :write fns")
-  (assert (and (fn? read) (fn? write)) "you must supply :read & :write fns when creating duplex streams.")
+  (assert (and (fn? (get opts :read)) (fn? (get opts :write))) "you must supply :read & :write fns when creating duplex streams.")
   (duplex-IOF! (new stream.Duplex (clj->js opts))))
 
 (defn TransformStream
-  [{:keys [transform flush] :as opts}]
+  "@param {!IMap} opts
+   @return {!stream.Duplex}"
+  [opts]
   (assert (map? opts) "you must pass a map of constructor options containing at least a :transform fn")
-  (assert (fn? transform) "you must supply a :transform fn when creating a transform stream.")
-  (assert (if flush (fn? flush) true) ":flush must be a fn")
+  (assert (fn? (get opts :transform)) "you must supply a :transform fn when creating a transform stream.")
+  (assert (if-let [flush (get opts :flush)] (fn? flush) true) ":flush must be a fn")
   (duplex-IOF! (new stream.Transform (clj->js opts))))
 
 (defn BufferReadStream
@@ -145,8 +159,9 @@
   "@param {!string} src : filepath to read from
    @param {!IMap} opts : map of options
    @return {!stream.Readable}"
-  [src {:keys [flags encoding fd mode autoClose?] :as opts}]
-  (let [options #js {"encoding" (or encoding nil)
+  [src opts]
+  (let [{:keys [flags encoding fd mode autoClose?]} opts
+        options #js {"encoding" (or encoding nil)
                      "flags" (or flags "r")
                      "fd" (or fd nil)
                      "mode" (or mode 438)
@@ -173,11 +188,12 @@
 
 
 (defn- FileOutputStream*
-  "@param {!string} target: filepath to write to
-   @params {!IMap} opts : map of options
+  "@param {!string} target :: filepath to write to
+   @param {!IMap} opts :: map of options
    @return {!stream.Writable}"
-  [target {:keys [append flags encoding mode fd] :as opts}]
-  (let [options  #js {"defaultEncoding" (or encoding "utf8")
+  [target opts]
+  (let [{:keys [append flags encoding mode fd]} opts
+        options  #js {"defaultEncoding" (or encoding "utf8")
                       "flags" (or flags (if append "a" "w"))
                       "fd" (or fd nil)
                       "mode" (or mode 438)}

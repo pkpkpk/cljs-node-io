@@ -89,7 +89,7 @@
     (is (thrown? js/Error (iofs/rm-r o)))
     (is (thrown? js/Error (iofs/rename "foo" o)))
     (is (thrown? js/Error (iofs/rename o "foo")))
-    (is (thrown? js/Error (iofs/writeFile o "foo" "")))
+    (is (thrown? js/Error (iofs/writeFile o "foo" nil)))
     ;async
     (is (thrown? js/Error (iofs/adir? o)))
     (is (thrown? js/Error (iofs/afile? o)))
@@ -160,7 +160,7 @@
     (is (all-errors? iofs/mkdir (rest dirs)) "mkdir with non-existent parent should throw")
     (is (every? nil? (map iofs/mkdir dirs)) "mkdir should return nil")
     (is (all-errors? iofs/mkdir dirs) "mkdir on an existing dir should throw")
-    (is (every? nil? (map (fn [p] (iofs/writeFile p "" "")) file-paths)) "writeFile should return nil")
+    (is (every? nil? (map (fn [p] (iofs/writeFile p "" nil)) file-paths)) "writeFile should return nil")
     (is (nil? (iofs/rm-r root)) "rm-r returns nil")
     (is (thrown? js/Error (iofs/rm-r root)) "rm-r throws when given non-existing path"))
   (testing "empty string IO errors"
@@ -170,7 +170,7 @@
     (is (thrown? js/Error (iofs/rm-r "")))
     (is (thrown? js/Error (iofs/rename (first file-paths) "")))
     (is (thrown? js/Error (iofs/rename "" "foo")))
-    (is (thrown? js/Error (iofs/writeFile "" "" ""))))) 
+    (is (thrown? js/Error (iofs/writeFile "" "" nil)))))
 
 (deftest async-writes-1
  (async done
@@ -187,11 +187,11 @@
      (is (= [nil] (<! (iofs/arm (second (reverse dirs))))) "arm success on a dir should return [nil]")
      (is (= "ENOENT" (ecode (<! (iofs/arm (second (reverse dirs)))))) "arm on a non-existing dir should return [err]")
      (is (= "ENOENT" (ecode (<! (iofs/amkdir (last dirs)))))  "amkdir with non-existent parent should return [err]")
-     (is (= "ENOENT" (ecode (<! (iofs/awriteFile (last file-paths) "" "")))) "awriteFile with no parent dir should return [err]")
+     (is (= "ENOENT" (ecode (<! (iofs/awriteFile (last file-paths) "" nil)))) "awriteFile with no parent dir should return [err]")
      (is (= [nil] (<! (iofs/amkdir (second (reverse dirs))))) "amkdir success should return [nil]")
      (is (= [nil] (<! (iofs/amkdir (last dirs)))) "amkdir success should return [nil]")
      (is (= "EEXIST" (ecode (<! (iofs/amkdir (last dirs))))) "amkdir on an existing directory should return [err]")
-     (is (= [nil] (<! (iofs/awriteFile (last file-paths) "" ""))) "awriteFile success should return [nil]")
+     (is (= [nil] (<! (iofs/awriteFile (last file-paths) "" nil))) "awriteFile success should return [nil]")
      (is (= [nil] (<! (iofs/arm (last file-paths)))) "arm success on a file should return [nil]")
      (is (= "ENOENT" (ecode (<! (iofs/arm (last file-paths))))) "arm on a non-existing file should return [err]"))
    (done))))

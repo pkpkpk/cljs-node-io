@@ -3,13 +3,10 @@
   (:require [cljs.core.async :as async :refer [put! take! chan <! pipe alts!]]
             [cljs.core.async.impl.protocols :refer [Channel]]
             [cljs-node-io.file :refer [File]]
-            [cljs.reader :refer [read-string]]
             [cljs-node-io.streams :refer [FileInputStream FileOutputStream BufferReadStream]]
             [cljs-node-io.protocols
               :refer [Coercions as-url as-file IInputStream IOutputStream IFile
-                      IOFactory make-reader make-writer make-input-stream make-output-stream]]
-            [clojure.string :as st]
-            [goog.string :as gstr])
+                      IOFactory make-reader make-writer make-input-stream make-output-stream]])
   (:import goog.Uri
            [goog.string StringBuffer]))
 
@@ -39,7 +36,7 @@
   (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
   (make-input-stream [x opts] (make-input-stream
                                 (if (= "file" (.getScheme x))
-                                  (FileInputStream. (as-file x))
+                                  (FileInputStream (as-file x))
                                   (.openStream x ))
                                 opts)) ;<---not implemented, setup for other protocols ie HTTP
   (make-output-stream [x opts] (if (= "file" (.getScheme x))
@@ -59,7 +56,7 @@
                                               (make-output-stream (File. x) opts))))
   js/Buffer
   (make-reader [b opts] (make-reader (make-input-stream b opts) opts))
-  (make-input-stream [b opts] (BufferReadStream. b opts))
+  (make-input-stream [b opts] (BufferReadStream b opts))
   (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
   (make-output-stream [x opts](throw (js/Error.  ;use Buffer.concat if you want to do this
                                  (str "IllegalArgumentException : Cannot open <" (pr-str x) "> as an OutputStream.")))))
@@ -127,7 +124,7 @@
 
 (defn ^boolean Buffer?
   "sugar over Buffer.isBuffer
-   @param {*}
+   @param {*} b
    @return {!boolean}"
   [b]
   (js/Buffer.isBuffer b))
@@ -218,8 +215,8 @@
   (implements? IOutputStream obj))
 
 (defn stream-type
-  "@param {*} obj The object to test
-   @return {?Keyword}"
+  "@param {*} obj The object to test"
+  ; @return {?Keyword}
   [obj]
   (if ^boolean (input-stream? obj)
     :InputStream
@@ -244,23 +241,23 @@
   (do (.pipe input output) nil))
 
 (defmethod do-copy [:File :File] [input output opts]
-  (let [in  (FileInputStream. input {:encoding ""})
-        out (FileOutputStream. output (merge {:encoding ""} opts))]
+  (let [in  (FileInputStream input {:encoding ""})
+        out (FileOutputStream output (merge {:encoding ""} opts))]
     (do-copy in out opts)))
 
 (defmethod do-copy [:File :OutputStream] [input output opts]
-  (let [in (FileInputStream. input {:encoding ""})] ;;bin by default
+  (let [in (FileInputStream input {:encoding ""})] ;;bin by default
     (do-copy in output opts)))
 
 (defmethod do-copy [:InputStream :File] [input output opts]
-  (let [out (FileOutputStream. output (merge {:encoding ""} opts))]
+  (let [out (FileOutputStream output (merge {:encoding ""} opts))]
     (do-copy input out opts)))
 
 (defmethod do-copy [js/Buffer :OutputStream] [input output opts]
-  (do-copy (BufferReadStream. input opts) output nil))
+  (do-copy (BufferReadStream input opts) output nil))
 
 (defmethod do-copy [js/Buffer :File] [input output opts]
-  (do-copy (BufferReadStream. input opts) output opts))
+  (do-copy (BufferReadStream input opts) output opts))
 
 (defn copy
   "Copies input to output. Returns nil or throws.

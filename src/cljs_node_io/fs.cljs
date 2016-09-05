@@ -1,4 +1,4 @@
-(ns cljs-node-io.fs
+(ns cljs-node-io.fs "A wrapper around node's fs module."
   (:require-macros [cljs-node-io.macros :refer [try-true with-chan with-bool-chan]]
                    [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
@@ -147,8 +147,8 @@
     c))
 
 (defn ^boolean absolute?
-  "@param {!string} p : path to test
-   @return {!boolean} is p an absolute path"
+  "@param {!string} pathstr : path to test
+   @return {!boolean} is pathstr an absolute path"
   [pathstr]
   (assert (string? pathstr))
   (path.isAbsolute pathstr))
@@ -546,8 +546,8 @@
   "Synchronous truncate
    @param {!string} pathstr
    @param {!number} length"
-  [pathstr len]
-  (.truncateSync fs pathstr len))
+  [pathstr length]
+  (.truncateSync fs pathstr length))
 
 (defn atruncate
   "Asynchronous truncate
