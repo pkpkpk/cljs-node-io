@@ -7,7 +7,6 @@
                  [com.cognitect/transit-cljs "0.8.239"]
                  [com.cognitect/transit-clj "0.8.285"]
                  [org.clojure/clojurescript "1.9.227"]
-                 [org.clojure/test.check "0.9.0" :scope "test"]
                  [andare "0.1.0"]]
 
   :plugins [[lein-cljsbuild "1.1.3"]
@@ -28,25 +27,27 @@
                                    :optimizations :none
                                    :source-map true}}
 
+                        ;http://dev.clojure.org/jira/browse/ASYNC-110
                         {:id "simple"
                          :source-paths ["src" "test"]
-                         :notify-command ["node" "target/test/simple.js"]
                          :compiler {:optimizations :simple
                                     :target :nodejs
                                     :parallel-build true
-                                    :main cljs-node-io.test.runner
                                     :externs ["node_externs.js"]
                                     :output-to "target/test/simple.js"
                                     :output-dir "target/test/"
                                     :source-map "target/test/simple.js.map"
                                     :language-in :ecmascript5
-                                    ; :static-fns true ;=> err
+                                    :static-fns true
                                     :optimize-constants true
-                                     :closure-warnings
-                                      {:check-types :error ; CLJS-1627
+                                    ;http://dev.clojure.org/jira/browse/CLJS-1627
+                                    :closure-warnings
+                                      {:check-types :error
                                        :undefined-names :off
                                        :externs-validation :off
-                                       :missing-properties :off}}}]
+                                       :missing-properties :off}
+                                    }}]
 
               :test-commands
-              {"simple" ["node" "target/test/simple.js"]}})
+              ;  "simple" ["node" "target/test/simple.js"]
+              {"dev" ["node" "target/out/cljs_node_io.js"]}})
