@@ -57,7 +57,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - In some cases, listening for a 'readable' event will cause some data to be read into the internal buffer from the underlying system, if it hadn't already.
     - Once the internal buffer is drained, a 'readable' event will fire again when more data is available.
 
-      ```clj
+      ```clojure
       (.on r "readable"
         (fn []
           (println  "there is some data to read now")))
@@ -65,7 +65,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - The 'readable' event is not emitted in the "flowing" mode with the sole exception of the last one, on end-of-stream.
     - The 'readable' event indicates that the stream has new information: either new data is available or the end of the stream has been reached. In the former case, stream.read() will return that data. In the latter case, stream.read() will return null. For instance, in the following example, foo.txt is an empty file:
 
-      ```clj
+      ```clojure
       (def r (. fs createReadStream "foo.txt"))
 
       (-> r
@@ -86,7 +86,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   * ##### __"data"__ (Buffer|string)
       - Attaching a 'data' event listener to a stream that has not been explicitly paused will switch the stream into flowing mode. Data will then be passed as soon as it is available.
       - If you just want to get all the data out of the stream as fast as possible, this is the best way to do so.    
-        ```clj
+        ```clojure
         (.on r "data"
           (fn [chunk]
             (println  "got " (.-length chunk) " bytes of data" )))
@@ -98,7 +98,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   * ##### __"end"__ ()
     - This event fires when there will be no more data to read.
     - Note that the 'end' event will not fire unless the data is completely consumed. This can be done by switching into flowing mode, or by calling stream.read() repeatedly until you get to the end.
-      ```clj
+      ```clojure
       (-> r
         (.on "data"
           (fn [chunk] (println  "got " (.-length chunk) " bytes of data" )))
@@ -114,7 +114,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   - ##### __isPaused__ ()-> bool
     - This method returns whether or not the readable has been explicitly paused by client code (using stream.pause() without a corresponding stream.resume())
 
-      ```clj
+      ```clojure
       (def readable (new stream.Readable))
       (.isPaused readable) // === false
       (.pause readable)
@@ -126,7 +126,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   - ##### __pause__ ()->this
     - This method will cause a stream in flowing mode to stop emitting 'data' events, switching out of flowing mode. Any data that becomes available will remain in the internal buffer.
 
-      ```clj
+      ```clojure
       (.on readable 'data',
         (fn [chunk]
           (println "got" (.-length chunk) "bytes of data")
@@ -143,11 +143,11 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - This method pulls all the data out of a readable stream, and writes it to the supplied destination, automatically managing the flow so that the destination is not overwhelmed by a fast readable stream.
     - Multiple destinations can be piped to safely.
     - __dest__: Writable Stream, destination for writing data
-    - __opts__:
+    - __opts__: '{Object}
       - ```:end true```
         - End the writer when the reader ends.
     - returns the destination stream, so you can set up pipe chains like so
-      ```clj
+      ```clojure
       (let [r (. fs createReadStream "foo.edn")
             z (. zlib createGzip)
             w (. fs createWriteStream "foo.edn.gz")]
@@ -156,7 +156,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
           (.pipe w)))
       ```
     - By default stream.end() is called on the destination when the source stream emits 'end', so that destination is no longer writable. Pass ```:end false``` an opt to keep the destination stream open.
-      ```clj
+      ```clojure
       (.pipe reader writer {:end false})
       (.on reader "end" (fn [] (.end writer "Goodbye!\n")))
       ```
@@ -164,7 +164,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
           process.stdin.pipe(process.stdout);
     - Note that process.stderr and process.stdout are never closed until the process exits, regardless of the specified options.
 
-  - ##### __read__  ( ^int ?size) -> str|buffer|nil
+  - ##### __read__  ( ^int ?size) -> {string|Buffer.buffer|nil}
     - size: Optional argument to specify how much data to read.
     - The `read()` method pulls some data out of the internal buffer and
     returns it.
@@ -182,7 +182,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - This method should only be called in paused mode. In flowing mode,
     this method is called automatically until the internal buffer is
     drained.
-      ```clj
+      ```clojure
       (.on r "readable"
         (fn []
           (let [chunks (take-while identity (repeatedly  #(.read r 1)))]
@@ -194,7 +194,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - This method will cause the readable stream to resume emitting [`'data'`][] events.
     - __This method will switch the stream into flowing mode.__ If you do *not* want to consume the data from a stream, but you *do* want to get to its `'end'` event, you can call `stream.resume()` to open the flow of data.
 
-      ```clj
+      ```clojure
       ...
       (.on r "end"
         (fn [] (println "got to the end, but did not read anything"))
@@ -206,7 +206,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - cause the stream to return strings of the specified encoding instead of Buffer objects.
     - For example, if you do `readable.setEncoding('utf8')`, then the output data will be interpreted as UTF-8 data, and returned as strings. If you do `readable.setEncoding('hex')`, then the data will be encoded in hexadecimal string format.
     - This properly handles multi-byte characters that would otherwise be potentially mangled if you simply pulled the Buffers directly and called `buf.toString(encoding)` on them. If you want to read the data as strings, always use this method.
-      ```clj
+      ```clojure
       (.setEncoding r "utf8")
       (.on r "data"
         (fn [chunk]
@@ -220,7 +220,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - dest refers to optional specific stream to unpipe.
     - If the destination is not specified, then all pipes are removed.
     - If the destination is specified, but no pipe is set up for it, then this is a no-op.
-      ```clj
+      ```clojure
       (def readable (getReadableStreamSomehow))
       (def writable (. fs createWriteStream "file.txt")
       // All the data from readable goes into 'file.txt',
@@ -243,7 +243,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
       1. Pull off a header delimited by \n\n
       2. use unshift() if we get too much
       3. Call the callback with (error, header, stream)
-      ```clj
+      ```clojure
         (def StringDecoder (. (require "string_decoder") -StringDecoder))
 
         (defn parseHeader
@@ -287,26 +287,27 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
 ### cljs-node-io.streams/ReadableStream
 #### `(ReadableStream  options)`
   - a wrapper around stream.Readable that calls its constructor so that buffering settings are properly initialized
-  * `options` : map
-    * `:highWaterMark` : Int
+  * __options__: `{IMap}`
+    * __:highWaterMark__ : `{Int}`
       - The maximum number of bytes to store in
       the internal buffer before ceasing to read from the underlying
       resource.
       - Default = `16384` (16kb), or `16` for `objectMode` streams
-    * `:encoding` : String
+    * __:encoding__ : `{string}'
       - If specified, then buffers will be decoded to strings using the specified encoding.
       - Default : `nil`
-    * `:objectMode` : Boolean
+    * __:objectMode__: `{boolean}`
       - Whether this stream should behave as a stream of objects. Meaning that `stream.read(n)` returns a single value instead of a Buffer of size n.
       - Default = `false`
-    * `:read` : fn(size)
+    * __:read__ : `{function(number)}`
       - Implementation for the `stream._read()` method (see below)
       - *Required*
 
 
 #### `readable._read(size)`
 
-  * `size` : Int
+  * __size__ : {number}
+    - Int
     - Number of bytes to read asynchronously
     -  this arg is advisory. Implementations where a "read" is a single call that returns data can use this to know how much data to fetch. Implementations where that is not relevant, such as TCP or TLS, may ignore this argument, and simply provide data whenever it becomes available. There is no need, for example to "wait" until `size` bytes are available before calling `stream.push(chunk)`
 
@@ -327,11 +328,11 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
 
 #### `readable.push(chunk,  ?encoding)` -> Boolean
   - **this method is provided, use it in your internal read fn**
-  * `chunk` : Buffer|Null|String
+  * __chunk__ : Buffer|Null|String
     - Chunk of data to push into the read queue
-  * `encoding` : String
+  * __encoding__ : `{string}`
     - Encoding of String chunks.  Must be a valid Buffer encoding, such as `"utf8"` or `"ascii"`
-  * return : Boolean
+  * return : `{boolean}`
     - Whether or not more pushes should be performed
   * If a value other than null is passed, The `push()` method adds a chunk of data
   into the queue for subsequent stream processors to consume. If `null` is
@@ -347,7 +348,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   This is a basic example of a Readable stream. It emits the numerals
   from 1 to 10 in ascending order, and then ends.
 
-```clj
+```clojure
 (defn counter []
   (let [_max  10
         index (atom 0)
@@ -368,7 +369,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
   This stream accesses a clojure vector via a clojure and drops its head with every read call
   - this is an object stream so it returns clj data structures!
 
-```clj
+```clojure
 
 (let [counter (atom [1 2 3 4 5 6 7 8 9 10])
       opts {:objectMode true
