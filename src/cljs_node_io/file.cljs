@@ -1,9 +1,7 @@
 (ns cljs-node-io.file "a port of java.io.File's reified files to node"
   (:import goog.Uri)
   (:require-macros [cljs-node-io.macros :refer [try-true]])
-  (:require [cljs.reader :refer [read-string]]
-            [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
-            [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
+  (:require [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
             [cljs-node-io.fs :as iofs]
             [cljs-node-io.protocols
               :refer [Coercions as-url as-file IFile
@@ -101,8 +99,8 @@
   IOFactory
   (make-reader [this opts] (make-reader (make-input-stream  this opts) opts))
   (make-writer [this opts] (make-writer (make-output-stream this opts) opts))
-  (make-input-stream [this opts] (FileInputStream. this opts))
-  (make-output-stream [this opts] (FileOutputStream. this  opts))
+  (make-input-stream [this opts] (FileInputStream this opts))
+  (make-output-stream [this opts] (FileOutputStream this  opts))
   IPrintWithWriter
   (-pr-writer [this writer opts] ;#object[java.io.File 0x751b0a12 "foo\\bar.txt"]
     (-write writer "#object [cljs-node-io.File")
@@ -183,6 +181,7 @@
       (iofs/rename pathstring dest)
       (iofs/unlink pathstring)
       (set! pathstring dest)))
+  (stats [_] (iofs/stat->clj (iofs/stat pathstring)))
   (toString [_]  pathstring)
   (toURI [f] (Uri. (str "file:" pathstring))))
 
