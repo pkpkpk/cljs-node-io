@@ -143,7 +143,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
     - This method pulls all the data out of a readable stream, and writes it to the supplied destination, automatically managing the flow so that the destination is not overwhelmed by a fast readable stream.
     - Multiple destinations can be piped to safely.
     - __dest__: Writable Stream, destination for writing data
-    - __opts__: '{Object}
+    - __opts__: `{Object}`
       - ```:end true```
         - End the writer when the reader ends.
     - returns the destination stream, so you can set up pipe chains like so
@@ -157,7 +157,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
       ```
     - By default stream.end() is called on the destination when the source stream emits 'end', so that destination is no longer writable. Pass ```:end false``` an opt to keep the destination stream open.
       ```clojure
-      (.pipe reader writer {:end false})
+      (.pipe reader writer #js {:end false})
       (.on reader "end" (fn [] (.end writer "Goodbye!\n")))
       ```
     - emulate UNIX cat:
@@ -364,7 +364,7 @@ Note: streams are instances of node EventEmitters. See https://nodejs.org/api/ev
 
 (.pipe (counter) (.-stdout js/process))
 ```
-# this example sucks
+
 #### Example: A Stateful Object-Readable-Stream
   This stream accesses a clojure vector via a clojure and drops its head with every read call
   - this is an object stream so it returns clj data structures!

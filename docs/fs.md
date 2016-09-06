@@ -1,8 +1,10 @@
 # cljs-node-io.fs
  The fs namespace is a convenience wrapper around the node file system module.
 
++ all functions will throw immediately if given the wrong type. This is a different class of error vs. an actual IO exception, which may be handled differently
+
 + Predicates
-  - Sync predicates do not throw, return false when there is an Error
+  - Sync predicates do not on op errors, return false
   - Async predicates return chans that receive false on err. These channels only receive booleans.
 
 

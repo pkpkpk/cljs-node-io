@@ -195,7 +195,7 @@
                      (doseq [line lines]
                        (let [obj  (try
                                     (cljs.reader/read-string line)
-                                    (catch js/Error e (throw e )))] ;should do something here
+                                    (catch js/Error e (throw e )))]
                           (.push this obj)))
                      (cb))))
         opts {:readableObjectMode true
