@@ -46,20 +46,20 @@
     - `:end` ^int Infinity
       - index of last byte to read
 
-  #### methods
-    - __getFd__ ( ) -> int
-      - baked in listener for `"open"`, returns file-descriptor
-      - if you opened the stream with an existing fd this method returns nil            
+#### methods
+  + __getFd__ ( ) -> int
+    - baked in listener for `"open"`, returns file-descriptor
+    - if you opened the stream with an existing fd this method returns nil            
 
-  #### Properties
-    - __path__ -> string
-      - The path to the file the stream is reading from.
-      - if you opened the stream with an existiny fd this property is nil      
+#### Properties
+  + __path__ -> string
+    - The path to the file the stream is reading from.
+    - if you opened the stream with an existiny fd this property is nil      
 
-  #### example: read the last 10 bytes of a file which is 100 bytes long:
-      ```clj
-      (FileInputStream.  'sample.txt' {start: 90, end: 99})
-      ```
+#### example: read the last 10 bytes of a file which is 100 bytes long:
+```clj
+(FileInputStream.  'sample.txt' {start: 90, end: 99})
+```
 
 <hr>
 
@@ -87,17 +87,17 @@
     - `:mode` ^int `0o666`
       - sets the file mode (permission and sticky bits), but only if the file was created.
 
-  #### methods
-    - __getFd__ ( ) -> int
-      - baked in listener for `"open"` event, returns file-descriptor
-      - if you opened the stream with an existing fd this method returns nil      
+#### methods
+  - __getFd__ ( ) -> int
+    - baked in listener for `"open"` event, returns file-descriptor
+    - if you opened the stream with an existing fd this method returns nil      
 
-  #### properties
-    * __path__ -> string
-      - The path to the file the stream is reading from.
-      - if you opened the stream with an existiny fd this property is nil
-    * __bytesWritten__
-      - The number of bytes written so far. Does not include data that is still queued for writing.
+#### properties
+  * __path__ -> string
+    - The path to the file the stream is reading from.
+    - if you opened the stream with an existiny fd this property is nil
+  * __bytesWritten__
+    - The number of bytes written so far. Does not include data that is still queued for writing.
 
 
 <hr>
@@ -113,26 +113,26 @@
     - the options object  given to `stream.Duplex` is passed to both the Readable & Writable constructors
 
   ##### Options : map
-    - `:read` : fn
-      - *required*, see implementing Readable streams
-    - `:write` : fn
-      - *required*, see implementing Writable streams
-    - `:allowHalfOpen` : Boolean
-      - Default: `true`    
-      - If `false`, automatically end the readable side when the Writable side ends & vice versa
-    * `:objectMode` : Boolean
-      - Default : `false`
-      - Both read & write object-stream behavior.
-        - `stream.read(n)` returns a single value instead of a Buffer of size n.
-        - `stream.write(anyObj)` can write arbitrary data instead of only `Buffer` / `String` data.            
-    - `:readableObjectMode` : Boolean
-      - Default : `false`    
-      - sets objectMode for the readable side
-      - is overridden by `:objectMode`
-    - `:writableObjectMode` : Boolean
-      - Default : `false`    
-      - sets objectMode for the readable side
-      - is overridden by `:objectMode`
+  + `:read` : fn
+    - *required*, see implementing Readable streams
+  + `:write` : fn
+    - *required*, see implementing Writable streams
+  + `:allowHalfOpen` : Boolean
+    - Default: `true`    
+    - If `false`, automatically end the readable side when the Writable side ends & vice versa
+  + `:objectMode` : Boolean
+    - Default : `false`
+    - Both read & write object-stream behavior.
+      - `stream.read(n)` returns a single value instead of a Buffer of size n.
+      - `stream.write(anyObj)` can write arbitrary data instead of only `Buffer` / `String` data.            
+  + `:readableObjectMode` : Boolean
+    - Default : `false`    
+    - sets objectMode for the readable side
+    - is overridden by `:objectMode`
+  + `:writableObjectMode` : Boolean
+    - Default : `false`    
+    - sets objectMode for the readable side
+    - is overridden by `:objectMode`
 
 <hr>
 
@@ -144,44 +144,44 @@
     - Hash stream will only ever have a single chunk of output which is provided when the input is ended.
     - A zlib stream will produce output that is either much smaller or much larger than its input.
   + Unlike Duplex streams, you dont need to implement `_read` & `_write` methods, but instead you *must implement a `_transform` method* & and an optional `_flush` method
-  ##### Options : map
-    - `:transform` : fn
-      - *Required but do not call directly*
-      - Implementation for `stream._transform()`, see below
-    - `:flush` : fn
-      - Implementation `stream._flush`, see below
+##### Options : map
+  - `:transform` : fn
+    - *Required but do not call directly*
+    - Implementation for `stream._transform()`, see below
+  - `:flush` : fn
+    - Implementation `stream._flush`, see below
 
-  ##### Events
-    + `"finish"`
-      - same as from Writable
-      - fired after `stream.end()` is called & all chunks have been processed by the transform function
-    + `"end"`
-      - same as from Readable
-      - is fired after all data has been output, after the cb in `stream._flush()`
+##### Events
+  + `"finish"`
+    - same as from Writable
+    - fired after `stream.end()` is called & all chunks have been processed by the transform function
+  + `"end"`
+    - same as from Readable
+    - is fired after all data has been output, after the cb in `stream._flush()`
 
-  ##### `stream._flush(cb)`
-    + cb : fn (?e)
-      - callback to run after done flushing remaining data
-    + *implement but do not call this method*
-      - to be used by internal transform methods only
-    +   In some cases, your transform operation may need to emit a bit more data at the end of the stream.
-      - For example, a `Zlib` compression stream will store up some internal state so that it can optimally compress the output. At the end, however, it needs to do the best it can with what is left, so that the data will be complete.
-    + `_flush()` is called after all written data is consumed but before emitting the `"end"` event. Call `transform.push(chunk)`  as appropriate and call the cb when complete.
+##### `stream._flush(cb)`
+  + cb : fn (?e)
+    - callback to run after done flushing remaining data
+  + *implement but do not call this method*
+    - to be used by internal transform methods only
+  +   In some cases, your transform operation may need to emit a bit more data at the end of the stream.
+    - For example, a `Zlib` compression stream will store up some internal state so that it can optimally compress the output. At the end, however, it needs to do the best it can with what is left, so that the data will be complete.
+  + `_flush()` is called after all written data is consumed but before emitting the `"end"` event. Call `transform.push(chunk)`  as appropriate and call the cb when complete.
 
-  ##### `stream._transform(chunk, encoding, cb)`
-    + `chunk` : Buffer|String
-      - the chunk to be transformed
-      - always a buffer unless the `:decodeStrings` option was set to `false` (see implementing writables)
-    + `encoding` : string
-      - if chunk is a buffer this is ignored
-    + `cb` : fn
-      - call this when done processing the supplied chunk, optionally with err
-    +  `_transform()` should do whatever has to be done in this specific Transform class, to handle the bytes being written, and pass them off to the readable portion of the interface. Do asynchronous I/O, process things, and so on.
-    + Call the callback function only when the current chunk is completely consumed. Note that there may or may not be output as a result of any particular input chunk.
+##### `stream._transform(chunk, encoding, cb)`
+  + `chunk` : Buffer|String
+    - the chunk to be transformed
+    - always a buffer unless the `:decodeStrings` option was set to `false` (see implementing writables)
+  + `encoding` : string
+    - if chunk is a buffer this is ignored
+  + `cb` : fn
+    - call this when done processing the supplied chunk, optionally with err
+  +  `_transform()` should do whatever has to be done in this specific Transform class, to handle the bytes being written, and pass them off to the readable portion of the interface. Do asynchronous I/O, process things, and so on.
+  + Call the callback function only when the current chunk is completely consumed. Note that there may or may not be output as a result of any particular input chunk.
 
 ##### Example: line delimited edn parsestream
 
-```
+``` clojure
 (spit "foo.ednl"  "{:a 1}\n{:a 2}\n{:a 3}\n")
 
 (defn ednlParseStream []
@@ -219,7 +219,7 @@
   - options are same as for ReadableStream except the `:read` fn is provided.
     - If you provide :read, it is ignored
 
-```
+``` clojure
 ; pass "" as encoding to get raw buffer
 (def photo (slurp "example.jpeg" :encoding ""))
 
