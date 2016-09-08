@@ -13,3 +13,4 @@ pom.xml
 *.edn
 .lein-failures
 checkouts/
+pom.xml.asc
