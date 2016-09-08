@@ -6,13 +6,18 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
 #### Also included:
   + reified files with same api as java
   + slurp + spit
-  + wrappers over node streams (which are awesome)
+  + wrappers over node streams
   + convenience functions to make your scripting and repl'ing experience more pleasant
+  + compiled with [andare](https://github.com/mfikes/andare) so that the all the core async is bootstrap friendly
 
 <hr>
 ## Use
 
-#### In your repl session
+#### In your dependencies
+
+### `[cljs-node-io "0.1.0"]`
+
+#### In your repl session & scripts
 
 ```clojure
 (require '[cljs-node-io.core :as io :refer [slurp spit]])
@@ -28,38 +33,45 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
 #### In your app
 
 ```clojure
-;; write asynchronously
+;; write asynchronously using core.async
 (go
   (let [[err] (<! (io/aspit "data.edn" data))]
     (if-not err
       (println "you've successfully written to 'data.edn'")
       (println "there was an error writing: " err))))
 
-;; read asynchronously
+;; read asynchronously using core.async
 (go
   (let [[err datastring] (<! (io/aslurp "data.edn"))]
     (if-not err
-      (handle-error data)
-      (do-stuff (read-string datastring)))))
+      (handle-data (read-string datastring))
+      (handle-error err))))
 
 ```
 <hr>
 
+### Run the tests
+```sh
+$ lein cljsbuild once dev
+$ node target/out/cljs_node_io.js
+```
++ `:simple` optimizations currently has some issues related to actually running the tests but you can take advantage of static type checking by checking out the patch for [CLJS-1627](http://dev.clojure.org/jira/browse/CLJS-1627)
+
+<hr>
+
 ### Differences from Clojure
-  + Node runs an asynchronous event loop & is event driven. This means you can't do things like create a stream and consume it synchronously (that is, before the IO loop phase has run)... you must instead create the stream and attach handlers to its emitted events.
+  + Node runs an asynchronous event loop & is event driven. This means you can't do things like create a stream and consume it synchronously (the underlying stream may not be ready yet)... you must instead create the stream and attach handlers to its emitted events.
     - clojure.java.io coerces everything into streams and reads and writes from there. This strategy cannot work in node
 
 
-  + In the nodejs fs module, functions are asynchronous by default, and their synchronous versions have names with a `Sync` suffix. In *cljs-node-io*, functions are synchronous by default, and async versions have an `a` prefix.  For example, `cljs-node-io.core/slurp` is synchronous (just as jvm), whereas `cljs-node-io.core/aslurp` runs asynchronously. This convention simply saves you some thought cycles at the repl. *You should use the async versions in your apps*
+  + In the nodejs fs module, functions are asynchronous by default, and their synchronous versions have names with a `Sync` suffix. In *cljs-node-io*, functions are synchronous by default, and async versions have an `a` prefix.  For example, `cljs-node-io.core/slurp` is synchronous (just as jvm), whereas `cljs-node-io.core/aslurp` runs asynchronously. This convention simply saves you some thought cycles at the repl. Note that most of the time synchronous functions are fine and getting order guarantees from async code is not worth the hassle
+
 
   + To preserve synchronous semantics, `slurp` for example uses memory consuming fs.readFileSync. This is fine for small files and repl sessions. If you need to read larger files, restructure your program to accommodate node streams. Luckily node streams mostly manage themselves and are awesome.
-
-
 
 
   + no reader + writer types, not really necessary
   + no URL type, just goog.net.Uri
   + javascript does not have a character type
   + no java-style char/byte arrays, just nodejs buffers
-  
-  
+

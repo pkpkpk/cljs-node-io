@@ -1,17 +1,15 @@
 (defproject cljs-node-io "0.1.0"
   :description "A ClojureScript IO Library for NodeJS"
-  :url "http://example.com/FIXME"
-
+  :url "https://github.com/pkpkpk/cljs-node-io"
+  :license {:name "Eclipse Public License"
+            :url "http://www.eclipse.org/legal/epl-v10.html"}
 
   :dependencies [[org.clojure/clojure "1.8.0"]
-                 [com.cognitect/transit-cljs "0.8.239"]
-                 [com.cognitect/transit-clj "0.8.285"]
-                 [org.clojure/clojurescript "1.9.227"]
+                 [org.clojure/clojurescript "1.9.229"]
                  [andare "0.1.0"]]
 
-  :plugins [[lein-cljsbuild "1.1.3"]
-            [lein-figwheel "0.5.4-7"]]
-
+  :plugins [[lein-cljsbuild "1.1.4"]
+            [lein-figwheel "0.5.4-7" :exclusions [org.clojure/core.async]]]
 
   :clean-targets ["target"]
 
@@ -45,8 +43,7 @@
                                       {:check-types :error
                                        :undefined-names :off
                                        :externs-validation :off
-                                       :missing-properties :off}
-                                    }}]
+                                       :missing-properties :off}}}]
 
               :test-commands
               ;  "simple" ["node" "target/test/simple.js"]
