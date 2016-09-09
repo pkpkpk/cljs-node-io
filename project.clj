@@ -30,14 +30,14 @@
                          :source-paths ["src" "test"]
                          :compiler {:optimizations :simple
                                     :target :nodejs
+                                    :main cljs-node-io.test.runner
                                     :parallel-build true
                                     :externs ["node_externs.js"]
-                                    :output-to "target/test/simple.js"
-                                    :output-dir "target/test/"
-                                    :source-map "target/test/simple.js.map"
-                                    :language-in :ecmascript5
+                                    :output-to "target/simple.js"
+                                    :source-map "target/simple.js.map"                                    
                                     :static-fns true
                                     :optimize-constants true
+                                    :language-in :ecmascript5
                                     ;http://dev.clojure.org/jira/browse/CLJS-1627
                                     :closure-warnings
                                       {:check-types :error
