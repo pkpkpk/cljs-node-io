@@ -16,12 +16,29 @@
   js/Buffer
   (-equiv [this that] (try (.equals this that) (catch js/Error e false))))
 
+(defn- filepath
+  "This is needed to mock the java.io.File constructor.
+   The java File constructor is polymorphic and accepts one or two args:
+   (Uri), (pathstring), (parentstring, childstring), (File, childstring)
+   @return {!string}"
+  ([a] (filepath a nil))
+  ([a b]
+   (condp = [(type a) (type b)]
+     [Uri nil] (.getPath a)
+     [js/String nil] a
+     [js/String js/String] (path.join a b)
+     [File js/String] (path.join (.getPath a) b)
+     :else (throw (js/TypeError.
+      (str "Unrecognized path configuration passed to File constructor."
+           "\nYou passed " (pr-str a) " and " (pr-str b)
+           "\nYou must pass a [string], [uri], [string string], or [file string]."))))))
+
 (extend-protocol Coercions
   nil
   (as-file [_] nil)
   (as-url [_] nil)
   string
-  (as-file [s] (File. s))
+  (as-file [s] (File. (filepath s)))
   (as-url [s] (.getPath (Uri. s)))
   Uri
   (as-url [u] (.getPath u))
@@ -78,7 +95,7 @@
   ([arg]
    (as-file arg))
   ([parent child]
-   (File. ^File (as-file parent) ^String (as-relative-path child)))
+   (File. (filepath (as-file parent) (as-relative-path child))))
   ([parent child & more]
    (reduce file (file parent child) more)))
 

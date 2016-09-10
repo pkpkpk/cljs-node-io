@@ -2,17 +2,26 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop alt!]])
   (:require [cljs.test :refer-macros [deftest is testing async are]]
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
-            [cljs-node-io.file :refer [File createTempFile]]
+            [cljs-node-io.test.helpers :refer [createTempFile]]
+            [cljs-node-io.file :refer [File]]
             [cljs-node-io.streams :refer [BufferReadStream BufferWriteStream]]
             [cljs-node-io.protocols :refer [Coercions as-file as-url ]]
             [cljs-node-io.core :as core
              :refer [file rFile?  Buffer? copy as-relative-path
-                     spit slurp aspit aslurp
+                     spit slurp aspit aslurp filepath
                      reader writer delete-file make-parents]])
   (:import goog.Uri))
 
 (def fs (js/require "fs"))
+(def path (js/require "path"))
 (def stream (js/require "stream"))
+
+(deftest test-filepath
+  (is (= (filepath "foo") "foo"))
+  (is (= (filepath "foo" "bar") (path.join "foo" "bar")))
+  (is (= (filepath (Uri. "foo")) "foo"))
+  (is (= (filepath (File. "foo") "bar")) (path.join "foo" "bar"))
+  (is (thrown? js/Error (filepath (File. "foo") (File. "bar")))))
 
 (deftest test-as-url ;note URL object is dropped
  (are [file-part input] (= (.getPath (Uri. (str "file:" file-part))) (as-url input))

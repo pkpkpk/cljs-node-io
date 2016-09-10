@@ -7,8 +7,6 @@
               :refer [Coercions as-url as-file IFile
                       IOFactory make-reader make-writer make-input-stream make-output-stream]]))
 
-(def path (js/require "path"))
-
 (defn setReadable*
   "@param {!number} mode : the file's existing mode
    @param {!boolean} readable : add or remove read permission
@@ -86,7 +84,7 @@
   [^String pathstring]
   (reverse (take-while (complement iofs/dir?) (iterate iofs/dirname pathstring))))
 
-(deftype File*
+(deftype File
   [^:mutable pathstring]
   IFile
   IEquiv
@@ -129,14 +127,14 @@
     (.on js/process "exit"  (fn [exit-code] (.delete this))))
   (equals ^boolean [this that] (= this that))
   (exists ^boolean [_](iofs/fexists? pathstring))
-  (getAbsoluteFile [this] (File*. (.getAbsolutePath this)))
+  (getAbsoluteFile [this] (File. (.getAbsolutePath this)))
   (getAbsolutePath [_] (iofs/realpath pathstring))
-  (getCanonicalFile [this] (File*. (.getCanonicalPath this)))
+  (getCanonicalFile [this] (File. (.getCanonicalPath this)))
   (getCanonicalPath [_] (iofs/normalize-path pathstring))
   (getName [_] (iofs/basename pathstring))
   (getExt  [_] (iofs/ext pathstring))
   (getParent [_] (iofs/dirname pathstring))
-  (getParentFile [this] (File*. (.getParent this))) ;=> File|nil
+  (getParentFile [this] (File. (.getParent this))) ;=> File|nil
   (getPath [_] pathstring)
   (hashCode ^int [_] (hash pathstring))
   (isAbsolute ^boolean [_] (iofs/absolute? pathstring))
@@ -165,7 +163,7 @@
     (if-let [files (.list this)]
       (filterv (partial filterfn pathstring) files)))
   (listFiles [this]
-    (mapv  #(File*. (str pathstring iofs/sep %)) (.list this))) ;is path handling correct here?
+    (mapv  #(File. (str pathstring iofs/sep %)) (.list this)))
   (listFiles [this filterfn]
     (if-let [files (.listFiles this)]
       (filterv (partial filterfn pathstring) files))) ;trandsucers?
@@ -173,8 +171,7 @@
   (mkdirs ^boolean [this]
     (let [p  (.getPath this)
           dirs (get-non-dirs p)]
-      (try-true (doseq [d dirs] ;;;;try true movd to fs?
-                  (iofs/mkdir d)))))
+      (try-true (doseq [d dirs] (iofs/mkdir d)))))
   (renameTo ^boolean [this dest]
     (assert (string? dest) "destination must be a string")
     (try-true
@@ -185,31 +182,3 @@
   (toString [_]  pathstring)
   (toURI [f] (Uri. (str "file:" pathstring))))
 
-(defmulti  filepath "signature->Filepath" (fn [x y] (mapv type [x y])))
-(defmethod filepath [Uri nil]  [u _] (.getPath u))
-(defmethod filepath [js/String nil]  [pathstring _] pathstring)
-(defmethod filepath [js/String js/String] [parent-str child-str] (path.join parent-str child-str))
-(defmethod filepath [File* js/String] [parent-file child-str] (path.join (.getPath parent-file) child-str))
-(defmethod filepath :default [x y] (throw (js/TypeError.
-                                            (str "Unrecognized path configuration passed to File constructor."
-                                                 "\nYou passed " (pr-str x) " and " (pr-str y)
-                                                 "\nYou must pass a [string], [uri], [string string], or [file string]." ))))
-
-(defn File
-  "This is intended to mock the java.io.File constructor.
-   The java File constructor is polymorphic and accepts one or two args:
-    (Uri), (pathstring), (parentstring, childstring), (File, childstring)
-   @constructor
-   @return {!IFile} a reified file"
-  ([a] (File a nil))
-  ([a b] (File*. (filepath a b))))
-
-(defn createTempFile
-  "@return {!IFile} a reified file"
-  ([prefix] (createTempFile prefix nil nil))
-  ([prefix suffix] (createTempFile prefix suffix nil))
-  ([prefix suffix dir]
-    (let [tmpd (or dir iofs/tmpdir)
-          path (str tmpd iofs/sep prefix (or suffix ".tmp"))
-          f    (File. path)]
-      f)))

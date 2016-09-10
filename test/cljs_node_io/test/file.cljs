@@ -1,7 +1,8 @@
 (ns cljs-node-io.test.file
   (:require [cljs.test :refer-macros [deftest is testing run-tests are]]
             [clojure.string :as s :refer [starts-with?]]
-            [cljs-node-io.file :refer [File createTempFile setReadable* setWritable* setExecutable*]]
+            [cljs-node-io.test.helpers :refer [createTempFile]]
+            [cljs-node-io.file :refer [File setReadable* setWritable* setExecutable*]]
             [cljs-node-io.protocols :refer [Coercions as-file as-url ]]
             [cljs-node-io.core :refer [spit slurp]]))
 
@@ -46,14 +47,15 @@
       true (.createNewFile bar)
       true (.mkdir d2)
       ["bar.tmp" "foo.tmp" "subdir"] (.list d)
-      ["/tmp/T_DIR/bar.tmp"
-       "/tmp/T_DIR/foo.tmp"
-       "/tmp/T_DIR/subdir"] (mapv #(.getPath %)(.listFiles d))
       ["foo.tmp"] (.list d (fn [d name] (starts-with? name "foo")))
       ["bar.tmp" "subdir"] (.list d (fn [d name] (not (starts-with? name "foo"))))
-      (mapv File
-        ["/tmp/T_DIR/bar.tmp"
-         "/tmp/T_DIR/subdir"]) (.listFiles d (fn [d f] (not (starts-with? (.getName f) "foo"))))
+
+      ["/tmp/T_DIR/bar.tmp" "/tmp/T_DIR/foo.tmp" "/tmp/T_DIR/subdir"]
+      (mapv #(.getPath %)(.listFiles d))
+
+      (mapv #(File. %) ["/tmp/T_DIR/bar.tmp" "/tmp/T_DIR/subdir"])
+      (.listFiles d (fn [d f] (not (starts-with? (.getName f) "foo"))))
+
       false (.delete d)
       true (.exists foo))
     (is (every? true? (mapv #(.delete %) (list foo bar d2 d))))

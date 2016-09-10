@@ -7,7 +7,8 @@
 (def os (js/require "os"))
 (def path (js/require "path"))
 (def fs (js/require "fs"))
-(def tmp (.tmpdir os))
+
+(def tmp ^{:doc "@type {string}"} (.tmpdir os))
 
 (def dtree
   [{:type :dir :p (path.join tmp "D")}
