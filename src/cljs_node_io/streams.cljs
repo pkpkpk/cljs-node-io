@@ -135,39 +135,26 @@
    [fd]
    (= fd (unsigned-bit-shift-right fd 0)))
 
-(defn- filepath-dispatch
-  "@param {*} f
-   @param {?IMap} opts
-   @param {!string} k"
-  ; @return {Keyword|Object}?
+(defn- filepath
+  "@param {(string|Uri|IFile)} f :: path to filestream
+   @param {?IMap} opts :: map of options
+   @param {!string} k :: string provided by caller for more detailed error in else case
+   @return {?string} or throws. returns nil if fd is present in opts, otherwise returns pathstring"
   [f opts k]
   (let [fd (get opts :fd)]
-    (if (fd? fd)
-      :fd
-      (if (implements? IFile f)
-        :File
-        (type f)))))
-
-
-(defmulti  filepath filepath-dispatch)
-(defmethod filepath :File     [file _ _] (.getPath file))
-(defmethod filepath :fd       [fd _ _] nil)
-(defmethod filepath Uri       [u _ _] (.getPath u))
-(defmethod filepath js/String [pathstring _ _] pathstring)
-(defmethod filepath :default  [x y k]
-  (throw (js/TypeError.
-           (str "Unrecognized path configuration passed to File" k "Stream constructor."
-                "\n    You passed " (pr-str x) " and " (pr-str y)
-                "\n    You must pass a [pathstring], [uri], [file], or include :fd in opts ." ))))
-
-(defn- fp [arg]
-  "@param {*}
-   @return {IVector}"
-  [(type arg) (.-path arg)])
+    (cond
+      (fd? fd) nil
+      (string? f) f
+      (or (implements? IFile f) (= Uri (type f))) (.getPath f)
+      :else
+      (throw (js/TypeError.
+              (str "Unrecognized path configuration passed to File" k "Stream constructor."
+                   "\n    You passed " (pr-str f) " and " (pr-str opts)
+                   "\n    You must pass a [pathstring opts], [uri opts], [file opts], or include :fd in opts ." ))))))
 
 (defn- FileInputStream*
-  "@param {!string} src : filepath to read from
-   @param {!IMap} opts : map of options
+  "@param {!string} src :: filepath to read from
+   @param {!IMap} opts :: map of options
    @return {!stream.Readable}"
   [src opts]
   (let [{:keys [flags encoding fd mode autoClose?]} opts
@@ -182,7 +169,7 @@
     (specify! filestreamobj
       IInputStream
       IEquiv
-      (-equiv [this that](= (fp this) (fp that)))
+      (-equiv [this that] (and (= (type this) (type that)) (= (.-path this) (.-path that))))
       IPrintWithWriter
       (-pr-writer [this writer opts]
         (-write writer "#object [FileInputStream")
@@ -213,7 +200,7 @@
     (specify! filestreamobj
       IOutputStream
       IEquiv
-      (-equiv [this that](= (fp this) (fp that)))
+      (-equiv [this that] (and (= (type this) (type that)) (= (.-path this) (.-path that))))
       IPrintWithWriter
       (-pr-writer [this writer opts]
         (-write writer "#object [FileOutputStream")
