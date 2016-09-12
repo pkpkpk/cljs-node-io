@@ -79,8 +79,9 @@
                                  (str "IllegalArgumentException : Cannot open <" (pr-str x) "> as an OutputStream.")))))
 
 (defn as-relative-path
-  "Take an as-file-able thing and return a string if it is
-   a relative path, else IllegalArgumentException."
+  "a relative path, else IllegalArgumentException.
+   @param {(string|IFile|Uri)} x
+   @return {!string}"
   [x]
   (let [f (as-file x)]
     (if (.isAbsolute f)
@@ -91,7 +92,8 @@
 (defn file
   "Returns a reified file, passing each arg to as-file.  Multiple-arg
    versions treat the first argument as parent and subsequent args as
-   children relative to the parent."
+   children relative to the parent. Use in place of File constructor
+   @return {!IFile}"
   ([arg]
    (as-file arg))
   ([parent child]
@@ -100,32 +102,35 @@
    (reduce file (file parent child) more)))
 
 (defn delete-file
-  "Delete file f. Raise an exception if it fails unless silently is true."
+  "Delete file f. Raise an exception if it fails unless silently is true.
+   @return {!boolean}"
   [f & [silently]]
   (or (.delete (file f))
       silently
       (throw (js/Error. (str "Couldn't delete " f)))))
 
-(defn reader ;InputStream, File, goog.URI, Buffers and String.
+(defn reader
   "For all streams it defers back to the stream. Note: stream objects are event driven.
      + buffers => BufferReadStream
      + files + strings => FileInputStream
-   + goog.Uri's are treated as local files. No other protocols are supported at this time."
+     + goog.Uri's are treated as local files. No other protocols are supported at this time.
+   @return {!IInputStream}"
   [x & opts]
   (make-reader x (when opts (apply hash-map opts))))
 
 (defn writer
   "For all streams it defers back to the stream. Note: stream objects are event driven.
-   + Files & Strings become FileOutputStreams.
-   + goog.Uri's are treated as local files. No other protocols are supported at this time."
+    + Files & Strings become FileOutputStreams.
+    + goog.Uri's are treated as local files. No other protocols are supported at this time.
+   @return {!IOutputStream}"
   [x & opts]
   (make-writer x (when opts (apply hash-map opts))))
 
 (defn input-stream
   "For all streams it defers back to the stream. Note: stream objects are event driven.
-     + buffers => BufferReadStream
-     + files + strings => FileInputStream
-   + goog.Uri's are treated as local files. No other protocols are supported at this time.
+    + buffers => BufferReadStream
+    + files + strings => FileInputStream
+    + goog.Uri's are treated as local files. No other protocols are supported at this time.
    @return {!IInputStream}"
   [x & opts]
   (make-input-stream x (when opts (apply hash-map opts))))
@@ -214,9 +219,10 @@
 
 (defn make-parents
   "Given the same arg(s) as for file, creates all parent directories of
-   the file they represent."
+   the file they represent.
+   @return {!boolean}"
   [f & more]
-  (when-let [parent (.getParentFile ^File (apply file f more))]
+  (when-let [parent (.getParentFile (apply file f more))]
     (.mkdirs parent)))
 
 (defn ^boolean input-stream?
@@ -241,6 +247,8 @@
       :OutputStream)))
 
 (defn rFile?
+  "@param {*} o
+   @return {!boolean}"
   [o]
   (implements? IFile o))
 

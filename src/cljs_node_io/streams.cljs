@@ -85,7 +85,8 @@
 
 (defn BufferReadStream
   "Creates a ReadableStream from a Buffer. Opts are same as ReadableStream except
-  the :read fn is provided. If you provide :read, it is ignored"
+   the :read fn is provided. If you provide :read, it is ignored
+   @return {!stream.Readable}"
   ([source](BufferReadStream source nil))
   ([source opts]
    (assert (js/Buffer.isBuffer source) "source must be a Buffer instance")
@@ -128,17 +129,24 @@
       (toString [_] (if @buf (.toString @buf)))
       (toBuffer [_] @buf)))))
 
+(defn- ^boolean fd?
+  "@param {!Number} fd
+   @return {!boolean} is File-descriptor?"
+   [fd]
+   (= fd (unsigned-bit-shift-right fd 0)))
 
-(defn ^boolean fd? "is File-descriptor?"
-  [path]
-  (= path (unsigned-bit-shift-right path 0)))
-
-(defn- filepath-dispatch [f {:keys [fd]} k]
-  (if (fd? fd)
-    :fd
-    (if (implements? IFile f)
-      :File
-      (type f))))
+(defn- filepath-dispatch
+  "@param {*} f
+   @param {?IMap} opts
+   @param {!string} k"
+  ; @return {Keyword|Object}?
+  [f opts k]
+  (let [fd (get opts :fd)]
+    (if (fd? fd)
+      :fd
+      (if (implements? IFile f)
+        :File
+        (type f)))))
 
 
 (defmulti  filepath filepath-dispatch)
@@ -152,8 +160,10 @@
                 "\n    You passed " (pr-str x) " and " (pr-str y)
                 "\n    You must pass a [pathstring], [uri], [file], or include :fd in opts ." ))))
 
-(def fp (juxt type #(.-path %)))
-
+(defn- fp [arg]
+  "@param {*}
+   @return {IVector}"
+  [(type arg) (.-path arg)])
 
 (defn- FileInputStream*
   "@param {!string} src : filepath to read from
