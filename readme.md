@@ -16,7 +16,7 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
 
 #### In your dependencies
 
-### `[cljs-node-io "0.1.0"]`
+### `[cljs-node-io "0.2.0"]`
 
 #### In your repl session & scripts
 
