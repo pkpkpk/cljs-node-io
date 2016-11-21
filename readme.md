@@ -1,4 +1,4 @@
-# `[cljs-node-io "0.2.0"]`
+# `[cljs-node-io "0.3.0"]`
 
 [![Clojars Project](https://img.shields.io/clojars/v/cljs-node-io.svg)](https://clojars.org/cljs-node-io)
 
