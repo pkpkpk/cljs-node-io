@@ -1,4 +1,4 @@
-# cljs-node-io
+# `[cljs-node-io "0.2.0"]`
 
 [![Clojars Project](https://img.shields.io/clojars/v/cljs-node-io.svg)](https://clojars.org/cljs-node-io)
 
@@ -9,14 +9,9 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
   + slurp + spit
   + wrappers over node streams
   + convenience functions to make your scripting and repl'ing experience more pleasant
-  + compiled with [andare](https://github.com/mfikes/andare) so that the all the core async is bootstrap friendly
+  + ~~compiled with [andare](https://github.com/mfikes/andare) so that the all the core async is bootstrap friendly~~
 
 <hr>
-## Use
-
-#### In your dependencies
-
-### `[cljs-node-io "0.2.0"]`
 
 #### In your repl session & scripts
 
@@ -51,14 +46,6 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
 ```
 <hr>
 
-### Run the tests
-```sh
-$ lein cljsbuild once dev
-$ node target/out/cljs_node_io.js
-```
-+ `:simple` optimizations currently has some issues related to actually running the tests but you can take advantage of static type checking by checking out the patch for [CLJS-1627](http://dev.clojure.org/jira/browse/CLJS-1627)
-
-<hr>
 
 ### Differences from Clojure
   + Node runs an asynchronous event loop & is event driven. This means you can't do things like create a stream and consume it synchronously (the underlying stream may not be ready yet)... you must instead create the stream and attach handlers to its emitted events.
