@@ -4,6 +4,7 @@
             [cljs-node-io.test.core]
             [cljs-node-io.test.fs]
             [cljs-node-io.test.file]
+            [cljs-node-io.test.async]
             [clojure.string :as string]
             [cljs.reader :refer [read-string]]
             [wire-report.core :as wire]))
@@ -29,10 +30,12 @@
       (run-tests {:reporter :wire}
         'cljs-node-io.test.fs
         'cljs-node-io.test.file
-        'cljs-node-io.test.core)
+        'cljs-node-io.test.core
+        'cljs-node-io.test.async)
       (run-tests
          'cljs-node-io.test.core
          'cljs-node-io.test.fs
-         'cljs-node-io.test.file))))
+         'cljs-node-io.test.file
+         'cljs-node-io.test.async))))
 
 (set! *main-cli-fn* -main)
