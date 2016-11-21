@@ -14,3 +14,4 @@ pom.xml
 .lein-failures
 checkouts/
 pom.xml.asc
+package.json
