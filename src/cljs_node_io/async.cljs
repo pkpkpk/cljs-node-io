@@ -3,17 +3,17 @@
   (:require [cljs.core.async :as casync :refer [put! take! close! chan alts! promise-chan]]))
 
 (defn go-proc
-  "sets up an infinite go-loop with a kill method. Continuously takes from in
-   and applies supplied handler to value asynchronously. If killed or input closes,
+  "Sets up an infinite go-loop with a kill method. Continuously takes from _in_
+   and applies supplied handler to the read value asynchronously. If killed or input closes,
    exits the loop, and calls the supplied exit cb. If (exit? (<! in)) the go-proc
-   is killed, though that same val is handled and events may still be processed 
-   depending on next round of alts!. The error handler shoul be a function of 1 arg
-   and is called errors from handler/exit? applications to incoming values. The go-proc
-   will continue processing after errors & must be manually killed."
+   is killed, though that same val is handled + events may still be processed
+   depending on next round of alts!. The error handler should be a function of 1 arg
+   and is called with errors from handler+exit? applications to incoming values.
+   The go-proc will continue processing after errors & must be manually killed."
   ([in handler error-handler](go-proc in handler error-handler nil nil))
   ([in handler error-handler exit-cb](go-proc in handler error-handler exit-cb nil))
   ([in handler error-handler exit-cb exit?]
-   {:pre [(implements? cljs.core.async.impl.protocols/Channel in)
+   {:pre [(implements? cljs.core.async.impl.protocols/ReadPort in)
           (fn? handler)
           (fn? error-handler)
           (if exit-cb (fn? exit-cb) true)
