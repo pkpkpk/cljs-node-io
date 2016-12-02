@@ -263,7 +263,10 @@
 
 
 (defmethod do-copy [:InputStream :OutputStream] [input output _]
-  (do (.pipe input output) nil))
+  (let [c (async/promise-chan)]
+    (.on output "finish" #(async/close! c))
+    (.pipe input output)
+    c))
 
 (defmethod do-copy [:File :File] [input output opts]
   (let [in  (FileInputStream input {:encoding ""})

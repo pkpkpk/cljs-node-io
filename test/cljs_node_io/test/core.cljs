@@ -136,13 +136,13 @@
     (doseq [enc [ "utf8" "utf-8" "utf16le" "utf-16le" "ucs2" "ucs-2"]]
       (testing (str "from inputstream " enc " to output UTF-8")
         (let [{:keys [s input-buffer o ch]} (data-fixture enc)]
-          (is (nil? (copy input-buffer o :encoding "utf8")))
+          (is (nil? (<! (copy input-buffer o :encoding "utf8"))))
           (let [expected (js/Buffer. (.toString input-buffer))
                 output-buffer (<! ch)]
             (bytes-should-equal expected output-buffer))))
       (testing (str "from inputstream UTF-8 to output-stream  " enc)
         (let [{:keys [o s ch input-buffer]} (data-fixture "utf8")]
-          (is (nil? (copy input-buffer o :encoding enc)))
+          (is (nil? (<! (copy input-buffer o :encoding enc))))
           (let [expected (js/Buffer. (.toString (js/Buffer. s) enc))
                 output-buffer (<! ch)]
             (bytes-should-equal expected output-buffer )))))
