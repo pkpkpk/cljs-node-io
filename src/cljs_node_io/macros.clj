@@ -10,7 +10,7 @@
 
 (defmacro with-chan*
   [form cb]
-  `(let [~'c (~'chan)]
+  `(let [~'c (~'promise-chan)]
      (~@form ~cb)
      ~'c))
 

@@ -1,7 +1,7 @@
 (ns cljs-node-io.fs "A wrapper around node's fs module."
   (:require-macros [cljs-node-io.macros :refer [try-true with-chan with-bool-chan]]
                    [cljs.core.async.macros :refer [go]])
-  (:require [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
+  (:require [cljs.core.async :as async :refer [put! take! promise-chan]]
             [cljs.core.async.impl.protocols :refer [Channel]]))
 
 (def fs (js/require "fs"))
@@ -18,7 +18,7 @@
 (defn astat
   "Asynchronous stat
    @param {!string} pathstr
-   @return {!Channel} receives [err fs.Stats]"
+   @return {!Channel} promise-chan receiving [?err ?fs.Stats]"
   [pathstr]
   (assert (string? pathstr))
   (with-chan (.stat fs pathstr)))
@@ -34,7 +34,7 @@
 (defn alstat
   "Asynchronous lstat
    @param {!string} pathstr
-   @return {!Channel} receives [err fs.Stats]"
+   @return {!Channel} promise-chan receiving [?err ?fs.Stats]"
   [pathstr]
   (assert (string? pathstr))
   (with-chan (.lstat fs pathstr)))
@@ -108,10 +108,10 @@
 (defn adir?
   "Asynchronous directory predicate.
    @param {!string} pathstr
-   @return {!Channel} receives boolean"
+   @return {!Channel} promise-chan receiving boolean"
   [pathstr]
   (assert (string? pathstr))
-  (let [c  (chan)
+  (let [c (promise-chan)
         stat-ch (astat pathstr)]
     (take! stat-ch
       (fn [[err stats]]
@@ -135,10 +135,10 @@
 (defn afile?
   "Asynchronous file predicate.
    @param {!string} pathstr
-   @return {!Channel} receives boolean"
+   @return {!Channel} promise-chan receiving boolean"
   [pathstr]
   (assert (string? pathstr))
-  (let [c  (chan)
+  (let [c (promise-chan)
         stat-ch (alstat pathstr)]
     (take! stat-ch
       (fn [[err stats]]
@@ -163,7 +163,7 @@
 (defn afexists?
   "Asynchronously test if a file or directory exists
    @param {!string} pathstr
-   @return {!Channel} receives boolean"
+   @return {!Channel} promise-chan receiving boolean"
   [pathstr]
   (assert (string? pathstr))
   (with-bool-chan (.access fs pathstr (.-F_OK fs))))
@@ -179,7 +179,7 @@
 (defn areadable?
   "Asynchronously test if a file is readable to the process
    @param {!string} pathstr
-   @return {!Channel} receives boolean"
+   @return {!Channel} promise-chan receiving boolean"
   [pathstr]
   (assert (string? pathstr))
   (with-bool-chan (.access fs pathstr (.-R_OK fs))))
@@ -195,7 +195,7 @@
 (defn awritable?
   "Asynchronously test if a file is writable to the process
    @param {!string} pathstr :: path to test for process write permission
-   @return {!Channel} receives boolean"
+   @return {!Channel} promise-chan receiving boolean"
   [pathstr]
   (assert (string? pathstr))
   (with-bool-chan (.access fs pathstr (.-W_OK fs))))
@@ -212,7 +212,7 @@
 (defn aexecutable?
   "Asynchronously test if a file is executable to the process
    @param {!string} pathstr :: path to test for process execute permission
-   @return {!Channel} receives boolean"
+   @return {!Channel} promise-chan receiving boolean"
   [pathstr]
   (assert (string? pathstr))
   (if-not (= "win32" (.-platform js/process))
@@ -233,10 +233,10 @@
 (defn asymlink?
   "Asynchronously test if path is a symbolic link
    @param {!string} pathstr :: path to test
-   @return {!Channel} receives boolean"
+   @return {!Channel} promise-chan receiving boolean"
   [pathstr]
   (assert (string? pathstr))
-  (let [c  (chan)
+  (let [c (promise-chan)
         stat-ch (alstat pathstr)]
     (take! stat-ch
       (fn [[err stats]]
@@ -283,7 +283,7 @@
 (defn arealpath
   "Asynchronous realpath
    @param {!string} pathstr
-   @return {!Channel} [err resolvedPathstr]"
+   @return {!Channel} promise-chan recieving [?err ?resolvedPathstr]"
   [pathstr]
   (assert (string? pathstr))
   (with-chan (.realpath fs pathstr)))
@@ -298,7 +298,7 @@
 (defn areadlink
   "Asynchronous readlink
    @param {!string} pathstr :: the symbolic link to read
-   @return {!Channel} receives [err linkstring]"
+   @return {!Channel} promise-chan receiving [?err ?linkstring]"
   [pathstr]
   (assert (string? pathstr))
   (with-chan (.readlink fs pathstr)))
@@ -314,7 +314,7 @@
 (defn areaddir
   "Asynchronously reads directory content
    @param {!string} dirpath :: directory path to read
-   @return {!Channel} receives [err, Vector<string>]
+   @return {!Channel} promise-chan receiving [?err, ?Vector<string>]
     where strings are representing directory content"
   [dirpath]
   (assert (string? dirpath))
@@ -336,7 +336,7 @@
   "Asynchronous chmod
    @param {!string} pathstr
    @param {!Number} mode :: must be an integer
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [pathstr mode]
   (assert (string? pathstr))
   (with-chan (.chmod fs pathstr mode)))
@@ -353,7 +353,7 @@
   "Asynchronous lchmod
    @param {!string} pathstr
    @param {!Number} mode :: must be an integer
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [pathstr mode]
   (assert (string? pathstr))
   (with-chan (.lchmod fs pathstr mode)))
@@ -372,7 +372,7 @@
    @param {!string} pathstr
    @param {!Number} uid
    @param {!Number} gid
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [pathstr uid gid]
   (assert (string? pathstr))
   (with-chan (.chown fs pathstr uid gid)))
@@ -391,7 +391,7 @@
    @param {!string} pathstr
    @param {!Number} uid
    @param {!Number} gid
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [pathstr uid gid]
   (assert (string? pathstr))
   (with-chan (.lchown fs pathstr uid gid)))
@@ -414,7 +414,7 @@
    @param {!string} pathstr
    @param {(string|Number)} atime
    @param {(string|Number)} mtime
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [pathstr atime mtime]
   (assert (string? pathstr))
   (with-chan (.utimes fs pathstr atime mtime)))
@@ -429,7 +429,7 @@
 (defn amkdir
   "Asynchronously create a directory
    @param {!string} pathstr :: path of directory to create
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [pathstr]
   (assert (string? pathstr))
   (with-chan (.mkdir fs pathstr)))
@@ -444,7 +444,7 @@
 (defn armdir
   "Asynchronously remove a directory
    @param {!string} pathstr :: path of directory to remove
-   @return {!Channel} receives [err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [pathstr]
   (assert (string? pathstr))
   (with-chan (.rmdir fs pathstr)))
@@ -462,7 +462,7 @@
   "Synchronous link. Will not overwrite newpath if it exists.
    @param {!string} srcpathstr
    @param {!string} dstpathstr
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [srcpathstr dstpathstr]
   {:pre [(string? srcpathstr) (string? dstpathstr)]}
   (with-chan (.link fs srcpathstr dstpathstr)))
@@ -479,7 +479,7 @@
   "Synchronous symlink.
    @param {!string} targetstr :: what gets pointed to
    @param {!string} pathstr :: the new symbolic link that points to target
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [targetstr pathstr]
   {:pre [(string? targetstr) (string? pathstr)]}
   (with-chan (.symlink fs targetstr pathstr)))
@@ -494,7 +494,7 @@
 (defn aunlink
   "Asynchronously unlink a file
    @param {!string} pathstr :: path of file to unlink
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [pathstr]
   (assert (string? pathstr))
   (with-chan (.unlink fs pathstr)))
@@ -512,10 +512,10 @@
 (defn arm
   "Asynchronously delete the file or directory path
    @param {!string} pathstr
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [pathstr]
   (assert (string? pathstr))
-  (let [c (chan)
+  (let [c (promise-chan)
         dc (adir? pathstr)]
     (take! dc
       (fn [d?]
@@ -541,12 +541,12 @@
   "asynchronous recursive delete. Crawls in order provided by readdir and makes unlink/rmdir calls sequentially
    after the previous has completed. Breaks on any err which is returned as [err].
    @param {!string} pathstr
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [pathstr]
   (assert (string? pathstr))
   (assert (false? (boolean (#{ "/" "\\" "\\\\" "//"} pathstr)))
     (str "you just tried to delete root, " (pr-str pathstr) ", be more careful."))
-  (let [c (chan)]
+  (let [c (promise-chan)]
     (go
      (if (<! (adir? pathstr))
        (let [[rderr names] (<! (areaddir pathstr))]
@@ -575,7 +575,7 @@
   "Asynchronously rename a file
    @param {!string} oldpathstr :: file to rename
    @param {!string} newpathstr :: what to rename it to
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [oldpathstr newpathstr]
   {:pre [(string? oldpathstr) (string? newpathstr)]}
   (with-chan (.rename fs oldpathstr newpathstr)))
@@ -592,7 +592,7 @@
   "Asynchronous truncate
    @param {!string} pathstr
    @param {!number} len
-   @return {!Channel} receives [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [pathstr len]
   (assert (string? pathstr))
   (with-chan (.truncate fs pathstr len)))
@@ -610,7 +610,7 @@
 (defn areadFile
   "@param {!string} pathstr
    @param {!string} enc :: if \"\" (an explicit empty string) => raw buffer
-   @return {!Channel} receives [?err ?(str|Buffer)] on successful read"
+   @return {!Channel} promise-chan receiving [?err ?(str|Buffer)] on successful read"
   [pathstr enc]
   (with-chan (.readFile fs pathstr enc)))
 
@@ -634,7 +634,7 @@
    @param {(string|buffer.Buffer)} content : if buffer, :encoding is ignored
    @param {?IMap} opts : :encoding {string}, :append {bool}, :flags {string}, :mode {int}
     - flags override append
-   @return {!Channel} recieves [?err]"
+   @return {!Channel} promise-chan recieving [?err]"
   [pathstring content opts]
   (with-chan
     (.writeFile fs pathstring content
