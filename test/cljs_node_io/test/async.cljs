@@ -3,7 +3,7 @@
   (:require [cljs.test :refer-macros [deftest is async testing]]
             [cljs.core.async :as casync :refer [<! >! put! take! close! chan ]]
             [cljs-node-io.async :refer [go-proc event-onto-ch readable-onto-ch
-                                        cp->ch sock->ch server->ch]]))
+                                        writable-onto-ch cp->ch sock->ch server->ch]]))
 
 (defn make-handler [out]
   (fn [[k v :as msg]]
@@ -56,34 +56,41 @@
 (def stream (js/require "stream"))
 (def EventEmitter (.-EventEmitter (js/require "events")))
 
-(defn emit [this ev val]
-  (.apply (.-emit this) this (into-array (cons (name ev) val))))
+(defn emit [this evkw val]
+  (.apply (.-emit this) this (into-array (cons (name evkw) val))))
+
+(defn mock-stream [xf]
+  (.setEncoding (new stream.Transform #js {"writableObjectMode" true "transform" xf}) "utf8"))
 
 (defn readable-test-xf
-  "mock behavior range of basic stream.readable
-    (.write stream [:data val]) ;-> readable 'data' event
-    (.write stream [:error err]) ;-> readable 'error' event
-    (.write stream [:close val]) ;-> readable 'close' event
-    (.write stream [:end nil]) ;-> readable 'end' event"
+  "[:end nil] will kill, emit 'end'
+   [:data [v]] will buffer data, emit 'data'
+   [:close [v]] will kill, emit 'end' & 'close'"
   [[ev val] encoding cb]
   (this-as this
     (case ev
-      :data  (.push this (first val))
-      :end   (.push this nil) ;this will kill the stream
+      :data  (.push this (val 0))
+      :end   (.push this nil) ;end of resource, kill stream
+      :close (do (.push this nil) (emit this ev val))
       (emit this ev val))
     (cb)))
-
-(defn mock-readable
-  "for testing convenience converts bufs to strings. in practice
-   expect buffers where encoding isn't explicitly set"
-  []
-  (let [ts (new stream.Transform #js {"writableObjectMode" true
-                                      "transform" readable-test-xf})]
-    (.setEncoding ts "utf8")))
 
 (def mock-readable-inputs
   [[:data ["a string"]]
    [:error [(js/Error. "some error")]]])
+
+(defn writable-test-xf
+  "strings are buffered, use to induce backpressure
+   [:close [:a :b]] will trigger 'end' & 'close' events"
+  [data encoding cb]
+  (this-as this
+    (if (string? data)
+      (.push this data)
+      (if (vector? data)
+        (let [[ev val] data]
+          (if (= ev :close) (.end this))
+          (emit this ev val))))
+    (cb)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -92,75 +99,140 @@
     (go
       (testing "event-onto-ch"
         (let [c (chan)
-             Em (EventEmitter.)
-             _  (event-onto-ch Em c "foo")]
+              Em (EventEmitter.)
+              _  (event-onto-ch Em c "foo")]
           (.emit Em "foo") ; cb() -> [:event nil]
           (is (= [:foo nil] (<! c)))
           (.emit Em "foo" :bar) ; cb(a) -> [:event [a]]
           (is (= [:foo [:bar]] (<! c)))
           (.emit Em "foo" :bar :baz) ; cb(a,b) -> [:event [a b]]
           (is (= [:foo [:bar :baz]] (<! c)))))
-      (testing "readable-onto-ch"
-        (let [ts (mock-readable)
-              out (readable-onto-ch ts (chan) ["foo"])]
+      (done))))
+
+(deftest readable-onto-ch-test
+  (async done
+    (go
+      (testing "readable-onto-ch :: 'error' , 'data', 'end' "
+        (let [ts (mock-stream readable-test-xf)
+              out (readable-onto-ch ts (chan) ["foo"])] ;"close"
           (doseq [[ev val :as msg] mock-readable-inputs]
             (.write ts msg)
             (is (= (<! out) msg)))
           (.write ts [:foo [42]])
-          (is (= (<! out) [:foo [42]]))))
+          (is (= (<! out) [:foo [42]]))
+          (.write ts [:end]) ;end method is writable mechanic, here resource is done
+          (is (= (<! out) [:end nil]))
+          (is (nil? (<! out)) "after 'end' event, chan should close")))
+      (testing "readable-onto-ch: 'close' event semantics"
+        (let [ts (mock-stream readable-test-xf)
+              out (readable-onto-ch ts (chan) ["close"])
+              close [:close [false]]
+              exit-set (atom #{ close [:end nil]})]
+          (.write ts close)
+          (dotimes [_ (count @exit-set)] 
+            (let [exit (<! out)
+                  m? (if (@exit-set exit) (swap! exit-set disj exit))]
+              (is (some? m?))))
+          (is (empty? @exit-set))
+          (is (nil? (<! out)))))
+     (done))))
+
+(deftest writable-onto-ch-test
+  (async done 
+    (go
+      (testing "writable-onto-ch :: 'error' , 'drain', 'finish' "
+        (let [ts (mock-stream writable-test-xf)
+              out (writable-onto-ch ts (chan))
+              e [:error [(js/Error. "some error")]]
+              chunk (str (take 512 (repeat "C")))]
+          (.write ts e)
+          (is (= e (<! out)))
+          (loop [] ;induce backpressure
+            (if (.write ts chunk)
+              (recur)))
+          (.read ts)
+          (is (= [:drain nil] (<! out))) ;signal to write again
+          (.end ts)
+          (is [:finish nil] (<! out))
+          (is (nil? (<! out)))))
+      (testing "writable-onto-ch: 'close' event semantics"
+        (let [ts (mock-stream writable-test-xf)
+              out (writable-onto-ch ts (chan) ["close"])
+              close [:close [false]]
+              exit-set (atom #{ close [:finish nil]})]
+          (.write ts close)
+          (dotimes [_ (count @exit-set)] 
+            (let [exit (<! out)
+                  m? (if (@exit-set exit) (swap! exit-set disj exit))]
+              (is (some? m?))))
+          (is (empty? @exit-set))
+          (is (nil? (<! out)))))
       (done))))
 
 (defn mock-proc []
   (let [o (EventEmitter.)
-        stderr (mock-readable)
-        stdout (mock-readable)
-        write (fn [[k val] _ cb]
+        stderr (mock-stream readable-test-xf)
+        stdout (mock-stream readable-test-xf)
+        stdin  (mock-stream writable-test-xf)
+        write (fn [[k val]]
                 (case k
                   :stderr (.write stderr val)
                   :stdout (.write stdout val)
-                  :stdin (this-as this (apply emit (cons this val)))
-                  (emit o k val))
-                (cb))
-        stdin  (stream.Writable. #js {"write" write "objectMode" true})]
+                  :stdin (.write stdin val)
+                  (emit o k val)))]
     (set! o.stdout stdout)
     (set! o.stderr stderr)
     (set! o.stdin stdin)
     (set! o.send true)
-    (set! o.write (fn [msg] (.write stdin msg)))
+    (set! o.write write)
     o))
 
 (def mock-stdio-inputs
   (concat
    (mapv #(conj [:stderr] %) mock-readable-inputs)
-   (mapv #(conj [:stdout] %) mock-readable-inputs)
-   [[:stdin [:error [(js/Error. "some error")]]]
-    [:stdin [:end nil]]]))
+   (mapv #(conj [:stdout] %) mock-readable-inputs)))
 
-(def mock-proc-inputs
-  [[:exit [:code :signal]]
-   [:close [:code :signal]]
-   [:error [(js/Error. "some error")]]])
+(def proc-exits
+  #{[:exit [:code :signal]]
+    [:close [:code :signal]]
+    [:stdin  [:close [false]]] [:stdin  [:finish nil]]
+    [:stdout [:close [false]]] [:stdout [:end nil]]
+    [:stderr [:close [false]]] [:stderr [:end nil]]})
 
-(def mock-fork-inputs [[:disconnect nil] [:message [:msg nil]]])
-
-(deftest proc-tests
+(deftest cp->ch-test
   (async done
     (go
       (testing "cp->-ch"
         (let [p (mock-proc)
-              out (cp->ch p)]
-          (testing "stdio"
-            (doseq [msg mock-stdio-inputs]
+              out (cp->ch p)
+              e [:error [(js/Error. "some error")]]]
+          (testing "stdout, stderr :: 'error' & 'data'"
+            (doseq [msg mock-stdio-inputs] 
               (.write p msg)
               (is (= msg (<! out)))))
-          (testing "generic proc events"
-            (doseq [msg mock-proc-inputs]
+          (testing "proc, stdin :: 'error'"
+            (.write p e)
+            (is (= e (<! out)))
+            (let [msg (conj [:stdin] e)]
               (.write p msg)
               (is (= msg (<! out)))))
-          (testing "fork events"
-            (doseq [msg mock-fork-inputs]
+          (testing "proc :: 'disconnect', 'message' "
+            (doseq [msg [[:disconnect nil] [:message [:msg nil]]]]
               (.write p msg)
-              (is (= msg (<! out)))))))
+              (is (= msg (<! out)))))
+          (testing "proc close semantics"
+            (.write p [:stdout [:close [false]]]) ;kill stdout
+            (.write p [:stderr [:close [false]]]) ;kill stderr
+            (.write p [:exit [:code :signal]]) ;proc exit a
+            (.write p [:close [:code :signal]]) ;proc exit b
+            (.write p [:stdin [:close [false]]]) ; kill stdin
+            (let [exit-set (atom proc-exits)]
+              (dotimes [_ (count @exit-set)]
+                (let [exit (<! out)
+                      m? (if (@exit-set exit) (swap! exit-set disj exit))]
+                  (is (some? m?))))
+              (is (empty? @exit-set))
+              (is (nil? (<! out)))))))
       (done))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -178,7 +250,7 @@
 (deftest test-sock->ch
   (async done
     (go
-      (let [sock (mock-readable)
+      (let [sock (mock-stream readable-test-xf)
             out (sock->ch sock)]
         (doseq [msg sock-events]
           (.write sock msg)
@@ -194,7 +266,7 @@
 (deftest test-server->ch
   (async done
     (go
-      (let [server (mock-readable)
+      (let [server (mock-stream readable-test-xf)
             out (server->ch server)]
         (doseq [msg server-events]
           (.write server msg)

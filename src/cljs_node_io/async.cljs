@@ -50,7 +50,7 @@
 
 (def stream (js/require "stream"))
 
-(defn- handle-vals [vals] (if-not (empty? vals) (vec vals)))
+(defn- handle-vals [event vals] (if-not (empty? vals) (vec vals)))
 
 (defn event-onto-ch
   "Converts a event cb into a core.async put!. Event Cb params are put into vectors.
@@ -61,33 +61,79 @@
    @param {!Channel} out :: unblocking buffers will drop data, including errors
    @param {!string} event
    @return {!events.EventEmitter}"
-  [emitter out event]
-  (assert (string? event))
-  (if (or (casync/unblocking-buffer? out) (not (instance? stream.Readable emitter)))
-    (.on emitter event (fn [& vals] (put! out [(keyword event) (handle-vals vals)])))
-    (.on emitter event
-     (fn [& vals]
-       (this-as this
-        (let [val [(keyword event) (handle-vals vals)]]
-          (when-not (casync/offer! out val)
-            (.pause this)
-            (put! out val #(.resume this)))))))))
+  ([emitter out event](event-onto-ch emitter out event nil))
+  ([emitter out event cb]
+   (assert (string? event))
+   (if (or (casync/unblocking-buffer? out) (not (instance? stream.Readable emitter)))
+     (.on emitter event
+        (fn [& vals]
+          (put! out [(keyword event) (handle-vals event vals)]  #(if cb (cb)))))
+     (.on emitter event
+        (fn [& vals]
+          (this-as this
+            (let [val [(keyword event) (handle-vals event vals)]]
+              (if ^boolean (casync/offer! out val)
+                (if cb (cb event))
+                (do
+                  (.pause this)
+                  (put! out val #(do (.resume this) (if cb (cb event)))))))))))))
 
 (defn readable-onto-ch
   "Generic interface so you can write reloadable handlers. Removes the need to
-   manage stream listener reload lifecycle. Supply your configured chan. 'data'
-   'end',readstream level 'error' events are caught and put! as [:event cb-arg].
+   manage stream listener reload lifecycle. Supply your configured chan. 
+   'data', 'end', & 'error' events are caught and put! as [:event [cb-arg0 cb-arg1]].
+
+   If your stream fires other events (such as 'close'), provide them as a vector
+   of strings. 'close' is automatically recognized as an exit condition. The chan
+   will be closed when exit conditions have been met.
+
    Be aware that nonblocking buffers may drop error events too. Parking chans
    behave just like stream.pipe methods. Note pending put! limits"
   ([rstream out-ch] (readable-onto-ch rstream out-ch nil))
   ([rstream out-ch events] ;ie ["close"]
-   (let [common ["data" "error" "end"]
-         events (if-not events common (concat common events))]
-     (doseq [ev events](event-onto-ch rstream out-ch ev))
+   (if events (assert (and (coll? events) (every? string? events))))
+   (let [close? (some #(= "close" %) events)
+         exits (atom (into #{} (if close? ["close" "end"] ["end"])))
+         exit-cb (fn [ev]
+                   (swap! exits disj ev)
+                   (if (empty? @exits) (close! out-ch)))
+         common ["data" "error" "end"]
+         events (into #{} (if-not events common (concat common events)))]
+     (doseq [ev events]
+       (if (@exits ev)
+         (event-onto-ch rstream out-ch ev exit-cb)
+         (event-onto-ch rstream out-ch ev)))
+     out-ch)))
+
+(defn writable-onto-ch
+  "Generic interface so you can write reloadable handlers. Removes the need to
+   manage stream listener reload lifecycle. Supply your configured chan.
+   'finish', 'drain', & 'error' events are caught and put! as [:event [cb-arg0 cb-arg1]].
+
+   If your stream fires other events (such as 'close'), provide them as a vector
+   of strings. 'close' is automatically recognized as an exit condition. The chan
+   will be closed when exit conditions have been met.
+
+   Be aware that nonblocking buffers may drop error events too. Parking chans
+   behave just like stream.pipe methods. Note pending put! limits"
+  ([wstream out-ch] (writable-onto-ch wstream out-ch nil))
+  ([wstream out-ch events] ;ie ["close"]
+   (if events (assert (and (coll? events) (every? string? events))))
+   (let [close? (some #(= "close" %) events)
+         exits (atom (into #{} (if close? ["close" "finish"] ["finish"])))
+         exit-cb (fn [ev]
+                   (swap! exits disj ev)
+                   (if (empty? @exits) (close! out-ch)))
+         common ["finish" "error" "drain"]
+         events (into #{} (if-not events common (concat common events)))]
+     (doseq [ev events]
+       (if (@exits ev)
+         (event-onto-ch wstream out-ch ev exit-cb)
+         (event-onto-ch wstream out-ch ev)))
      out-ch)))
 
 (defn cp->ch
-  "Wraps all ChildProcess events into messages put! on a core.async channel :
+  "Wraps all ChildProcess events into messages put! on a core.async channel
    [:error [js/Error]]
    [:disconnect nil]
    [:message [#js{} ?handle]]
@@ -100,25 +146,39 @@
    [:stderr [:error [js/Error]]]
    [:stderr [:end nil]]
    [:stdin [:error [js/Error]]]
-   [:stdin [:end nil]]"
-  ([proc](cp->ch proc 10))
-  ([proc buf-or-n]
-    (let [stdout (readable-onto-ch (.-stdout proc) (chan buf-or-n (map #(conj [:stdout] %))))
-          stderr (readable-onto-ch (.-stderr proc) (chan buf-or-n (map #(conj [:stderr] %))))
-          out (casync/merge [stdout stderr])]
-      (doto (.-stdin proc)
-        (.on "error" (fn [e] (put! out [:stdin [:error [e]]])))
-        (.on "end" (fn [] (put! out [:stdin [:end nil]]))))
-      (doto proc
-        ; missing signal events, SIGINT etc
-        (.on "error" (fn [e] (put! out [:error [e]])))
-        (.on "exit" (fn [code signal](put! out [:exit [code signal]])))
-        (.on "close" (fn [code signal](put! out [:close [code signal]]))))
-      (when (.-send proc)
-        (doto proc
-          (.on "message" (fn [msg sendHandle] (put! out [:message [msg sendHandle]])))
-          (.on "disconnect" (fn [](put! out [:disconnect nil])))))
-      out)))
+   [:stdin [:end nil]]
+   The chan will close when all underlying data sources close.
+   The options include :buf-or-n passed to all chans and a key to prefix all output with"
+  ([proc](cp->ch proc nil))
+  ([proc {:keys [key buf-or-n] :or {buf-or-n 10}}]
+   (let [tag-xf (fn [tag] (if-not key (map #(conj [tag] %)) (map #(assoc-in [key [tag]] [1 1] %))))
+         stdout-ch (readable-onto-ch (.-stdout proc) (chan buf-or-n (tag-xf :stdout)) ["close"])
+         stderr-ch (readable-onto-ch (.-stderr proc) (chan buf-or-n (tag-xf :stderr)) ["close"])
+         stdin-ch  (writable-onto-ch (.-stdin proc)  (chan buf-or-n (tag-xf :stdin))  ["close"])
+         proc-ch (chan buf-or-n)
+         exits (atom #{"close" "exit"})
+         exit-cb (fn [ev] (swap! exits disj ev) (if (empty? @exits) (close! proc-ch)))
+         out (casync/merge [stdin-ch stdout-ch stderr-ch proc-ch])]
+     (doto proc
+       ; missing signal events, SIGINT etc
+       (.on "error" (fn [e]
+                      (let [d [:error [e]]]
+                        (put! proc-ch (if-not key d (conj [key] d))))))
+       (.on "exit" (fn [code signal]
+                     (let [d [:exit [code signal]]]
+                       (put! proc-ch (if-not key d (conj [key] d)) #(exit-cb "exit")))))
+       (.on "close" (fn [code signal]
+                      (let [d [:close [code signal]]]
+                        (put! proc-ch (if-not key d (conj [key] d)) #(exit-cb "close"))))))
+     (when (.-send proc)
+       (doto proc
+         (.on "message" (fn [msg sendHandle]
+                          (let [d [:message [msg sendHandle]]]
+                            (put! proc-ch (if-not key d (conj [key] d) )))))
+         (.on "disconnect" (fn []
+                             (let [d [:disconnect nil]]
+                               (put! proc-ch (if-not key d (conj [key] d))))))))
+     out)))
 
 (defn sock->ch
   "[:data [chunk]]

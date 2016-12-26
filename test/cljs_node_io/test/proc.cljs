@@ -27,7 +27,7 @@
 
 (defonce PS (atom nil))
 
-(deftest fork-CP-test
+(deftest fork-CP-test ;uncaughtError in child is not tested
   (async done
    (go
     (let [p "test/cljs_node_io/test/fork_test.js"
@@ -40,7 +40,7 @@
           (doseq [msg stdio-inputs]
             (send msg)
             (is (= msg (<! CP)))))
-        (testing "proc error & IPC" ;induce ps error!!
+        (testing "proc error & IPC"
           (let [msg [:error [(js/Error "proc error")]]]
             (send msg)
             (is (= msg (<! CP))))
@@ -54,7 +54,10 @@
             (is (not (:connected CP))))))
       (testing "proc shutdown"
         (is (.write (.-stdin ps) "exit"))
-        (let [end-set (atom #{[:stdin [:end nil]]
+        (let [end-set (atom #{[:stdin [:close [false]]]
+                              [:stdout [:close [false]]]
+                              [:stderr [:close [false]]]
+                              [:stdin [:finish nil]]
                               [:stderr [:end nil]]
                               [:stdout [:end nil]]
                               [:exit [0 nil]]
@@ -63,7 +66,8 @@
             (let [end (<! CP)
                   t (if (@end-set end)(do (swap! end-set disj end) true))]
               (is t)))
-          (is (= @end-set #{}))))
+          (is (= @end-set #{}))
+          (is (nil? (<! CP)))))
       (done)))))
 
 (use-fixtures :once {:after #(if @PS (.kill @PS))})

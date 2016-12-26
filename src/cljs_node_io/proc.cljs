@@ -1,6 +1,6 @@
 (ns cljs-node-io.proc
   (:require-macros [cljs.core.async.macros :refer [go go-loop]])
-  (:require [cljs.core.async :as casync :refer [put! take! chan <! pipe alts! promise-chan]]
+  (:require [cljs.core.async :as casync :refer [put! take! chan pipe close! promise-chan]]
             [cljs.core.async.impl.protocols :as impl]
             [cljs-node-io.async :refer [cp->ch]]
             [cljs-node-io.protocols :refer [IChildProcess]]
@@ -49,7 +49,7 @@
    @param {!IMap} opts :: execution options
    @return {!child_process.ChildProcess}"
   [cmd args opts]
-  (let [opts (clj->js opts)
+  (let [opts (if opts (clj->js opts) #js{})
         proc (childproc.spawn cmd (into-array args) opts)]
     proc))
 
@@ -62,7 +62,7 @@
    @param {!IMap} opts :: map of execution options
    @return {!Object}"
   [cmd args opts]
-  (let [opts (clj->js opts)
+  (let [opts (if opts (clj->js opts) #js{})
         proc (childproc.spawnSync cmd (into-array args) opts)]
     proc))
 
@@ -86,11 +86,32 @@
   ([CP msg](cp-send CP msg nil))
   ([CP msg handle](cp-send CP msg nil nil))
   ([CP msg handle opts]
+   (assert (.-send (.-proc CP)) "ChildProcess.send is only applicable to forks")
    (let [out (promise-chan)
          cb (fn [err](put! out [err]))
          args (remove nil? [(clj->js msg) handle opts cb])]
      (.apply (.-send (.-proc CP)) (.-proc CP) (into-array args))
      out)))
+
+(defn- ^boolean cp-write
+  "Defers to stdin.write, but skips writing when the stream has closed, returning
+   false (instead of throwing)
+   
+   Calls the supplied callback once the data has been fully handled.
+   If an error occurs, the callback may or may not be called with the error as its first argument.
+   To reliably detect write errors, add a listener for the 'error' event.
+
+   The return value indicates whether the written chunk was buffered internally and
+   the buffer has exceeded the highWaterMark configured when the stream was created.
+   If false is returned, further attempts to write data to the stream should be paused
+   until the 'drain' event is emitted.
+   @return {!boolean}"
+  ([cp chunk](cp-write chunk nil nil))
+  ([cp chunk enc](cp-write chunk enc nil))
+  ([cp chunk enc cb]
+   (if ^boolean (.-writable (.-stdin (.-proc cp)))
+     (.write (.-stdin (.-proc cp)) chunk enc cb)
+     false)))
 
 
 ; this API is subject to change
@@ -108,7 +129,10 @@
   (kill [_] (.kill proc)) ;maybe unsafe? ; flag killed?
   (kill [_ sig] (.kill proc sig))
   (disconnect [_] (.disconnect proc))
-  (write [_ chunk enc cb] (.write (.-stdin proc) chunk enc cb))
+  (write [this chunk](cp-write this chunk))
+  (write [this chunk enc](cp-write this chunk enc))
+  (write [this chunk enc cb](cp-write this chunk enc cb))
+  ;fork only
   (send [this msg] (cp-send this msg))
   (send [this msg handle] (cp-send this msg handle))
   (send [this msg handle opts] (cp-send this msg handle opts))
@@ -121,6 +145,7 @@
      :pid (.-pid proc)}))
 
 (defn child
-  [proc]
-  (let [out (cp->ch proc)]
-    (->ChildProcess proc out)))
+  ([proc] (child proc nil))
+  ([proc opts]
+   (let [out (cp->ch proc opts)]
+     (->ChildProcess proc out))))
