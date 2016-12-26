@@ -10,15 +10,17 @@
    depending on next round of alts!. The error handler should be a function of 1 arg
    and is called with errors from handler+exit? applications to incoming values.
    The go-proc will continue processing after errors & must be manually killed."
+  ([in handler](go-proc in handler nil nil nil))
   ([in handler error-handler](go-proc in handler error-handler nil nil))
   ([in handler error-handler exit-cb](go-proc in handler error-handler exit-cb nil))
   ([in handler error-handler exit-cb exit?]
    {:pre [(implements? cljs.core.async.impl.protocols/ReadPort in)
           (fn? handler)
-          (fn? error-handler)
+          (if error-handler (fn? error-handler) true)
           (if exit-cb (fn? exit-cb) true)
           (if exit? (fn? exit?) true)]}
-   (let [kill-ch (promise-chan)
+   (let [eh (or error-handler (js/console.error.bind js/console))
+         kill-ch (promise-chan)
          gblock (go-loop []
                   (let [[v c] (alts! [kill-ch in])]
                     (if v
@@ -27,24 +29,24 @@
                                  (try
                                    (exit? v)
                                    (catch js/Error e
-                                     (let [e' {:error e
-                                               :msg "go-proc: uncaught exit condition error"}]
-                                       (error-handler e'))
+                                     (eh  {:error e :msg "go-proc: uncaught exit condition error"})
                                      false)))
                           (close! kill-ch))
                         (try
                           (handler v)
                           (catch js/Error e
-                            (let [e' {:error e
-                                      :msg "go-proc: uncaught handler error"}]
-                              (error-handler e'))))
+                            (eh {:error e :msg "go-proc: uncaught handler error"})))
                         (recur))
                       (do 
                         (if exit-cb (exit-cb))
                         (close! kill-ch)))))]
       (set! (.-active gblock) true)
       (take! kill-ch #(set! (.-active gblock) false))
-      (specify! gblock Object
+      (specify! gblock
+        IPrintWithWriter
+        (-pr-writer [this writer opts]
+          (-write writer "#object [cljs-node-io.async/go-proc]"))
+        Object
         (kill [_](close! kill-ch))))))
 
 

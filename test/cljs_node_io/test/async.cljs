@@ -49,6 +49,7 @@
             (>! in msg)
             (is (= msg (<! out)) "whatever triggered exit should still get processed")
             (is (nil? (<! exit-ch)))
+            (is (nil? (<! gproc)))
             (is (not (.-active gproc))))))
      (done))))
 
