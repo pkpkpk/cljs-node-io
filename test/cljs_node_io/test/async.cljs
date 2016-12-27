@@ -2,8 +2,9 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop]])
   (:require [cljs.test :refer-macros [deftest is async testing]]
             [cljs.core.async :as casync :refer [<! >! put! take! close! chan ]]
-            [cljs-node-io.async :refer [go-proc event-onto-ch readable-onto-ch
-                                        writable-onto-ch cp->ch sock->ch server->ch]]))
+            [cljs-node-io.async :refer [go-proc mux admux unmux unmux-all
+                                        event-onto-ch readable-onto-ch writable-onto-ch
+                                        cp->ch sock->ch server->ch]]))
 
 (defn make-handler [out]
   (fn [[k v :as msg]]
@@ -52,6 +53,58 @@
             (is (nil? (<! gproc)))
             (is (not (.-active gproc))))))
      (done))))
+
+(deftest mux-test
+  (async done
+   (let [out (chan 1)
+         in (chan 1)
+         err (chan 1)
+         e (js/Error. "some error")
+         v :foo
+         handler (fn [src n]
+                   (if-not (number? n)
+                     (throw e)
+                     (put! out [src (inc n)])))
+         eh (fn [m](put! err m))
+         mx (mux handler eh)]
+     (go
+      (testing "admux"
+        (is (empty? (.ports mx)))
+        (admux mx in)
+        (is (= #{in} (.ports mx)))
+        (admux mx in)
+        (is (= #{in} (.ports mx))))
+      (testing "handling"
+        (>! in 42)
+        (is (= [in 43] (<! out))))
+      (testing "error handling"
+        (>! in v)
+        (is (= (<! err) {:e e :v v :msg "mux: data handler error"})))
+      (testing "removal of closed ports"
+        (admux mx out)
+        (is (= #{in out} (.ports mx)))
+        (>! in 42)
+        (close! in)
+        (<! out) ;wait a round
+        (is (= #{out} (.ports mx))))
+      (testing "unmux"
+        (unmux mx out)
+        (is (empty? (.ports mx))))
+      (testing "unmux-all"
+        (admux mx in)
+        (admux mx out)
+        (admux mx err)
+        (is (= #{in out err}) (.ports mx))
+        (unmux-all mx)
+        (is (empty? (.ports mx))))
+      (testing "kill"
+        (is (.-active mx))
+        (admux mx in)
+        (.kill mx)
+        (is (nil? (<! mx)))
+        (is (empty? (.ports mx)))
+        (is (false? (admux mx in))))
+      (done)))))
 
 
 (def stream (js/require "stream"))

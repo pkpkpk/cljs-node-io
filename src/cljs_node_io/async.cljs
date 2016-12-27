@@ -50,6 +50,66 @@
         (kill [_](close! kill-ch))))))
 
 
+(defprotocol IMux
+  (admux [this port] "add a Readport to the Mux")
+  (unmux [this port] "remove a Readport from the Mux")
+  (unmux-all [this] "remove all ports from Mux reading"))
+
+(defn mux
+  "Inspired by core.async/mix, mux is a 'multiplex' of readports. Instead of building
+   a mix and then having a separate consumption and processing step, this skips
+   the middle-man and continuously processes values from a collection of ReadPorts
+   using the given handler. This saves an extra chan+go-loop and skips unecessary
+   asynchronicity. It can be view as an *extensible* border between asynchronous
+   data reception and synchronous handling of that data (though there is no reason
+   you cannot reintroduce asynchronicity downstream).
+
+   Added ReadPorts are continually read from using a shared alts! go-loop, and
+   the user supplied handler is called with the port & recieved values. When a
+   port closes, it is removed from the mux. An empty mux will persist until killed.
+   Mux knows nothing about msg content or ReadPorts' lifecycle.
+
+   Mux is meant to serve as an entry point for external connections into your
+   application. Structure your input values and handler fn for data based routing
+   @return {!IMux}"
+  ([handler](mux handler nil))
+  ([handler err-handler]
+   (let [eh (or err-handler (js/console.error.bind js/console))
+         ports (atom #{})
+         change-ch (chan)
+         kill-ch  (promise-chan)
+         calc-state #(vec (conj @ports change-ch kill-ch))
+         remove-port #(swap! ports disj %)
+         gblock
+         (go-loop [reads (calc-state)]
+           (let [[v port] (alts! reads)]
+             (cond
+               (= port kill-ch) nil
+               (= port change-ch) (recur (calc-state))
+               (nil? v) (do (remove-port port) (recur (calc-state)))
+               :else ;handle
+               (do
+                 (try (handler port v)
+                   (catch js/Error e
+                     (eh {:e e :v v :msg "mux: data handler error"})))
+                 (recur reads)))))]
+     (set! (.-active gblock) true)
+     (take! kill-ch #(set! (.-active gblock) false))
+     (specify! gblock
+       IPrintWithWriter
+       (-pr-writer [this writer opts]
+         (-write writer "#object [cljs-node-io.async/mux]"))
+       IMux
+       (admux [_ port]
+          (if-not ^boolean (casync/poll! kill-ch)
+            (do (swap! ports conj port) (put! change-ch true) port)
+            false))
+       (unmux [_ port] (do (swap! ports disj port) (put! change-ch true) port))
+       (unmux-all [_] (do (reset! ports #{}) (put! change-ch true)))
+       Object
+       (ports [_] @ports)
+       (kill [_](do (reset! ports nil) (casync/put! kill-ch true)))))))
+
 (def stream (js/require "stream"))
 
 (defn- handle-vals [event vals] (if-not (empty? vals) (vec vals)))
