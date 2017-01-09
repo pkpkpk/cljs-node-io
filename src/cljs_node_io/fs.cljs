@@ -1,8 +1,8 @@
 (ns cljs-node-io.fs "A wrapper around node's fs module."
   (:require-macros [cljs-node-io.macros :refer [try-true with-chan with-bool-chan]]
                    [cljs.core.async.macros :refer [go]])
-  (:require [cljs.core.async :as async :refer [put! take! promise-chan]]
-            [cljs.core.async.impl.protocols :refer [Channel]]))
+  (:require [cljs.core.async :as async :refer [put! take! close! promise-chan chan]]
+            [cljs.core.async.impl.protocols :as impl :refer [Channel]]))
 
 (def fs (js/require "fs"))
 (def path (js/require "path"))
@@ -553,7 +553,7 @@
          (if-not rderr
            (do
              (loop [children (mapv (partial resolve-path pathstr) names)]
-               (if-not (nil? children)
+               (if (some? children)
                  (let [[arm-r-err] (<! (arm-r (first children)))]
                    (if (instance? js/Error arm-r-err)
                      (>! c arm-r-err)
@@ -641,3 +641,92 @@
                 #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
                     "mode"     (or (:mode opts) 438)
                     "encoding" (or (:encoding opts) "utf8")})))
+
+;; /read+write Files
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; watch
+
+
+(defn watcher->ch
+  ([FSWatcher out-ch] (watcher->ch FSWatcher out-ch nil))
+  ([FSWatcher out-ch {:keys [key buf-or-n] :or {buf-or-n 10}}]
+   (let []
+    (doto FSWatcher
+      (.on "change"
+        (fn [eventType filename] ;[string string|Buffer]
+          (put! out-ch [(keyword eventType)])))
+      (.on "error" (fn [e] (put! out-ch [:error [e]]))))
+     out-ch)))
+
+(deftype Watcher [FSWatcher out]
+  impl/ReadPort
+  (take! [this handler] (impl/take! out handler))
+  Object
+  (close [this]
+    (.close FSWatcher)
+    (put! out [:close] #(close! out))))
+
+(defn watch
+  "Watch a file or directory.
+   Make note of caveats https://nodejs.org/api/fs.html#fs_caveats
+   events : 'rename', 'change' , 'error', 'close'
+   opts :
+    :peristent {boolean} (true) :: whether the process should continue as long as files are being watched.
+    :recursive {boolean} (false) :: watch subdirectories
+    :buf-or-n {(impl/Buffer|number)} (10) :: channel buffer
+    :encoding {string} ('utf8') :: used to interpret passed filename
+   @return {!cljs-node-io.fs/Watcher}"
+  ([filename] (watch filename nil))
+  ([filename opts]
+    (let [defaults {:persistent true
+                    :recursive false
+                    :encoding "utf8"
+                    :buf-or-n 10}
+          opts (merge defaults opts)
+          out (chan (get opts :buf-or-n) (map #(conj [filename] %)))
+          w (fs.watch filename (clj->js opts))]
+      (->Watcher w (watcher->ch w out)))))
+
+(defn watchFile
+  "Prefer watch. Polls files and returns stat objects. Opts:
+     :peristent {boolean} (true) :: whether the process should continue as long as files are being watched.
+     :interval {number} (5007) :: polling interval in msecs
+     :edn? {boolean} (true) :: converts stats to edn
+     :buf-or-n {(impl/Buffer|number)} (10) :: channel buffer
+   @return {!Channel} <= [current fs.stat, previous fs.stat]"
+  ([filename] (watchFile filename nil))
+  ([filename opts]
+   (let [defaults {:interval 5007
+                   :persistent true
+                   :edn? true
+                   :buf-or-n 10}
+         {:keys [edn? buf-or-n] :as opts} (merge defaults opts)
+         out (chan buf-or-n (map #(conj [filename] %)))
+         cb (fn [curr prev]
+              (put! out
+                (if edn?
+                  [(stat->clj curr)(stat->clj prev)]
+                  [curr prev])))
+         w (fs.watchFile filename (clj->js opts) cb)]
+     out)))
+
+(defn unwatchFile
+  "remove all watchers from a file
+   @param {!string} pathstr
+   @return {nil}"
+  [pathstr]
+  (fs.unwatchFile pathstr))
+
+(defn touch
+  "creates a file if non-existent, writes blank string to an existing
+   @param {!string} pathstr
+   @return {nil}"
+  [pathstr]
+  (writeFile pathstr "" nil))
+
+(defn atouch
+  "creates a file if non-existent, writes blank string to an existing
+   @param {!string} pathstr
+   @return {!Channel} promise-chan recieving [?err]"
+  [pathstr]
+  (awriteFile pathstr "" nil))

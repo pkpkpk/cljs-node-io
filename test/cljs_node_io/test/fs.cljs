@@ -210,6 +210,25 @@
        (is (= [nil] (<! (iofs/arename a b))) "arename should return [nil]")
        (is (boolean ((set (iofs/readdir d)) (iofs/basename b))))
        (iofs/rename b a)))
+   (testing "watch"
+     (testing "watch file"
+       (let [f (first file-paths)
+             w (iofs/watch f)]
+         (<! (iofs/atouch f))
+         (is (= [f [:change]] (<! w)))
+         (.close w)
+         (is (= [f [:close]] (<! w)))))
+     (testing "watch dir"
+       (let [d (first dirs)
+             f (first file-paths)
+             _  (<! (iofs/arm f))
+             w (iofs/watch d)]
+         (<! (iofs/atouch f))
+         (is (= [d [:rename]] (<! w)))
+         (<! (iofs/atouch f))
+         (is (= [d [:change]] (<! w)))
+         (.close w)
+         (is (= [d [:close]] (<! w))))))
    (testing "arm-r"
      (is (every? true? (map iofs/fexists? all-paths)))
      (is (= "ENOENT"  (ecode (<! (iofs/arm-r "")))))
