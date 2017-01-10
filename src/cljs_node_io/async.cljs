@@ -110,6 +110,7 @@
        (ports [_] @ports)
        (kill [_](do (reset! ports nil) (casync/put! kill-ch true)))))))
 
+
 (def stream (js/require "stream"))
 
 (defn- handle-vals [event vals] (if-not (empty? vals) (vec vals)))
@@ -150,7 +151,8 @@
    will be closed when exit conditions have been met.
 
    Be aware that nonblocking buffers may drop error events too. Parking chans
-   behave just like stream.pipe methods. Note pending put! limits"
+   behave just like stream.pipe methods. Note pending put! limits
+   @return {!cljs.core.async.impl.protocols/Channel}"
   ([rstream out-ch] (readable-onto-ch rstream out-ch nil))
   ([rstream out-ch events] ;ie ["close"]
    (if events (assert (and (coll? events) (every? string? events))))
@@ -177,7 +179,8 @@
    will be closed when exit conditions have been met.
 
    Be aware that nonblocking buffers may drop error events too. Parking chans
-   behave just like stream.pipe methods. Note pending put! limits"
+   behave just like stream.pipe methods. Note pending put! limits
+   @return {!cljs.core.async.impl.protocols/Channel}"
   ([wstream out-ch] (writable-onto-ch wstream out-ch nil))
   ([wstream out-ch events] ;ie ["close"]
    (if events (assert (and (coll? events) (every? string? events))))
@@ -194,23 +197,26 @@
          (event-onto-ch wstream out-ch ev)))
      out-ch)))
 
+
 (defn cp->ch
-  "Wraps all ChildProcess events into messages put! on a core.async channel
-   [:error [js/Error]]
-   [:disconnect nil]
-   [:message [#js{} ?handle]]
-   [:exit [?code ?signal]]
-   [:close [?code ?signal]]
-   [:stdout [:data [chunk]]]
-   [:stdout [:error [js/Error]]]
-   [:stdout [:end nil]]
-   [:stderr [:data [chunk]]]
-   [:stderr [:error [js/Error]]]
-   [:stderr [:end nil]]
-   [:stdin [:error [js/Error]]]
-   [:stdin [:end nil]]
+  "Wraps all ChildProcess events into messages put! on a core.async channel.
    The chan will close when all underlying data sources close.
-   The options include :buf-or-n passed to all chans and a key to prefix all output with"
+   See doc for cljs-node-io.proc/child for opts.
+   If key is provided, msgs below are prefixed as [key msg]
+     [:error [js/Error]]
+     [:disconnect nil]
+     [:message [#js{} ?handle]]
+     [:exit [?code ?signal]]
+     [:close [?code ?signal]]
+     [:stdout [:data [chunk]]]
+     [:stdout [:error [js/Error]]]
+     [:stdout [:end nil]]
+     [:stderr [:data [chunk]]]
+     [:stderr [:error [js/Error]]]
+     [:stderr [:end nil]]
+     [:stdin [:error [js/Error]]]
+     [:stdin [:end nil]]
+   @return {!cljs.core.async.impl.protocols/Channel}"
   ([proc](cp->ch proc nil))
   ([proc {:keys [key buf-or-n] :or {buf-or-n 10}}]
    (let [tag-xf (fn [tag] (if-not key (map #(conj [tag] %)) (map #(assoc-in [key [tag]] [1 1] %))))

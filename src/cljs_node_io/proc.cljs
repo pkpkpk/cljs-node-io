@@ -95,7 +95,7 @@
 
 (defn- ^boolean cp-write
   "Defers to stdin.write, but skips writing when the stream has closed, returning
-   false (instead of throwing)
+   false (instead of emitting error to already closed channel)
    
    Calls the supplied callback once the data has been fully handled.
    If an error occurs, the callback may or may not be called with the error as its first argument.
@@ -145,6 +145,12 @@
      :pid (.-pid proc)}))
 
 (defn child
+  "Given a node childproces instance, returns a IChildProcess
+   with a ReadPort implementation. Opts include:
+     :buf-or-n -> passed to all subchannels, defaults to 10
+     :key  -> is used to prefix all emmited values. Use to identify and route data.
+       ex no key: [:stdout [:data ['some data']]]
+       ex w/ key: ['my-child-proc' [:stdout [:data ['some data']]]]"
   ([proc] (child proc nil))
   ([proc opts]
    (let [out (cp->ch proc opts)]
