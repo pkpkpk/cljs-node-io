@@ -1,4 +1,4 @@
-# `[cljs-node-io "0.4.0"]`
+# `[cljs-node-io "0.5.0"]`
 
 [![Clojars Project](https://img.shields.io/clojars/v/cljs-node-io.svg)](https://clojars.org/cljs-node-io)
 
@@ -7,7 +7,7 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
 #### Also included:
   + reified files with same api as java
   + slurp + spit
-  + wrappers over node streams
+  + wrappers over node streams, child processes
   + convenience functions to make your scripting and repl'ing experience more pleasant
   + ~~compiled with [andare](https://github.com/mfikes/andare) so that the all the core async is bootstrap friendly~~
 

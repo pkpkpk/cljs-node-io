@@ -16,3 +16,8 @@
    - You can ignore this at the repl or use it to chain a operations.
    - Copy will still throw; if you need fine grained control use the underlying streams manually.
  + added `cljs-node-io.proc` ns. The ChildProcess object itself is subject to change but this is a __super useful__ bunch of functions
+
+### 0.5.0
+ + add `cljs-node-io.fs/watch` & `cljs-node-io.fs/watchFile`. Both have [platform specific usage details](https://nodejs.org/api/fs.html#fs_caveats)
+ + added `cljs-node-io.async/mux`. Instead of having a million infinite go-loops/go-procs everywhere , shrink them down into one extensible readloop.
+ + stream->ch functions and IChildProcess' now have channel close semantics. When their underlying resources emit shutdown events, their associated ports will close.
