@@ -9,7 +9,7 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
   + slurp + spit
   + wrappers over node streams, child processes
   + convenience functions to make your scripting and repl'ing experience more pleasant
-  + ~~compiled with [andare](https://github.com/mfikes/andare) so that the all the core async is bootstrap friendly~~
+  + ~~compiled with [andare](https://github.com/mfikes/andare) so that~~ all the core async is bootstrap friendly
 
 <hr>
 
@@ -46,10 +46,65 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
 ```
 <hr>
 
+#### IO Operations & Error Handling
+  - all functions should throw at the call-site if given the wrong type.
+  - Sync IO ops *will* throw on IO exceptions. Error handling is up to the user
+  - in asynchronous functions, IO exceptions will be part of the channel yield. The convention here is to mimic *nodeback* style callbacks with channels yielding [?err] or [?err ?data] depending on the operation
+   ```clojure
+   (go
+     (let [[err data] (<! afn)]
+       (if-not err
+         (handle-result data)
+         (handle-error err))))
+    ```
+
+    - for successful ops, errors will be nil. This lets you destructure the result and __branch on err__
+    - note this is not transactional... some side effects may have occured despite an error
+
+##### Predicates
+  - Sync predicates do not throw on op errors, they catch the error and return false
+  - Async predicates return chans that receive false on err. These channels only receive booleans.
+
+<hr>
+
+#### Getting Order Guarantees From Async Code
+read more [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking/)
+
+
+```clojure
+(require '[cljs-node-io.fs :as fs])
+
+(fs/touch "/tmp/hello")
+
+;; BAD! maybe astat is run before arename
+(def rc (fs/arename "/tmp/hello" "/tmp/world"))
+(def sc (fs/astat "/tmp/world"))
+
+(go
+  (let [[err] (<! rc)]
+    (if-not err
+      (let [[err st] (<! sc)]
+        (if-not err
+          (println (js/JSON.stringify st))
+          (throw err)))
+      (throw err))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; GOOD!  chain the calls together
+(go
+  (let [[err] (<! (fs/arename "/tmp/hello" "/tmp/world"))]
+    (if-not err
+      (let [[err st] (<! (fs/astat "/tmp/world"))]
+        (if-not err
+          (println (js/JSON.stringify st))
+          (throw err)))
+      (throw err))))
+```
+
+<hr>
 
 ### Differences from Clojure
   + Node runs an asynchronous event loop & is event driven. This means you can't do things like create a stream and consume it synchronously (the underlying stream may not be ready yet)... you must instead create the stream and attach handlers to its emitted events.
-    - clojure.java.io coerces everything into streams and reads and writes from there. This strategy cannot work in node
+    - clojure.java.io coerces everything into streams synchronously, and reads and writes from there. This strategy cannot work in node
 
 
   + In the nodejs fs module, functions are asynchronous by default, and their synchronous versions have names with a `Sync` suffix. In *cljs-node-io*, functions are synchronous by default, and async versions have an `a` prefix.  For example, `cljs-node-io.core/slurp` is synchronous (just as jvm), whereas `cljs-node-io.core/aslurp` runs asynchronously. This convention simply saves you some thought cycles at the repl. Note that most of the time synchronous functions are fine and getting order guarantees from async code is not worth the hassle
