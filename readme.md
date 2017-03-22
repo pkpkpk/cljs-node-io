@@ -46,7 +46,7 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
 ```
 <hr>
 
-In the nodejs fs module, functions are asynchronous by default, and their synchronous versions have names with a `Sync` suffix. In *cljs-node-io*, functions are synchronous by default, and async versions have an `a` prefix.  For example, `cljs-node-io.core/slurp` is synchronous (just as jvm), whereas `cljs-node-io.core/aslurp` runs asynchronously. This convention simply saves you some thought cycles at the repl. Note that most of the time synchronous functions are fine and getting order guarantees from async code is not worth the hassle
+In the nodejs fs module, functions are asynchronous by default, and their synchronous versions have names with a `Sync` suffix. In *cljs-node-io*, functions are synchronous by default, and async versions have an `a` prefix.  For example, `cljs-node-io.core/slurp` is synchronous (just as jvm), whereas `cljs-node-io.core/aslurp` runs asynchronously. This convention simply saves you some thought cycles at the repl. Note that most of the time (scripting...) synchronous functions are fine and getting order guarantees from async code is not worth the hassle
 
 #### IO Operations & Error Handling
   - all functions should throw at the call-site if given the wrong type.
