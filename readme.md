@@ -60,8 +60,8 @@ In the nodejs fs module, functions are asynchronous by default, and their synchr
      (handle-error err))))
 ```
 
-    - for successful ops, errors will be nil. This lets you destructure the result and *branch on err*
-    - note this is not transactional... some side effects may have occured despite an error
+ - for successful ops, errors will be nil. This lets you destructure the result and *branch on err*
+ - note this is not transactional... some side effects may have occured despite an error
 
 ##### Predicates
   - Sync predicates do not throw on op errors, they catch the error and return false
