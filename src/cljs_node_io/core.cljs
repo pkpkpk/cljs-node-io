@@ -271,14 +271,20 @@
   (do-copy (BufferReadStream input opts) output opts))
 
 (defn copy
-  "Copies input to output. Returns nil or throws.
-   Input may be an InputStream, File, Buffer, or string.
-   Output may be an String, OutputStream or File. 
-   Unlike JVM, strings are coerced to files. If you have a big string, use a buffer.    
-   By default no encoding ops occur, just read & written as binary. 
-   Options are passed to the output stream.
-    :encoding = destination encoding to use
-    ex: (copy 'foo.txt' 'bar.txt' :encoding 'utf8')"
+  "A repl/script convenience. Copies input to output.
+   Input may be an InputStream, cljs-node-io.File, Buffer, or string(file path).
+   Output may be an String(file), OutputStream or cljs-node-io.File.
+    + Unlike JVM, strings are coerced to files.
+      - If you have a big string, use a buffer.
+      - By default no encoding ops occur
+    + Options are passed to the output stream.
+      - :encoding = destination encoding to use
+        ex: (copy 'foo.txt' 'bar.txt' :encoding 'utf8')
+    + Returns a chan thats closes when output finishes writing
+      - use to asynchronously chain a series of calls.
+      - Will still throw! For more sophisticated error handling,
+        use the underlying streams manually
+   @return {!Channel}"
   [input output & opts]
   (let [input  (if (string? input) (as-file input) input)
         output (if (string? output) (as-file output) output)]
