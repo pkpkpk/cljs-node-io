@@ -108,7 +108,7 @@ read more [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking/)
   + Node runs an asynchronous event loop & all IO is driven under the hood by [libuv](http://libuv.org/). Construction of streams involves creating a object within the js-vm and returning it to the user synchronously so that listeners may be attached. Calls to listeners are then scheduled using [js/process.nextTick](https://nodejs.org/dist/latest-v7.x/docs/api/process.html#process_process_nexttick_callback_args). This means you fundamentally cannot create a stream and consume it synchronously... you must instead create the stream and attach handlers to its emitted events.
     - clojure.java.io coerces everything into streams synchronously, and reads and writes from there. This strategy cannot work in node
 
-  + To preserve synchronous semantics, `slurp` for example uses memory consuming fs.readFileSync. This is fine for small files and repl sessions. If you need to read larger files, restructure your program to accommodate node streams. Luckily node streams mostly manage themselves and are awesome.
+  + To preserve synchronous semantics, `slurp` for example uses memory consuming fs.readFileSync. This is fine for small files and repl sessions. If you need to read larger files, restructure your program to accommodate node streams. Luckily node streams mostly manage themselves.
 
 
   + no reader + writer types, not really necessary
