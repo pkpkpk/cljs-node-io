@@ -4,19 +4,17 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
-  :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.9.293"]
-                 [org.clojure/core.async "0.2.395"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha16"]
+                 [org.clojure/clojurescript "1.9.542"]
+                 [org.clojure/core.async "0.3.442"]
                  [wire-report "0.1.0"]]
 
-  :plugins [[lein-cljsbuild "1.1.4"]
-            [lein-figwheel "0.5.4-7" :exclusions [org.clojure/core.async]]]
+  :plugins [[lein-cljsbuild "1.1.5"]]
 
   :clean-targets ["target"]
 
   :cljsbuild {:builds [{:id "dev"
                         :source-paths ["src" "test"]
-                        :figwheel true
                         :compiler {:parallel-build true
                                    :cache-analysis true
                                    :main cljs-node-io.test.runner
@@ -35,7 +33,7 @@
                                     :parallel-build true
                                     :externs ["node_externs.js"]
                                     :output-to "target/simple.js"
-                                    :source-map "target/simple.js.map"                                    
+                                    :source-map "target/simple.js.map"
                                     :static-fns true
                                     :optimize-constants true
                                     :language-in :ecmascript5
