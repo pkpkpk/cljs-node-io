@@ -1,5 +1,4 @@
 (ns cljs-node-io.core
-  (:require-macros [cljs.core.async.macros :refer [go go-loop alt!]])
   (:require [cljs.core.async :as async :refer [put! take! chan <! pipe alts!]]
             [cljs.core.async.impl.protocols :refer [Channel]]
             [cljs-node-io.file :refer [File]]
@@ -7,8 +6,7 @@
             [cljs-node-io.protocols
               :refer [Coercions as-url as-file IInputStream IOutputStream IFile
                       IOFactory make-reader make-writer make-input-stream make-output-stream]])
-  (:import goog.Uri
-           [goog.string StringBuffer]))
+  (:import goog.Uri))
 
 (def path (js/require "path"))
 
@@ -28,10 +26,12 @@
      [js/String nil] a
      [js/String js/String] (path.join a b)
      [File js/String] (path.join (.getPath a) b)
-     :else (throw (js/TypeError.
-      (str "Unrecognized path configuration passed to File constructor."
-           "\nYou passed " (pr-str a) " and " (pr-str b)
-           "\nYou must pass a [string], [uri], [string string], or [file string]."))))))
+     :else
+     (throw
+       (js/TypeError.
+         (str "Unrecognized path configuration passed to File constructor."
+              "\nYou passed " (pr-str a) " and " (pr-str b)
+              "\nYou must pass a [string], [uri], [string string], or [file string]."))))))
 
 (extend-protocol Coercions
   nil
@@ -45,38 +45,40 @@
   (as-file [u]
     (if (= "file" (.getScheme u)) ;"file://home/.../cljs-node-io/foo.edn"
       (as-file (.getPath u))
-      (throw (js/Error. (str "IllegalArgumentException : Not a file: " u))))))
+      (throw (js/Error. (str "IllegalArgumentException : Uri's must have file protocol: " u))))))
 
 (extend-protocol IOFactory
   Uri
   (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
   (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  (make-input-stream [x opts] (make-input-stream
-                                (if (= "file" (.getScheme x))
-                                  (FileInputStream (as-file x))
-                                  (.openStream x ))
-                                opts)) ;<---not implemented, setup for other protocols ie HTTP
-  (make-output-stream [x opts] (if (= "file" (.getScheme x))
-                                 (make-output-stream (as-file x) opts)
-                                 (throw (js/Error. (str "IllegalArgumentException: Can not write to non-file URL <" x ">")))))
+  (make-input-stream [x opts]
+   (if (= "file" (.getScheme x)) ;<---not implemented for other protocols ie HTTP, should be separate lib
+     (FileInputStream (as-file x) opts)
+     (throw (js/Error. (str "IllegalArgumentException: Can not read from non-file URL <" x ">")))))
+  (make-output-stream [x opts]
+    (if (= "file" (.getScheme x))
+      (make-output-stream (as-file x) opts)
+      (throw (js/Error. (str "IllegalArgumentException: Can not write to non-file URL <" x ">")))))
 
   string
   (make-reader [x opts] (make-reader (as-file x) opts))
   (make-writer [x opts] (make-writer (as-file x) opts))
-  (make-input-stream [^String x opts](try
-                                        (make-input-stream (Uri. x) opts)
-                                        (catch js/Error e
-                                          (make-input-stream (File. x) opts))))
-  (make-output-stream [^String x opts] (try
-                                        (make-output-stream (Uri. x) opts)
-                                          (catch js/Error err
-                                              (make-output-stream (File. x) opts))))
+  (make-input-stream [^String x opts]
+    (try
+      (make-input-stream (Uri. x) opts)
+      (catch js/Error e (make-input-stream (File. x) opts))))
+  (make-output-stream [^String x opts]
+    (try
+      (make-output-stream (Uri. x) opts)
+      (catch js/Error err (make-output-stream (File. x) opts))))
   js/Buffer
   (make-reader [b opts] (make-reader (make-input-stream b opts) opts))
   (make-input-stream [b opts] (BufferReadStream b opts))
   (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  (make-output-stream [x opts](throw (js/Error.  ;use Buffer.concat if you want to do this
-                                 (str "IllegalArgumentException : Cannot open <" (pr-str x) "> as an OutputStream.")))))
+  (make-output-stream [x opts]
+    (throw
+      (js/Error.  ;use Buffer.concat if you want to do this
+        (str "IllegalArgumentException : Cannot open <" (pr-str x) "> as an OutputStream.")))))
 
 (defn as-relative-path
   "a relative path, else IllegalArgumentException.
@@ -87,7 +89,6 @@
     (if (.isAbsolute f)
       (throw (js/Error. (str "IllegalArgumentException: " f " is not a relative path")))
       (.getPath f))))
-
 
 (defn file
   "Returns a reified file, passing each arg to as-file.  Multiple-arg
@@ -243,7 +244,6 @@
   (fn [input output opts]
     [(or (stream-type input)  (if (rFile?  input) :File) (type input))
      (or (stream-type output) (if (rFile? output) :File) (type output))]))
-
 
 (defmethod do-copy [:InputStream :OutputStream] [input output _]
   (let [c (async/promise-chan)]
