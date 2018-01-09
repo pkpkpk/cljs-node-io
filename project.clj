@@ -4,12 +4,12 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
-  :dependencies [[org.clojure/clojure "1.9.0-alpha16"]
-                 [org.clojure/clojurescript "1.9.542"]
-                 [org.clojure/core.async "0.3.442"]
+  :dependencies [[org.clojure/clojure "1.9.0-beta2"]
+                 [org.clojure/clojurescript "1.9.946"]
+                 [org.clojure/core.async "0.4.474"]
                  [wire-report "0.1.0"]]
 
-  :plugins [[lein-cljsbuild "1.1.5"]]
+  :plugins [[lein-cljsbuild "1.1.7"]]
 
   :clean-targets ["target"]
 
@@ -24,25 +24,24 @@
                                    :optimizations :none
                                    :source-map true}}
 
-                        ;http://dev.clojure.org/jira/browse/ASYNC-110
-                        {:id "simple"
-                         :source-paths ["src" "test"]
-                         :compiler {:optimizations :simple
-                                    :target :nodejs
-                                    :main cljs-node-io.test.runner
-                                    :parallel-build true
-                                    :externs ["node_externs.js"]
-                                    :output-to "target/simple.js"
-                                    :source-map "target/simple.js.map"
-                                    :static-fns true
-                                    :optimize-constants true
-                                    :language-in :ecmascript5
-                                    ;http://dev.clojure.org/jira/browse/CLJS-1627
-                                    :closure-warnings
-                                      {:check-types :error
-                                       :undefined-names :off
-                                       :externs-validation :off
-                                       :missing-properties :off}}}]
+                       {:id "simple"
+                        :source-paths ["src" "test"]
+                        :compiler {:optimizations :simple
+                                   :target :nodejs
+                                   :main cljs-node-io.test.runner
+                                   :parallel-build true
+                                   :externs ["node_externs.js"]
+                                   :output-to "target/simple.js"
+                                   :source-map "target/simple.js.map"
+                                   :static-fns true
+                                   :optimize-constants true
+                                   :language-in :ecmascript5
+                                   ;http://dev.clojure.org/jira/browse/CLJS-1627
+                                   :closure-warnings
+                                   {:check-types :warning
+                                    :undefined-names :off
+                                    :externs-validation :off
+                                    :missing-properties :off}}}]
 
               :test-commands
               ;  "simple" ["node" "target/test/simple.js"]
