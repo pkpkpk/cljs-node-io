@@ -693,7 +693,7 @@
      :interval {number} (5007) :: polling interval in msecs
      :edn? {boolean} (true) :: converts stats to edn
      :buf-or-n {(impl/Buffer|number)} (10) :: channel buffer
-   @return {!Channel} <= [current fs.stat, previous fs.stat]"
+   @return {!Channel} <= [filename [current fs.stat, previous fs.stat]]"
   ([filename] (watchFile filename nil))
   ([filename opts]
    (let [defaults {:interval 5007
@@ -727,6 +727,6 @@
 (defn atouch
   "creates a file if non-existent, writes blank string to an existing
    @param {!string} pathstr
-   @return {!Channel} promise-chan recieving [?err]"
+   @return {!Channel} promise-chan receiving [?err]"
   [pathstr]
   (awriteFile pathstr "" nil))
