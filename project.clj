@@ -21,6 +21,7 @@
                                    :output-to "target/out/cljs_node_io.js"
                                    :output-dir "target/out"
                                    :target :nodejs
+                                   :language-in :ecmascript5
                                    :optimizations :none
                                    :source-map true}}
 
