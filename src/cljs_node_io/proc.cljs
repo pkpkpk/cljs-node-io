@@ -1,5 +1,6 @@
 (ns cljs-node-io.proc
-  (:require-macros [cljs.core.async.macros :refer [go go-loop]])
+  (:require-macros [cljs.core.async.macros :refer [go go-loop]]
+                   [cljs-node-io.macros :refer [goog-typedef]])
   (:require [cljs.core.async :as casync :refer [put! take! chan pipe close! promise-chan]]
             [cljs.core.async.impl.protocols :as impl]
             [cljs-node-io.async :refer [cp->ch]]
@@ -14,15 +15,24 @@
   ([cmdstr opts]
     (childproc.execSync cmdstr (clj->js opts))))
 
+(goog-typedef PortedChildProcess
+  "@typedef {!child_process.ChildProcess}
+   @implements {impl/ReadPort}")
+
 (defn aexec
-  "@return {!impl/Channel} <= [Error {string|Buffer} {string|Buffer}]"
-  ([cmdstr](aexec cmdstr nil))
+  "@param {!string} cmdstr :: command with space separated args
+   @param {!IMap} options :: see https://nodejs.org/api/child_process.html#child_process_child_process_exec_command_options_callback
+   @return {!PortedChildProcess} :: childprocess implementing readport.
+     - This allows sync access to CP properties and methods
+     - channel yields [Error {string|Buffer} {string|Buffer}]"
+  ([cmdstr](aexec cmdstr {}))
   ([cmdstr opts]
    (let [out (promise-chan)
          cb (fn [err stdout stderr]
               (put! out [err stdout stderr]))]
-     (childproc.exec cmdstr (clj->js opts) cb)
-     out)))
+     (specify! (childproc.exec cmdstr (clj->js opts) cb)
+        impl/ReadPort
+        (take! [_ handler] (impl/take! out handler))))))
 
 (defn execFile
   "@param {!string} pathstr :: the file to execute
@@ -36,12 +46,15 @@
   "@param {!string} pathstr :: the file to execute
    @param {!IVector} args :: args to the executable
    @param {!IMap} opts :: execution options
-   @return {!impl/Channel} <= [Error {string|Buffer} {string|Buffer}]"
+   @return {!PortedChildProcess} :: childprocess implementing readport.
+     - This allows sync access to CP properties and methods
+     - channel yields [Error {string|Buffer} {string|Buffer}]"
   [pathstr args opts]
   (let [out (promise-chan)
         cb (fn [err stdout stderr] (put! out [err stdout stderr]))]
-    (childproc.execFile pathstr (into-array args) (clj->js opts) cb)
-    out))
+    (specify! (childproc.execFile pathstr (into-array args) (clj->js opts) cb)
+      impl/ReadPort
+      (take! [_ handler] (impl/take! out handler)))))
 
 (defn spawn
   "@param {!string} cmd :: command to execute in a shell
@@ -49,9 +62,8 @@
    @param {!IMap} opts :: execution options
    @return {!child_process.ChildProcess}"
   [cmd args opts]
-  (let [opts (if opts (clj->js opts) #js{})
-        proc (childproc.spawn cmd (into-array args) opts)]
-    proc))
+  (let [opts (if opts (clj->js opts) #js{})]
+    (childproc.spawn cmd (into-array args) opts)))
 
 (defn spawn-sync
   "An exception to the 'a' prefix rule: cp.spawnSync will block until its
@@ -62,9 +74,8 @@
    @param {!IMap} opts :: map of execution options
    @return {!Object}"
   [cmd args opts]
-  (let [opts (if opts (clj->js opts) #js{})
-        proc (childproc.spawnSync cmd (into-array args) opts)]
-    proc))
+  (let [opts (if opts (clj->js opts) #js{})]
+    (childproc.spawnSync cmd (into-array args) opts)))
 
 (defn fork
   "@param {!string} modulePath :: path to js file to run
