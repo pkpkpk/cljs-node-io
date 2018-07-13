@@ -5,8 +5,8 @@
             [cljs-node-io.test.core]
             [cljs-node-io.test.fs]
             [cljs-node-io.test.file]
-            [cljs-node-io.test.proc]
             [cljs-node-io.test.async]
+            [cljs-node-io.test.spawn-test]
             [clojure.string :as string]
             [cljs.reader :refer [read-string]]
             [wire-report.core :as wire]))
@@ -38,11 +38,11 @@
          'cljs-node-io.test.fs
          'cljs-node-io.test.file
          'cljs-node-io.test.core
-         'cljs-node-io.test.proc
+         ; 'cljs-node-io.test.spawn-test
          'cljs-node-io.test.async)
         (run-tests
          'cljs-node-io.test.core
-         'cljs-node-io.test.proc
+         ; 'cljs-node-io.test.spawn-test
          'cljs-node-io.test.fs
          'cljs-node-io.test.file
          'cljs-node-io.test.async)))))
