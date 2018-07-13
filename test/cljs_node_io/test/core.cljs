@@ -171,6 +171,6 @@
       (is (= rbs (reader rbs)))
       (is (= wbs (writer wbs)))
       (is (thrown? js/Error  (writer rbs)))
-      (is (thrown? js/Error  (reader wbs))))      
-    (run! #(.destroy %) (flatten [strs files]))    
+      (is (thrown? js/Error  (reader wbs))))
+    (run! #(.destroy %) (flatten [strs files]))
     (.delete f)))

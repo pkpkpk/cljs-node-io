@@ -155,7 +155,7 @@
 (defn ^boolean Error?
   "@param {*} e
    @return {!boolean}"
-  [e] 
+  [e]
   (instance? js/Error e))
 
 (defn slurp
