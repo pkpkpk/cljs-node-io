@@ -55,7 +55,7 @@
      (try (f item)
        (catch js/Error e e))))
 
-(defn all-errors? [f coll] 
+(defn all-errors? [f coll]
   (assert (fn? f) "the 1st argument to all-errors must be a function")
   (assert (coll? coll) "the 2nd argument to all-errors must be a collection")
   (every? #(instance? js/Error %) (map (err-as-val f) coll)))
@@ -105,7 +105,7 @@
     (is (every? iofs/file? file-paths))
     (is (not-any? iofs/file? dirs))
     (is (not-any? iofs/dir? file-paths))
-    (is (every? iofs/dir? dirs))    
+    (is (every? iofs/dir? dirs))
     (is (every? iofs/fexists? all-paths)))
   (testing "readdir, dirname, resolve-path, basename, ext"
     (let [parent root
@@ -139,7 +139,7 @@
     (testing "readdir IO errors"
       (doseq [o #{"" (first file-paths)}]
         (let [[err res] (<! (iofs/areaddir o))]
-          (is (exists? err)))))
+          (is (some? err)))))
     (done))))
 
 (deftest sync-writes
@@ -153,7 +153,7 @@
       (is (nil? (iofs/rename b a)) "rename should return nil")))
   (testing "mkdir, unlink, rmdir, rm-r"
     (is (all-errors? iofs/rmdir (reverse dirs)) "rmdir on a non-empty dir should throw")
-    (is (all-errors? iofs/rm  (reverse dirs)) "rm on a non-empty dir should throw") 
+    (is (all-errors? iofs/rm  (reverse dirs)) "rm on a non-empty dir should throw")
     (is (all-errors? iofs/unlink dirs) "attempting to unlink a dir should throw")
     (is (every? nil? (map iofs/unlink file-paths)) "unlinking a file should return nil")
     (is (every? nil? (map iofs/rmdir (reverse dirs))) "rmdir success should return nil")
