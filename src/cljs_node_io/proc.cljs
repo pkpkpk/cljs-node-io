@@ -1,19 +1,31 @@
 (ns cljs-node-io.proc
+  "A thin wrapper over child_process"
   (:require-macros [cljs.core.async.macros :refer [go go-loop]]
                    [cljs-node-io.macros :refer [goog-typedef]])
   (:require [cljs.core.async :as casync :refer [put! take! chan pipe close! promise-chan]]
             [cljs.core.async.impl.protocols :as impl]
-            [cljs-node-io.async :refer [cp->ch]]
             [cljs-node-io.protocols :refer [IChildProcess]]
             [clojure.string :as string :refer [split-lines]]))
 
 (def childproc (js/require "child_process"))
 
+(defn checked-env
+  "when opts contains :env, merges it with process.env"
+  [opts]
+  (assert (map? opts))
+  (if-let [env (get opts :env)]
+    (let [ENV (js/Object.create js/process.env)]
+      (doseq [[k v] env]
+        (goog.object.set ENV k v))
+      (assoc opts :env ENV))
+    opts))
+
 (defn exec
   "@return {(buffer.Buffer|String)} the stdout from the command"
   ([cmdstr](exec cmdstr nil))
   ([cmdstr opts]
-    (childproc.execSync cmdstr (clj->js opts))))
+   (let [opts (checked-env (or opts {}))]
+     (childproc.execSync cmdstr (clj->js opts)))))
 
 (goog-typedef PortedChildProcess
   "@typedef {!child_process.ChildProcess}
@@ -28,6 +40,7 @@
   ([cmdstr](aexec cmdstr {}))
   ([cmdstr opts]
    (let [out (promise-chan)
+         opts (checked-env (or opts {}))
          cb (fn [err stdout stderr]
               (put! out [err stdout stderr]))]
      (specify! (childproc.exec cmdstr (clj->js opts) cb)
@@ -40,7 +53,8 @@
    @param {!IMap} opts :: execution options
    @return {(buffer.Buffer|String)}"
   [pathstr args opts]
-  (childproc.execFileSync pathstr (into-array args) (clj->js opts)))
+  (let [opts (checked-env (or opts {}))]
+    (childproc.execFileSync pathstr (into-array args) (clj->js opts))))
 
 (defn aexecFile
   "@param {!string} pathstr :: the file to execute
@@ -51,19 +65,11 @@
      - channel yields [Error {string|Buffer} {string|Buffer}]"
   [pathstr args opts]
   (let [out (promise-chan)
+        opts (checked-env (or opts {}))
         cb (fn [err stdout stderr] (put! out [err stdout stderr]))]
     (specify! (childproc.execFile pathstr (into-array args) (clj->js opts) cb)
       impl/ReadPort
       (take! [_ handler] (impl/take! out handler)))))
-
-(defn spawn
-  "@param {!string} cmd :: command to execute in a shell
-   @param {!IVector} args :: args to the shell command
-   @param {!IMap} opts :: execution options
-   @return {!child_process.ChildProcess}"
-  [cmd args opts]
-  (let [opts (if opts (clj->js opts) #js{})]
-    (childproc.spawn cmd (into-array args) opts)))
 
 (defn spawn-sync
   "An exception to the 'a' prefix rule: cp.spawnSync will block until its
@@ -74,8 +80,18 @@
    @param {!IMap} opts :: map of execution options
    @return {!Object}"
   [cmd args opts]
-  (let [opts (if opts (clj->js opts) #js{})]
-    (childproc.spawnSync cmd (into-array args) opts)))
+  (let [opts (checked-env (or opts {}))]
+    (childproc.spawnSync cmd (into-array args) (clj->js opts))))
+
+;; https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
+(defn spawn
+  "@param {!string} cmd :: command to execute in a shell
+   @param {!IVector} args :: args to the shell command
+   @param {!IMap} opts :: execution options
+   @return {!child_process.ChildProcess}"
+  [cmd args opts]
+  (let [opts (checked-env (or opts {}))]
+    (childproc.spawn cmd (into-array args) (clj->js opts))))
 
 (defn fork
   "@param {!string} modulePath :: path to js file to run
@@ -84,85 +100,6 @@
    @return {!child_process.ChildProcess}"
   [modulePath args opts]
   (let [args (apply array args)
-        opts (merge {:silent true :stdio "pipe"} opts)
-        ps (childproc.fork modulePath args (clj->js opts))]
-    (.setEncoding (.-stdout ps) "utf8")
-    (.setEncoding (.-stderr ps) "utf8")
-    ps))
+        opts (checked-env (merge {:silent true :stdio "pipe"} opts))]
+    (childproc.fork modulePath args (clj->js opts))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn- cp-send
-  "@return {!impl/Channel} <= [?err]"
-  ([CP msg](cp-send CP msg nil))
-  ([CP msg handle](cp-send CP msg nil nil))
-  ([CP msg handle opts]
-   (assert (.-send (.-proc CP)) "ChildProcess.send is only applicable to forks")
-   (let [out (promise-chan)
-         cb (fn [err](put! out [err]))
-         args (remove nil? [(clj->js msg) handle opts cb])]
-     (.apply (.-send (.-proc CP)) (.-proc CP) (into-array args))
-     out)))
-
-(defn- ^boolean cp-write
-  "Defers to stdin.write, but skips writing when the stream has closed, returning
-   false (instead of emitting error to an already closed channel)
-
-   Calls the supplied callback once the data has been fully handled.
-   If an error occurs, the callback may or may not be called with the error as its first argument.
-   Detect write errors via CP :error events.
-
-   The return value indicates whether the written chunk was buffered internally and
-   the buffer has exceeded the highWaterMark configured when the stream was created.
-   If false is returned, further attempts to write data to the stream should be paused
-   until the 'drain' event is emitted.
-   @return {!boolean}"
-  ([cp chunk](cp-write chunk nil nil))
-  ([cp chunk enc](cp-write chunk enc nil))
-  ([cp chunk enc cb]
-   (if ^boolean (.-writable (.-stdin (.-proc cp)))
-     (.write (.-stdin (.-proc cp)) chunk enc cb)
-     false)))
-
-
-; this API is subject to change
-(deftype ChildProcess [proc out]
-  IChildProcess
-  ILookup
-  (-lookup [this k] (get (.props this) k))
-  impl/ReadPort
-  (take! [_ handler] (impl/take! out handler))
-  Object
-  (setEncoding [this enc]
-    (.setEncoding (.-stdout proc) enc)
-    (.setEncoding (.-stderr proc) enc)
-    this)
-  (kill [_] (.kill proc)) ;maybe unsafe? ; flag killed?
-  (kill [_ sig] (.kill proc sig))
-  (disconnect [_] (.disconnect proc))
-  (write [this chunk](cp-write this chunk))
-  (write [this chunk enc](cp-write this chunk enc))
-  (write [this chunk enc cb](cp-write this chunk enc cb))
-  ;fork only
-  (send [this msg] (cp-send this msg))
-  (send [this msg handle] (cp-send this msg handle))
-  (send [this msg handle opts] (cp-send this msg handle opts))
-  (props [this]
-    {:connected (.-connected proc)
-     :stdout (.-stdout proc)
-     :stdin (.-stdin proc)
-     :stderr (.-stderr proc)
-     :stdio (.-stdio proc)
-     :pid (.-pid proc)}))
-
-(defn child
-  "Given a node childprocess instance, return an IChildProcess with a ReadPort
-   implementation. Opts include:
-     :buf-or-n -> passed to all subchannels, defaults to 10
-     :key  -> is used to prefix all emitted values. Use to identify and route data.
-       ex no key: [:stdout [:data ['some data']]]
-       ex w/ key: ['my-child-proc' [:stdout [:data ['some data']]]]"
-  ([proc] (child proc nil))
-  ([proc opts]
-   (let [out (cp->ch proc opts)]
-     (->ChildProcess proc out))))

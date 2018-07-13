@@ -24,7 +24,7 @@
          gblock (go-loop []
                   (let [[v c] (alts! [kill-ch in])]
                     (if v
-                      (do 
+                      (do
                         (if (and exit?
                                  (try
                                    (exit? v)
@@ -37,7 +37,7 @@
                           (catch js/Error e
                             (eh {:error e :msg "go-proc: uncaught handler error"})))
                         (recur))
-                      (do 
+                      (do
                         (if exit-cb (exit-cb))
                         (close! kill-ch)))))]
       (set! (.-active gblock) true)
@@ -143,7 +143,7 @@
 
 (defn readable-onto-ch
   "Generic interface so you can write reloadable handlers. Removes the need to
-   manage stream listener reload lifecycle. Supply your configured chan. 
+   manage stream listener reload lifecycle. Supply your configured chan.
    'data', 'end', & 'error' events are caught and put! as [:event [cb-arg0 cb-arg1]].
 
    If your stream fires other events (such as 'close'), provide them as a vector
@@ -196,57 +196,6 @@
          (event-onto-ch wstream out-ch ev exit-cb)
          (event-onto-ch wstream out-ch ev)))
      out-ch)))
-
-
-(defn cp->ch
-  "Wraps all ChildProcess events into messages put! on a core.async channel.
-   The chan will close when all underlying data sources close.
-   See doc for cljs-node-io.proc/child for opts.
-   If key is provided, msgs below are prefixed as [key msg]
-     [:error [js/Error]]
-     [:disconnect nil]
-     [:message [#js{} ?handle]]
-     [:exit [?code ?signal]]
-     [:close [?code ?signal]]
-     [:stdout [:data [chunk]]]
-     [:stdout [:error [js/Error]]]
-     [:stdout [:end nil]]
-     [:stderr [:data [chunk]]]
-     [:stderr [:error [js/Error]]]
-     [:stderr [:end nil]]
-     [:stdin [:error [js/Error]]]
-     [:stdin [:end nil]]
-   @return {!cljs.core.async.impl.protocols/Channel}"
-  ([proc](cp->ch proc nil))
-  ([proc {:keys [key buf-or-n] :or {buf-or-n 10}}]
-   (let [tag-xf (fn [tag] (if-not key (map #(conj [tag] %)) (map #(assoc-in [key [tag]] [1 1] %))))
-         stdout-ch (readable-onto-ch (.-stdout proc) (chan buf-or-n (tag-xf :stdout)) ["close"])
-         stderr-ch (readable-onto-ch (.-stderr proc) (chan buf-or-n (tag-xf :stderr)) ["close"])
-         stdin-ch  (writable-onto-ch (.-stdin proc)  (chan buf-or-n (tag-xf :stdin))  ["close"])
-         proc-ch (chan buf-or-n)
-         exits (atom #{"close" "exit"})
-         exit-cb (fn [ev] (swap! exits disj ev) (if (empty? @exits) (close! proc-ch)))
-         out (casync/merge [stdin-ch stdout-ch stderr-ch proc-ch])]
-     (doto proc
-       ; missing signal events, SIGINT etc
-       (.on "error" (fn [e]
-                      (let [d [:error [e]]]
-                        (put! proc-ch (if-not key d (conj [key] d))))))
-       (.on "exit" (fn [code signal]
-                     (let [d [:exit [code signal]]]
-                       (put! proc-ch (if-not key d (conj [key] d)) #(exit-cb "exit")))))
-       (.on "close" (fn [code signal]
-                      (let [d [:close [code signal]]]
-                        (put! proc-ch (if-not key d (conj [key] d)) #(exit-cb "close"))))))
-     (when (.-send proc)
-       (doto proc
-         (.on "message" (fn [msg sendHandle]
-                          (let [d [:message [msg sendHandle]]]
-                            (put! proc-ch (if-not key d (conj [key] d) )))))
-         (.on "disconnect" (fn []
-                             (let [d [:disconnect nil]]
-                               (put! proc-ch (if-not key d (conj [key] d))))))))
-     out)))
 
 (defn sock->ch
   "[:data [chunk]]

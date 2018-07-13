@@ -4,7 +4,10 @@
             [cljs.core.async :as casync :refer [<! >! put! take! close! chan ]]
             [cljs-node-io.async :refer [go-proc mux admux unmux unmux-all
                                         event-onto-ch readable-onto-ch writable-onto-ch
-                                        cp->ch sock->ch server->ch]]))
+                                        sock->ch server->ch]]
+            [cljs-node-io.test.async-helpers
+             :refer [emit mock-stream readable-test-xf mock-readable-inputs
+                     writable-test-xf]]))
 
 (defn make-handler [out]
   (fn [[k v :as msg]]
@@ -109,42 +112,42 @@
 
 (def stream (js/require "stream"))
 (def EventEmitter (.-EventEmitter (js/require "events")))
-
-(defn emit [this evkw val]
-  (.apply (.-emit this) this (into-array (cons (name evkw) val))))
-
-(defn mock-stream [xf]
-  (.setEncoding (new stream.Transform #js {"writableObjectMode" true "transform" xf}) "utf8"))
-
-(defn readable-test-xf
-  "[:end nil] will kill, emit 'end'
-   [:data [v]] will buffer data, emit 'data'
-   [:close [v]] will kill, emit 'end' & 'close'"
-  [[ev val] encoding cb]
-  (this-as this
-    (case ev
-      :data  (.push this (val 0))
-      :end   (.push this nil) ;end of resource, kill stream
-      :close (do (.push this nil) (emit this ev val))
-      (emit this ev val))
-    (cb)))
-
-(def mock-readable-inputs
-  [[:data ["a string"]]
-   [:error [(js/Error. "some error")]]])
-
-(defn writable-test-xf
-  "strings are buffered, use to induce backpressure
-   [:close [:a :b]] will trigger 'end' & 'close' events"
-  [data encoding cb]
-  (this-as this
-    (if (string? data)
-      (.push this data)
-      (if (vector? data)
-        (let [[ev val] data]
-          (if (= ev :close) (.end this))
-          (emit this ev val))))
-    (cb)))
+;
+; (defn emit [this evkw val]
+;   (.apply (.-emit this) this (into-array (cons (name evkw) val))))
+;
+; (defn mock-stream [xf]
+;   (.setEncoding (new stream.Transform #js {"writableObjectMode" true "transform" xf}) "utf8"))
+;
+; (defn readable-test-xf
+;   "[:end nil] will kill, emit 'end'
+;    [:data [v]] will buffer data, emit 'data'
+;    [:close [v]] will kill, emit 'end' & 'close'"
+;   [[ev val] encoding cb]
+;   (this-as this
+;     (case ev
+;       :data  (.push this (val 0))
+;       :end   (.push this nil) ;end of resource, kill stream
+;       :close (do (.push this nil) (emit this ev val))
+;       (emit this ev val))
+;     (cb)))
+;
+; (def mock-readable-inputs
+;   [[:data ["a string"]]
+;    [:error [(js/Error. "some error")]]])
+;
+; (defn writable-test-xf
+;   "strings are buffered, use to induce backpressure
+;    [:close [:a :b]] will trigger 'end' & 'close' events"
+;   [data encoding cb]
+;   (this-as this
+;     (if (string? data)
+;       (.push this data)
+;       (if (vector? data)
+;         (let [[ev val] data]
+;           (if (= ev :close) (.end this))
+;           (emit this ev val))))
+;     (cb)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -183,7 +186,7 @@
               close [:close [false]]
               exit-set (atom #{ close [:end nil]})]
           (.write ts close)
-          (dotimes [_ (count @exit-set)] 
+          (dotimes [_ (count @exit-set)]
             (let [exit (<! out)
                   m? (if (@exit-set exit) (swap! exit-set disj exit))]
               (is (some? m?))))
@@ -192,7 +195,7 @@
      (done))))
 
 (deftest writable-onto-ch-test
-  (async done 
+  (async done
     (go
       (testing "writable-onto-ch :: 'error' , 'drain', 'finish' "
         (let [ts (mock-stream writable-test-xf)
@@ -215,78 +218,12 @@
               close [:close [false]]
               exit-set (atom #{ close [:finish nil]})]
           (.write ts close)
-          (dotimes [_ (count @exit-set)] 
+          (dotimes [_ (count @exit-set)]
             (let [exit (<! out)
                   m? (if (@exit-set exit) (swap! exit-set disj exit))]
               (is (some? m?))))
           (is (empty? @exit-set))
           (is (nil? (<! out)))))
-      (done))))
-
-(defn mock-proc []
-  (let [o (EventEmitter.)
-        stderr (mock-stream readable-test-xf)
-        stdout (mock-stream readable-test-xf)
-        stdin  (mock-stream writable-test-xf)
-        write (fn [[k val]]
-                (case k
-                  :stderr (.write stderr val)
-                  :stdout (.write stdout val)
-                  :stdin (.write stdin val)
-                  (emit o k val)))]
-    (set! o.stdout stdout)
-    (set! o.stderr stderr)
-    (set! o.stdin stdin)
-    (set! o.send true)
-    (set! o.write write)
-    o))
-
-(def mock-stdio-inputs
-  (concat
-   (mapv #(conj [:stderr] %) mock-readable-inputs)
-   (mapv #(conj [:stdout] %) mock-readable-inputs)))
-
-(def proc-exits
-  #{[:exit [:code :signal]]
-    [:close [:code :signal]]
-    [:stdin  [:close [false]]] [:stdin  [:finish nil]]
-    [:stdout [:close [false]]] [:stdout [:end nil]]
-    [:stderr [:close [false]]] [:stderr [:end nil]]})
-
-(deftest cp->ch-test
-  (async done
-    (go
-      (testing "cp->-ch"
-        (let [p (mock-proc)
-              out (cp->ch p)
-              e [:error [(js/Error. "some error")]]]
-          (testing "stdout, stderr :: 'error' & 'data'"
-            (doseq [msg mock-stdio-inputs] 
-              (.write p msg)
-              (is (= msg (<! out)))))
-          (testing "proc, stdin :: 'error'"
-            (.write p e)
-            (is (= e (<! out)))
-            (let [msg (conj [:stdin] e)]
-              (.write p msg)
-              (is (= msg (<! out)))))
-          (testing "proc :: 'disconnect', 'message' "
-            (doseq [msg [[:disconnect nil] [:message [:msg nil]]]]
-              (.write p msg)
-              (is (= msg (<! out)))))
-          (testing "proc close semantics"
-            (.write p [:stdout [:close [false]]]) ;kill stdout
-            (.write p [:stderr [:close [false]]]) ;kill stderr
-            (.write p [:exit [:code :signal]]) ;proc exit a
-            (.write p [:close [:code :signal]]) ;proc exit b
-            (.write p [:stdin [:close [false]]]) ; kill stdin
-            (let [exit-set (atom proc-exits)]
-              (dotimes [_ (count @exit-set)]
-                (let [exit (<! out)
-                      m? (if (@exit-set exit) (swap! exit-set disj exit))]
-                  (is (some? m?))))
-              (is (empty? @exit-set))
-              (is (nil? (<! out)))))))
       (done))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
