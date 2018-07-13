@@ -675,7 +675,7 @@
     :recursive {boolean} (false) :: watch subdirectories
     :buf-or-n {(impl/Buffer|number)} (10) :: channel buffer
     :encoding {string} ('utf8') :: used to interpret passed filename
-   @return {!cljs-node-io.fs/Watcher}"
+   @return {!Watcher}"
   ([filename] (watch filename nil))
   ([filename opts]
     (let [defaults {:persistent true
@@ -683,7 +683,8 @@
                     :encoding "utf8"
                     :buf-or-n 10}
           opts (merge defaults opts)
-          out (chan (get opts :buf-or-n) (map #(conj [filename] %)))
+          key (or (get opts :key) filename)
+          out (chan (get opts :buf-or-n) (map #(conj [key] %)))
           w (fs.watch filename (clj->js opts))]
       (->Watcher w (watcher->ch w out)))))
 
