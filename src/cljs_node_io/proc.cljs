@@ -4,7 +4,6 @@
                    [cljs-node-io.macros :refer [goog-typedef]])
   (:require [cljs.core.async :as casync :refer [put! take! chan pipe close! promise-chan]]
             [cljs.core.async.impl.protocols :as impl]
-            [cljs-node-io.protocols :refer [IChildProcess]]
             [clojure.string :as string :refer [split-lines]]))
 
 (def childproc (js/require "child_process"))

@@ -26,5 +26,3 @@
 
 (defprotocol IOutputStream
   "A marker protocol indicating an output-stream")
-
-(defprotocol IChildProcess "A marker protocol indicating an ChildProcess")
