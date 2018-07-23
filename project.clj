@@ -1,4 +1,4 @@
-(defproject cljs-node-io "0.6.0-SNAPSHOT"
+(defproject cljs-node-io "1.0.0"
   :description "A ClojureScript IO Library for NodeJS"
   :url "https://github.com/pkpkpk/cljs-node-io"
   :license {:name "Eclipse Public License"

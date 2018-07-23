@@ -21,3 +21,9 @@
  + add `cljs-node-io.fs/watch` & `cljs-node-io.fs/watchFile`. Both have [platform specific usage details](https://nodejs.org/api/fs.html#fs_caveats)
  + added `cljs-node-io.async/mux`. Instead of having a million infinite go-loops/go-procs everywhere , shrink them down into one extensible readloop.
  + stream->ch functions and IChildProcess' now have channel close semantics. When their underlying resources emit shutdown events, their associated ports will close.
+
+### 1.0.0
+ + Breaking Change: Wrapped ChildProcess instances... async spawn + fork, have been move to the `cljs-node-io.spawn` namespace and refactored to be more obvious (though opinionated) in their use.
+ + people keep searching for "readline" so I added a primitive `cljs-node-io.fs/readline`.
+ + fix watcher to use key
+ + misc decrufting
