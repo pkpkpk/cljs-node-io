@@ -1,4 +1,4 @@
-(ns cljs-node-io.test.async
+(ns cljs-node-io.async-tests
   (:require-macros [cljs.core.async.macros :refer [go go-loop]])
   (:require [cljs.test :refer-macros [deftest is async testing]]
             [cljs.core.async :as casync :refer [<! >! put! take! close! chan ]]

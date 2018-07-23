@@ -1,4 +1,4 @@
-(ns cljs-node-io.test.file
+(ns cljs-node-io.file-tests
   (:require [cljs.test :refer-macros [deftest is testing run-tests are]]
             [clojure.string :as s :refer [starts-with?]]
             [cljs-node-io.test.helpers :refer [createTempFile]]
@@ -78,7 +78,7 @@
     36  (setReadable* 36 false true)
     0   (setReadable* 36 false false)))
 
-(deftest test-setWritable*  
+(deftest test-setWritable*
   (are [x y] (= x y)
     ; rwxrwxrwx
     511 (setWritable* 511 true true)

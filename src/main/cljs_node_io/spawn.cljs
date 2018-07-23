@@ -154,11 +154,11 @@
       :key  -> is used to prefix all emitted values. Use to identify and route data.
         ex no key: [:stdout [:data ['some data']]]
         ex w/ key: ['my-child-proc' [:stdout [:data ['some data']]]]
-   @return {!proc/PortedChildProcess} ChildProcess with a ReadPort" ;ported
+   @return {!proc/PortedChildProcess} ChildProcess with a ReadPort"
   [modulePath args {:keys [encoding] :as opts}]
-  ; (assert (map? opts))
-  ; (assert (string? modulePath))
-  ; (assert (and (seq args) (every? string? args)))
+  (assert (string? modulePath))
+  (when opts (assert (map? opts)))
+  (when args (assert (and (seq args) (every? string? args))))
   (let [child-process (proc/fork modulePath args opts)
         encoding (or encoding "utf8")
         out (cp->ch child-process opts)]

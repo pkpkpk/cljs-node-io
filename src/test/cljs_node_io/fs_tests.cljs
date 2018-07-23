@@ -1,4 +1,4 @@
-(ns cljs-node-io.test.fs
+(ns cljs-node-io.fs-tests
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs.test :refer [deftest is testing run-tests are use-fixtures async]]
             [cljs.core.async :refer [<! put! take! chan] :as async]
