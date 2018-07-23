@@ -16,3 +16,4 @@ checkouts/
 pom.xml.asc
 package.json
 *.diff
+.cpcache
