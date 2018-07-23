@@ -731,3 +731,22 @@
    @return {!Channel} promise-chan receiving [?err]"
   [pathstr]
   (awriteFile pathstr "" nil))
+
+(def rl (js/require "readline"))
+
+(defn readline
+  "A simple file line reader.
+   @param {!string} pathstr
+   @return {!Channel} chan receiving [?err ?line] until file is consumed,
+   and then the channel closes."
+  [pathstr]
+  (let [out (chan 10)
+        in (fs.createReadStream pathstr)
+        _(set! (.-in out) in)
+        r (rl.createInterface #js{:input in :crlfDelay js/Infinity})]
+    (doto in
+      (.on "error" (fn [e] (put! out [e])))
+      (.on "close" #(close! out)))
+    (doto r
+      (.on "line" (fn [line] (put! out [nil line]))))
+    out))
