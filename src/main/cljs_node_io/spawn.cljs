@@ -112,6 +112,8 @@
   (send [this msg handle opts] (cp-send this msg handle opts))
   (props [this]
     {:connected (.-connected proc)
+     :channel (.-channel proc)
+     :killed? (.-killed proc)
      :stdout (.-stdout proc)
      :stdin (.-stdin proc)
      :stderr (.-stderr proc)

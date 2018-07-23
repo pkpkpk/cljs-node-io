@@ -102,11 +102,9 @@
 (deftest fork-CP-test ;uncaughtError in child is not tested
   (async done
    (go
-    (let [p "test/cljs_node_io/test/fork_test.js"
-          ; ps (reset! PS (proc/fork p nil nil))
-          ; CP  (proc/child ps)
+    (let [p "src/test/cljs_node_io/fork_test.js"
           CP (fork p nil nil)
-          ps (.-proc CP)
+          ps (reset! PS (.-proc CP))
           send (intercept-send ps CP)]
       (is (:connected CP))
       (testing "testing ChildProcess ReadPort"
@@ -128,6 +126,7 @@
             (is (not (:connected CP))))))
       (testing "proc shutdown"
         (is (.write (.-stdin ps) "exit"))
+        (.end (.-stdin ps))
         (let [end-set (atom #{[:stdin [:close [false]]]
                               [:stdout [:close [false]]]
                               [:stderr [:close [false]]]
@@ -141,7 +140,7 @@
                   t (if (@end-set end)(do (swap! end-set disj end) true))]
               (is t)))
           (is (= @end-set #{}))
-          (is (nil? (<! CP)))))
-      (done)))))
+          (is (nil? (<! CP)))
+          (done)))))))
 
 (use-fixtures :once {:after #(if @PS (.kill @PS))})
