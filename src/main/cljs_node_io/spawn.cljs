@@ -3,7 +3,8 @@
   (:require [cljs.core.async :as casync :refer [put! take! chan <! promise-chan close!]]
             [cljs.core.async.impl.protocols :as impl]
             [cljs-node-io.proc :as proc]
-            [cljs-node-io.async :as nasync]))
+            [cljs-node-io.async :as nasync]
+            [clojure.string :as string]))
 
 (defn cp->ch
   "Wraps all ChildProcess events into messages put! on a core.async channel.
@@ -90,11 +91,19 @@
      (.write (.-stdin (.-proc cp)) chunk enc cb)
      false)))
 
-(deftype ChildProcess [proc out]
+(deftype ChildProcess [proc out opts]
   ILookup
   (-lookup [this k] (get (.props this) k))
+  (-lookup [this k not-found] (get (.props this) k not-found))
   impl/ReadPort
   (take! [_ handler] (impl/take! out handler))
+  IPrintWithWriter
+  (-pr-writer [this writer _]
+    (-write writer "<ChildProcess__")
+    (when-let [key (get opts :key)]
+      (-write writer (str key "__")))
+    (-write writer (get opts :start-time))
+    (-write writer (str "__$ " (get opts :cmd) " " (first (get opts :args)) "...>")))
   Object
   (setEncoding [this enc]
     (.setEncoding (.-stdout proc) enc)
@@ -111,7 +120,8 @@
   (send [this msg handle] (cp-send this msg handle))
   (send [this msg handle opts] (cp-send this msg handle opts))
   (props [this]
-    {:connected (.-connected proc)
+    {:opts opts
+     :connected (.-connected proc)
      :channel (.-channel proc)
      :killed? (.-killed proc)
      :stdout (.-stdout proc)
@@ -119,6 +129,9 @@
      :stderr (.-stderr proc)
      :stdio (.-stdio proc)
      :pid (.-pid proc)}))
+
+(defn ^String start-time []
+  (.toLocaleString (js/Date.))) ;; localize
 
 (defn spawn
   "@param {!string} cmd :: command to execute in a shell
@@ -137,8 +150,12 @@
   (assert (string? cmd))
   (assert (and (seq args) (every? string? args)))
   (let [child-process (proc/spawn cmd args opts)
-        out (cp->ch child-process opts)]
-    (cond-> (->ChildProcess child-process out)
+        out (cp->ch child-process opts)
+        opts (assoc opts
+                    :start-time (start-time)
+                    :cmd cmd
+                    :args args)]
+    (cond-> (->ChildProcess child-process out opts)
       encoding (.setEncoding encoding))))
 
 (defn fork
@@ -163,6 +180,10 @@
   (when args (assert (and (seq args) (every? string? args))))
   (let [child-process (proc/fork modulePath args opts)
         encoding (or encoding "utf8")
-        out (cp->ch child-process opts)]
-    (cond-> (->ChildProcess child-process out)
+        out (cp->ch child-process opts)
+        opts (assoc opts
+                    :start-time (start-time)
+                    :cmd cmd
+                    :args args)]
+    (cond-> (->ChildProcess child-process out opts)
       encoding (.setEncoding encoding))))
