@@ -1,4 +1,4 @@
-(defproject cljs-node-io "1.1.0-SNAPSHOT"
+(defproject cljs-node-io "1.1.0"
   :description "A ClojureScript IO Library for NodeJS"
   :url "https://github.com/pkpkpk/cljs-node-io"
   :license {:name "Eclipse Public License"
@@ -7,6 +7,8 @@
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.10.339"]
                  [org.clojure/core.async "0.4.474"]]
+
+  :repositories [["clojars" {:sign-releases false}]]
 
   :plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]]
 
