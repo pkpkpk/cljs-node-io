@@ -183,7 +183,7 @@
         out (cp->ch child-process opts)
         opts (assoc opts
                     :start-time (start-time)
-                    :cmd cmd
+                    :cmd modulePath
                     :args args)]
     (cond-> (->ChildProcess child-process out opts)
       encoding (.setEncoding encoding))))
