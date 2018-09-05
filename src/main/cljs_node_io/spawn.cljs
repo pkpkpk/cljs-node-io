@@ -36,7 +36,11 @@
          exit-cb (fn [ev]
                    (swap! exits disj ev)
                    (if (empty? @exits)
-                     (close! proc-ch)))
+                     (do
+                       (close! proc-ch)
+                       (close! stdout-ch)
+                       (close! stderr-ch)
+                       (close! stdin-ch))))
          out (casync/merge [stdin-ch stdout-ch stderr-ch proc-ch])]
      (doto proc
        ; missing signal events, SIGINT etc
@@ -130,8 +134,9 @@
      :stdio (.-stdio proc)
      :pid (.-pid proc)}))
 
-(defn ^String start-time []
-  (.toLocaleString (js/Date.))) ;; localize
+;uptime
+
+(defn ^String start-time [] (.toLocaleString (js/Date.)))
 
 (defn spawn
   "@param {!string} cmd :: command to execute in a shell
