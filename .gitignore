@@ -10,7 +10,6 @@ dev/
 .nrepl-port
 figwheel_server.log
 pom.xml
-*.edn
 .lein-failures
 checkouts/
 pom.xml.asc
