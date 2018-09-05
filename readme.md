@@ -1,5 +1,5 @@
-# `[cljs-node-io "1.1.1"]`
-## `cljs-node-io {:mvn/version "1.1.1"}`
+# `[cljs-node-io "1.1.2"]`
+## `cljs-node-io {:mvn/version "1.1.2"}`
 
 [![Clojars Project](https://img.shields.io/clojars/v/cljs-node-io.svg)](https://clojars.org/cljs-node-io)
 
