@@ -371,7 +371,7 @@
            (>! out res)
            (do
              (loop [children (mapv (partial resolve-path root) names)]
-               (if (some? children)
+               (if (seq children)
                  (let [[err :as res] (<! (acrawl (first children) af))]
                    (if err
                      (>! out res)
