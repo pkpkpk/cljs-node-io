@@ -251,27 +251,37 @@
   "@param {!string} pathstring :: path to get parent of
    @return {!string} the parent directory"
   [pathstring]
+  (assert (string? pathstring))
   (.dirname path pathstring))
 
 (defn basename
   "@return {!string}"
-  ([p] (.basename path p))
-  ([p ext] (.basename path p ext)))
+  ([pathstring]
+   (assert (string? pathstring))
+   (.basename path pathstring))
+  ([pathstring ext]
+   (assert (string? pathstring))
+   (.basename path pathstring ext)))
 
 (defn resolve-path
   "@return {!string}"
-  [& paths] (.apply (.-resolve path) nil (apply array paths )))
+  [& paths]
+  (assert (every? string? paths))
+  (.apply (.-resolve path) nil (apply array paths )))
 
 (defn normalize-path
   "@param {!string} pathstring :: pathstring to normalize
    @return {!string}"
   [pathstring]
+  (assert (string? pathstring))
   (.normalize path pathstring))
 
 (defn ext
   "@param {!string} pathstring :: file to get extension from
    @return {!string}"
-  [pathstring]  (.extname path pathstring))
+  [pathstring]
+  (assert (string? pathstring))
+  (.extname path pathstring))
 
 (defn realpath
   "Synchronous realpath
@@ -319,6 +329,55 @@
   [dirpath]
   (assert (string? dirpath))
   (with-chan (.readdir fs dirpath) vec))
+
+(defn crawl
+  "Depth-first recursive crawl through a directory tree, calling the supplied
+   side-effecting function on every node. This function will throw if your supplied
+   f throws on any node.
+   @param {!string} root :: where to start the crawl. A file simply returns (f root)
+   @param {!function<string>} f :: function called on file nodes
+   returns value of (f top-level-root)"
+  [root f]
+  (assert (string? root))
+  (assert (fn? f))
+  (if (file? root)
+    (f root)
+    (do
+      (doseq [child (mapv (partial resolve-path root) (readdir root))]
+        (crawl child f))
+      (f root))))
+
+(defn acrawl
+  "Asynchronous depth-first recursive crawl through a directory tree, calling the supplied
+   potentially side-effecting function on every node. This function will short
+   and return on an error.
+
+   The user supplied function must return a 'result-chan'...a Readport/channel
+   yielding [?err, ?ok]. There is no easy way to get the compiler to enforce this!
+
+   @param {!string} root :: where to start the crawl. A file simply returns (af root)
+   @param {!function<string>} af :: async function called on file nodes
+   @return {!Channel} a promise channel yielding a short circuited [err] or [nil ok].
+   This depends on the user following the result chan conventions."
+  [root af]
+  (assert (string? root))
+  (assert (fn? af))
+  (let [out (promise-chan)]
+    (go
+     (if (<! (afile? root))
+       (>! out (<! (af root)))
+       (let [[err names :as res] (<! (areaddir root))]
+         (if err
+           (>! out res)
+           (do
+             (loop [children (mapv (partial resolve-path root) names)]
+               (if (some? children)
+                 (let [[err :as res] (<! (acrawl (first children) af))]
+                   (if err
+                     (>! out res)
+                     (recur (next children))))))
+             (>! out (<! (af root))))))))
+    out))
 
 ;; /path utilities + reads
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -530,12 +589,7 @@
   (assert (string? pathstr))
   (assert (false? (boolean (#{ "/" "\\" "\\\\" "//"} pathstr)))
     (str "you just tried to delete root, " (pr-str pathstr) ", be more careful."))
-  (if (dir? pathstr)
-    (do
-      (doseq [p (mapv (partial resolve-path pathstr) (readdir pathstr))]
-        (rm-r p))
-      (rmdir pathstr))
-    (unlink pathstr)))
+  (crawl pathstr rm))
 
 (defn arm-r
   "asynchronous recursive delete. Crawls in order provided by readdir and makes unlink/rmdir calls sequentially
@@ -546,22 +600,7 @@
   (assert (string? pathstr))
   (assert (false? (boolean (#{ "/" "\\" "\\\\" "//"} pathstr)))
     (str "you just tried to delete root, " (pr-str pathstr) ", be more careful."))
-  (let [c (promise-chan)]
-    (go
-     (if (<! (adir? pathstr))
-       (let [[rderr names] (<! (areaddir pathstr))]
-         (if-not rderr
-           (do
-             (loop [children (mapv (partial resolve-path pathstr) names)]
-               (if (some? children)
-                 (let [[arm-r-err] (<! (arm-r (first children)))]
-                   (if (instance? js/Error arm-r-err)
-                     (>! c arm-r-err)
-                     (recur (next children))))))
-             (>! c (<! (armdir pathstr))))
-           (>! c [rderr])))
-       (>! c (<! (aunlink pathstr)))))
-    c))
+  (acrawl pathstr arm))
 
 (defn rename
   "Synchronously rename a file.
