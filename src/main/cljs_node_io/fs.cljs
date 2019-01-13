@@ -335,7 +335,7 @@
    side-effecting function on every node. This function will throw if your supplied
    f throws on any node.
    @param {!string} root :: where to start the crawl. A file simply returns (f root)
-   @param {!function<string>} f :: function called on file nodes
+   @param {!function<string>} f :: function called on both files & directories
    returns value of (f top-level-root)"
   [root f]
   (assert (string? root))
@@ -356,7 +356,7 @@
    yielding [?err, ?ok]. There is no easy way to get the compiler to enforce this!
 
    @param {!string} root :: where to start the crawl. A file simply returns (af root)
-   @param {!function<string>} af :: async function called on file nodes
+   @param {!function<string>} af :: async function called on both files & directories
    @return {!Channel} a promise channel yielding a short circuited [err] or [nil ok].
    This depends on the user following the result chan conventions."
   [root af]
