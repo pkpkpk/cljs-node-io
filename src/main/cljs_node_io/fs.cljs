@@ -8,40 +8,8 @@
 (def path (js/require "path"))
 (def ^{:doc "@type {!string}"} sep (.-sep path))
 
-(defn stat
-  "Synchronous stat
-   @param {!string} pathstring
-   @return {!fs.Stats} file stats object"
-  [pathstring]
-  (.statSync fs pathstring))
-
-(defn astat
-  "Asynchronous stat
-   @param {!string} pathstr
-   @return {!Channel} promise-chan receiving [?err ?fs.Stats]"
-  [pathstr]
-  (assert (string? pathstr))
-  (with-chan (.stat fs pathstr)))
-
-(defn lstat
-  "Synchronous lstat identical to stat(), except that if path is a symbolic link,
-   then the link itself is stat-ed, not the file that it refers to
-   @param {!string} pathstr
-   @return {!fs.Stats} file stats object"
-  [pathstr]
-  (.lstatSync fs pathstr))
-
-(defn alstat
-  "Asynchronous lstat
-   @param {!string} pathstr
-   @return {!Channel} promise-chan receiving [?err ?fs.Stats]"
-  [pathstr]
-  (assert (string? pathstr))
-  (with-chan (.lstat fs pathstr)))
-
-(defn stat->clj
+(defn- stat->clj
   "Convert a fs.Stats object to edn. Function are swapped out for their return values.
-   This is useful at repl but not particularly efficient.
    @param {!fs.Stats} st
    @return {!IMap}"
   [st]
@@ -53,6 +21,45 @@
         (map (fn [[k v]] [(keyword k) (if (fn? v) (.apply v st) v)])))
       (map vector ks vs))))
 
+(defn stat
+  "Synchronous stat
+   @param {!string} pathstring
+   @return {!fs.Stats} file stats object converted to edn"
+  [pathstr]
+  (stat->clj (.statSync fs pathstr)))
+
+(defn astat
+  "Asynchronous stat
+   @param {!string} pathstr
+   @return {!Channel} promise-chan receiving [?err ?edn-stats]"
+  [pathstr]
+  (assert (string? pathstr))
+  (let [out (promise-chan)]
+    (.stat fs pathstr
+       (fn [err stats]
+         (put! out (if err [err] [nil (stat->clj stats)]))))
+    out))
+
+(defn lstat
+  "Synchronous lstat identical to stat(), except that if path is a symbolic link,
+   then the link itself is stat-ed, not the file that it refers to
+   @param {!string} pathstr
+   @return {!fs.Stats} file stats object converted to edn"
+  [pathstr]
+  (stat->clj (.lstatSync fs pathstr)))
+
+(defn alstat
+  "Asynchronous lstat
+   @param {!string} pathstr
+   @return {!Channel} promise-chan receiving [?err ?edn-stats]"
+  [pathstr]
+  (assert (string? pathstr))
+  (let [out (promise-chan)]
+    (.lstat fs pathstr
+       (fn [err stats]
+         (put! out (if err [err] [nil (stat->clj stats)]))))
+    out))
+
 (defn- bita->int
   "@param {!Array<!Number>} bita :: an array of 1s an 0s
    @return {!Number} integer"
@@ -60,10 +67,11 @@
   (js/parseInt (.join bita "") 2))
 
 (defn- stat->perm-bita
-  "@param {!fs.Stats} s :: a fs.Stats object
+  "@param {!(fs.Stat|IMap)} s :: a fs.Stats object (or as edn)
    @return {!Array<Number>}"
   [s]
-  (let [mode (aget s "mode")
+  (let [mode (or (get s :mode)
+                 (goog.object.get s "mode"))
         ownr (bit-and mode 256)
         ownw (bit-and mode 128)
         ownx (bit-and mode 64)
@@ -77,7 +85,7 @@
     (amap a i res (if-not (zero? (aget a i)) 1 0))))
 
 (defn permissions
-  "@param {!fs.Stats} st
+  "@param {!(fs.Stat|IMap)} s :: a fs.Stats object (or as edn)
    @return {!Number}"
   [st] (-> st stat->perm-bita bita->int))
 
@@ -98,12 +106,11 @@
 (defn ^boolean dir?
   "@param {!string} pathstring
    @return {!boolean} iff abstract pathname exists and is a directory"
-  [pathstring]
-  (assert (string? pathstring))
-  (let [stats (try (.statSync fs pathstring) (catch js/Error e false))]
-    (if-not stats
-      false
-      (.isDirectory stats))))
+  [pathstr]
+  (assert (string? pathstr))
+  (try
+    (.isDirectory (.statSync fs pathstr))
+    (catch js/Error _ false)))
 
 (defn adir?
   "Asynchronous directory predicate.
@@ -111,26 +118,24 @@
    @return {!Channel} promise-chan receiving boolean"
   [pathstr]
   (assert (string? pathstr))
-  (let [c (promise-chan)
-        stat-ch (astat pathstr)]
-    (take! stat-ch
-      (fn [[err stats]]
-        (put! c
+  (let [out (promise-chan)]
+    (.stat fs pathstr
+      (fn [err stats]
+        (put! out
           (if-not err
             (.isDirectory stats)
             false))))
-    c))
+    out))
 
 (defn ^boolean file?
   "Synchronous file predicate
    @param {!string} pathstring
    @return {!boolean} iff abstract pathname exists and is a file"
-  [pathstring]
-  (assert (string? pathstring))
-  (let [stats (try (lstat pathstring) (catch js/Error e false))]
-    (if-not stats
-      false
-      (.isFile stats))))
+  [pathstr]
+  (assert (string? pathstr))
+  (try
+    (.isFile (.lstatSync fs pathstr))
+    (catch js/Error _ false)))
 
 (defn afile?
   "Asynchronous file predicate.
@@ -138,12 +143,11 @@
    @return {!Channel} promise-chan receiving boolean"
   [pathstr]
   (assert (string? pathstr))
-  (let [c (promise-chan)
-        stat-ch (alstat pathstr)]
-    (take! stat-ch
-      (fn [[err stats]]
-        (put! c (if-not err (.isFile stats) false))))
-    c))
+  (let [out (promise-chan)]
+    (.lstat fs pathstr
+      (fn [err stats]
+        (put! out (if-not err (.isFile stats) false))))
+    out))
 
 (defn ^boolean absolute?
   "@param {!string} pathstr :: path to test
@@ -731,23 +735,18 @@
   "Prefer watch. Polls files and returns stat objects. Opts:
      :peristent {boolean} (true) :: whether the process should continue as long as files are being watched.
      :interval {number} (5007) :: polling interval in msecs
-     :edn? {boolean} (true) :: converts stats to edn
      :buf-or-n {(impl/Buffer|number)} (10) :: channel buffer
    @return {!Channel} <= [filename [current fs.stat, previous fs.stat]]"
   ([filename] (watchFile filename nil))
   ([filename opts]
    (let [defaults {:interval 5007
                    :persistent true
-                   :edn? true
                    :buf-or-n 10}
          {:keys [edn? buf-or-n] :as opts} (merge defaults opts)
          out (chan buf-or-n (map #(conj [filename] %)))
-         cb (fn [curr prev]
-              (put! out
-                (if edn?
-                  [(stat->clj curr)(stat->clj prev)]
-                  [curr prev])))
-         w (fs.watchFile filename (clj->js opts) cb)]
+         w (fs.watchFile filename (clj->js opts)
+             (fn [curr prev]
+                  (put! out [(stat->clj curr)(stat->clj prev)])))]
      out)))
 
 (defn unwatchFile
