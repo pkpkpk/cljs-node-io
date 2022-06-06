@@ -1,11 +1,19 @@
 (ns cljs-node-io.file-tests
   (:require [cljs.test :refer-macros [deftest is testing run-tests are]]
             [clojure.string :as s :refer [starts-with?]]
-            [cljs-node-io.test.helpers :refer [createTempFile]]
             [cljs-node-io.file :refer [File setReadable* setWritable* setExecutable*]]
-            [cljs-node-io.protocols :refer [Coercions as-file as-url ]]
+            [cljs-node-io.protocols :refer [Coercions as-file as-url]]
             [cljs-node-io.core :refer [spit slurp]]))
 
+(def os (js/require "os"))
+(def path (js/require "path"))
+
+(defn createTempFile
+  ([prefix] (createTempFile prefix nil nil))
+  ([prefix suffix] (createTempFile prefix suffix nil))
+  ([prefix suffix dir]
+   (let [tmpd (or dir (.tmpdir os))]
+     (File. (str tmpd (.-sep path) prefix (or suffix ".tmp"))))))
 
 ; test delete & empty v full directories
 
@@ -15,7 +23,7 @@
       false (.exists f)
       0     (.length f)
       true  (.createNewFile f)
-      true   (zero? (.length f))
+      true  (zero? (.length f))
       true  (.exists f)
       nil   (.list f)
       false (.createNewFile f)

@@ -2,7 +2,6 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop alt!]])
   (:require [cljs.test :refer-macros [deftest is testing async are]]
             [cljs.core.async :as async :refer [put! take! chan <! pipe  alts!]]
-            [cljs-node-io.test.helpers :refer [createTempFile]]
             [cljs-node-io.file :refer [File]]
             [cljs-node-io.streams :refer [BufferReadStream BufferWriteStream]]
             [cljs-node-io.protocols :refer [Coercions as-file as-url ]]
@@ -15,6 +14,16 @@
 (def fs (js/require "fs"))
 (def path (js/require "path"))
 (def stream (js/require "stream"))
+(def os (js/require "os"))
+
+(defn createTempFile
+  ([prefix] (createTempFile prefix nil nil))
+  ([prefix suffix] (createTempFile prefix suffix nil))
+  ([prefix suffix dir]
+   (let [tmpd (or dir (.tmpdir os))
+         path (str tmpd (.-sep path) prefix (or suffix ".tmp"))
+         f    (File. path)]
+     f)))
 
 (deftest test-filepath
   (is (= (filepath "foo") "foo"))
@@ -98,8 +107,6 @@
     (is (= "bar" (as-relative-path (File. "bar")))))
   (testing "absolute File paths are forbidden"
     (is (thrown? js/Error (as-relative-path (File. (.getAbsolutePath (File. "quux"))))))))
-
-(def os (js/require "os"))
 
 (deftest test-make-parents
   (let [tmp (.tmpdir os)]

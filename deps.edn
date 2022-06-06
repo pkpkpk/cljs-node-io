@@ -1,4 +1,6 @@
 {:paths ["src/main"]
  :deps {org.clojure/clojure {:mvn/version "1.11.1"}
         org.clojure/clojurescript {:mvn/version  "1.11.54"}
-        org.clojure/core.async {:mvn/version "1.5.648"}}}
+        org.clojure/core.async {:mvn/version "1.5.648"}}
+ :aliases {:test {:extra-paths ["src/test"]
+                  :main-opts ["-m" "cljs.main" "-t" "node" "-o" "runner.js" "-c" "cljs-node-io.runner"]}}}

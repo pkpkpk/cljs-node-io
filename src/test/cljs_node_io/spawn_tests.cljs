@@ -3,7 +3,7 @@
   (:require [cljs.test :refer [deftest is testing run-tests are use-fixtures async]]
             [cljs.core.async :as casync :refer [<! put! take! chan close!]]
             [cljs-node-io.spawn :refer [fork cp->ch]]
-            [cljs-node-io.test.async-helpers
+            [cljs-node-io.async-test-helpers
              :refer [emit mock-stream readable-test-xf mock-readable-inputs
                      writable-test-xf]]))
 

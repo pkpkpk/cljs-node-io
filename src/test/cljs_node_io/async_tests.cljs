@@ -5,7 +5,7 @@
             [cljs-node-io.async :refer [go-proc mux admux unmux unmux-all
                                         event-onto-ch readable-onto-ch writable-onto-ch
                                         sock->ch server->ch]]
-            [cljs-node-io.test.async-helpers
+            [cljs-node-io.async-test-helpers
              :refer [emit mock-stream readable-test-xf mock-readable-inputs
                      writable-test-xf]]))
 
