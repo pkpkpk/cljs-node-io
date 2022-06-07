@@ -1,11 +1,9 @@
 (ns cljs-node-io.file "a port of java.io.File's reified files to node"
-  (:import goog.Uri)
   (:require-macros [cljs-node-io.macros :refer [try-true]])
-  (:require [cljs-node-io.streams :refer [FileInputStream FileOutputStream]]
-            [cljs-node-io.fs :as iofs]
-            [cljs-node-io.protocols
-              :refer [Coercions as-url as-file IFile
-                      IOFactory make-reader make-writer make-input-stream make-output-stream]]))
+  (:require [cljs-node-io.fs :as iofs])
+  (:import goog.Uri))
+
+(def fs (js/require "fs"))
 
 (defn setReadable*
   "@param {!number} mode : the file's existing mode
@@ -86,19 +84,10 @@
 
 (deftype File
   [^:mutable pathstring]
-  IFile
   IEquiv
   (-equiv [this that]
     (let [pathntype (juxt #(.-getPath %) type)]
       (= (pathntype this) (pathntype that))))
-  Coercions
-  (as-file [f] f)
-  (as-url [f] (.to-url f))
-  IOFactory
-  (make-reader [this opts] (make-reader (make-input-stream  this opts) opts))
-  (make-writer [this opts] (make-writer (make-output-stream this opts) opts))
-  (make-input-stream [this opts] (FileInputStream this opts))
-  (make-output-stream [this opts] (FileOutputStream this  opts))
   IPrintWithWriter
   (-pr-writer [this writer opts] ;#object[java.io.File 0x751b0a12 "foo\\bar.txt"]
     (-write writer "#object [cljs-node-io.File")
@@ -144,14 +133,14 @@
   (lastModified ^int [_]
     (let [stats (try (iofs/stat pathstring) (catch js/Error e false))]
       (if stats
-        (.valueOf (.-mtime stats))
+        (.valueOf (:mtime stats))
         0)))
   (length ^int [_]
     (let [stats (try (iofs/stat pathstring) (catch js/Error e false))]
       (if stats
-        (if (.isDirectory stats)
+        (if (:isDirectory stats)
           nil
-          (.-size stats))
+          (:size stats))
         0)))
   (list [_] ; ^ Vector|nil
     (if-not (iofs/dir? pathstring)
@@ -178,7 +167,6 @@
       (iofs/rename pathstring dest)
       (iofs/unlink pathstring)
       (set! pathstring dest)))
-  (stats [_] (iofs/stat->clj (iofs/stat pathstring)))
+  (stats [_] (iofs/stat pathstring))
   (toString [_]  pathstring)
   (toURI [f] (Uri. (str "file:" pathstring))))
-

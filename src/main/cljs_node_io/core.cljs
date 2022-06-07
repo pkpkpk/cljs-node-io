@@ -1,20 +1,33 @@
 (ns cljs-node-io.core
   (:require [cljs.core.async :as async :refer [put! take! chan <! pipe alts!]]
             [cljs.core.async.impl.protocols :refer [Channel]]
-            [cljs-node-io.file :refer [File]]
-            [cljs-node-io.streams :refer [FileInputStream FileOutputStream BufferReadStream]]
-            [cljs-node-io.protocols
-              :refer [Coercions as-url as-file IInputStream IOutputStream IFile
-                      IOFactory make-reader make-writer make-input-stream make-output-stream]])
+            [cljs-node-io.file :refer [File]])
   (:import goog.Uri))
 
+(def fs (js/require "fs"))
 (def path (js/require "path"))
+(def stream (js/require "stream"))
+
+(defn ^boolean Buffer?
+  "sugar over Buffer.isBuffer
+   @param {*} b
+   @return {!boolean}"
+  [b]
+  (js/Buffer.isBuffer b))
+
+(def buffer? Buffer?)
 
 (extend-protocol IEquiv
   js/Buffer
-  (-equiv [this that] (try (.equals this that) (catch js/Error e false))))
+  (-equiv [this o]
+    (if (identical? this o)
+      true
+      (try
+        (.equals this o)
+        (catch js/Error _
+          false)))))
 
-(defn- filepath
+(defn filepath
   "This is needed to mock the java.io.File constructor.
    The java File constructor is polymorphic and accepts one or two args:
    (Uri), (pathstring), (parentstring, childstring), (File, childstring)
@@ -29,9 +42,16 @@
      :else
      (throw
        (js/TypeError.
-         (str "Unrecognized path configuration passed to File constructor."
-              "\nYou passed " (pr-str a) " and " (pr-str b)
-              "\nYou must pass a [string], [uri], [string string], or [file string]."))))))
+        (str "Unrecognized path configuration passed to File constructor."
+             "\nYou passed " (pr-str a) " and " (pr-str b)
+             "\nYou must pass a [string], [uri], [string string], or [file string]."))))))
+
+;;==============================================================================
+
+(defprotocol Coercions
+  "Coerce between various 'resource-namish' things."
+  (as-file [x] "Coerce argument to a file.")
+  (as-url [x] "Coerce argument to a URL."))
 
 (extend-protocol Coercions
   nil
@@ -40,45 +60,110 @@
   string
   (as-file [s] (File. (filepath s)))
   (as-url [s] (.getPath (Uri. s)))
+  File
+  (as-file [f] f)
+  (as-url [f] (.to-url f))
   Uri
   (as-url [u] (.getPath u))
   (as-file [u]
-    (if (= "file" (.getScheme u)) ;"file://home/.../cljs-node-io/foo.edn"
+    (if (= "file" (.getScheme u))
       (as-file (.getPath u))
       (throw (js/Error. (str "IllegalArgumentException : Uri's must have file protocol: " u))))))
 
+;;==============================================================================
+
+(defprotocol IOFactory
+  "Factory functions that create various node I/O stream types, on top of anything that can
+   be unequivocally converted to the requested kind of stream.
+   Common options include
+     :encoding  string name of encoding to use, e.g. \"UTF-8\".
+   Callers should generally prefer the higher level API provided by
+   reader, writer, input-stream, and output-stream."
+  (make-reader [x opts] "Defers back to the InputStream")
+  (make-writer [x opts] "Defers back to the OutputStream")
+  (make-input-stream [x opts] "Creates a buffered InputStream. See also IOFactory docs.")
+  (make-output-stream [x opts] "Creates a buffered OutputStream. See also IOFactory docs."))
+
+(defn- default-make-input-stream
+  [x opts]
+  (throw (js/Error. (str "Cannot open <" (pr-str x) "> as an InputStream."))))
+
+(defn- default-make-output-stream
+  [x opts]
+  (throw (js/Error. (str "Cannot open <" (pr-str x) "> as an OutputStream."))))
+
 (extend-protocol IOFactory
-  Uri
+  nil
+  (make-reader [x opts] (default-make-input-stream x opts))
+  (make-writer [x opts] (default-make-output-stream x opts))
+  (make-input-stream [x opts] (default-make-input-stream x opts))
+  (make-output-stream [x opts] (default-make-output-stream x opts))
+  stream.Readable
+  (make-reader [x opts] x)
+  (make-writer [x opts] (make-output-stream x opts))
+  (make-input-stream [x opts] x)
+  (make-output-stream [x opts] (default-make-output-stream x opts))
+  stream.Writable
+  (make-reader [x opts] (make-input-stream x opts))
+  (make-writer [x opts] x)
+  (make-input-stream [x opts] (default-make-input-stream x opts))
+  (make-output-stream [x opts] x)
+  stream.Duplex
+  (make-reader [x opts] x)
+  (make-writer [x opts] x)
+  (make-input-stream [x opts] x)
+  (make-output-stream [x opts] x)
+  string
+  (make-reader [x opts] (make-input-stream x opts))
+  (make-writer [x opts] (make-output-stream x opts))
+  (make-input-stream [x opts] (fs.createReadStream x (clj->js opts)))
+  (make-output-stream [x opts] (fs.createWriteStream x (clj->js opts)))
+  File
+  (make-reader [x opts] (make-input-stream x opts))
+  (make-writer [x opts] (make-output-stream x opts))
+  (make-input-stream [x opts] (fs.createReadStream (.getPath x) (clj->js opts)))
+  (make-output-stream [x opts] (fs.createWriteStream (.getPath x) (clj->js opts)))
+  js/Buffer
+  (make-reader [x opts] (make-input-stream x opts))
+  (make-writer [x opts] (make-output-stream x opts))
+  (make-input-stream [x opts]
+    (let [rs (stream.Readable. (clj->js opts))]
+      (set! (.-_read rs) (fn []))
+      (.push rs x)
+      (.push rs nil)
+      rs))
+  (make-output-stream [x opts] (default-make-output-stream x opts))
+  Uri ; only file at this time
   (make-reader [x opts] (make-reader (make-input-stream x opts) opts))
   (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
   (make-input-stream [x opts]
-   (if (= "file" (.getScheme x)) ;<---not implemented for other protocols ie HTTP, should be separate lib
-     (FileInputStream (as-file x) opts)
-     (throw (js/Error. (str "IllegalArgumentException: Can not read from non-file URL <" x ">")))))
+   (if (= "file" (.getScheme x))
+     (make-input-stream (.getPath x) x)
+     (default-make-input-stream x opts)))
   (make-output-stream [x opts]
     (if (= "file" (.getScheme x))
-      (make-output-stream (as-file x) opts)
-      (throw (js/Error. (str "IllegalArgumentException: Can not write to non-file URL <" x ">")))))
+      (make-output-stream (.getPath x) x)
+      (default-make-output-stream x opts))))
 
-  string
-  (make-reader [x opts] (make-reader (as-file x) opts))
-  (make-writer [x opts] (make-writer (as-file x) opts))
-  (make-input-stream [^String x opts]
-    (try
-      (make-input-stream (Uri. x) opts)
-      (catch js/Error e (make-input-stream (File. x) opts))))
-  (make-output-stream [^String x opts]
-    (try
-      (make-output-stream (Uri. x) opts)
-      (catch js/Error err (make-output-stream (File. x) opts))))
-  js/Buffer
-  (make-reader [b opts] (make-reader (make-input-stream b opts) opts))
-  (make-input-stream [b opts] (BufferReadStream b opts))
-  (make-writer [x opts] (make-writer (make-output-stream x opts) opts))
-  (make-output-stream [x opts]
-    (throw
-      (js/Error.  ;use Buffer.concat if you want to do this
-        (str "IllegalArgumentException : Cannot open <" (pr-str x) "> as an OutputStream.")))))
+(defn readable
+  "Tries to create a stream.Readable from obj. Supports iterables & array-likes
+   in addition to those types supported by IOFactory"
+  ([obj] (readable {}))
+  ([obj opts]
+   (cond
+     (goog.isArrayLike obj)
+     (make-input-stream (js/Buffer.from obj) opts)
+
+     (js-iterable? obj)
+     (stream.Readable.from obj (clj->js opts))
+
+     true
+     (make-input-stream obj opts))))
+
+(defn writable
+  ([obj] (writable {}))
+  ([obj opts]
+   (make-output-stream obj opts)))
 
 (defn as-relative-path
   "a relative path, else IllegalArgumentException.
@@ -145,19 +230,6 @@
   [x & opts]
   (make-output-stream x (when opts (apply hash-map opts))))
 
-(defn ^boolean Buffer?
-  "sugar over Buffer.isBuffer
-   @param {*} b
-   @return {!boolean}"
-  [b]
-  (js/Buffer.isBuffer b))
-
-(defn ^boolean Error?
-  "@param {*} e
-   @return {!boolean}"
-  [e]
-  (instance? js/Error e))
-
 (defn slurp
   "Returns a string synchronously. Unlike JVM, does not use FileInputStream.
    Only option at this time is :encoding
@@ -213,37 +285,29 @@
   "@param {*} obj object to test
    @return {!boolean} is object an input-stream?"
   [obj]
-  (implements? IInputStream obj))
+  (instance? stream.Readable obj))
 
 (defn ^boolean output-stream?
   "@param {*} obj object to test
    @return {!boolean} is object an input-stream?"
   [obj]
-  (implements? IOutputStream obj))
+  (instance? stream.Readable obj))
 
-(defn stream-type
-  "@param {*} obj The object to test"
-  ; @return {?Keyword}
-  [obj]
-  (if ^boolean (input-stream? obj)
+(defn- dispatch-key [obj]
+  (cond
+    (input-stream? obj)
     :InputStream
-    (if ^boolean (output-stream? obj)
-      :OutputStream)))
+    (output-stream? obj)
+    :OutputStream
+    (buffer? obj)
+    :Buffer
+    (instance? File obj)
+    :File
+    true
+    (type obj)))
 
-(defn rFile?
-  "@param {*} o
-   @return {!boolean}"
-  [o]
-  (implements? IFile o))
-
-(defmulti
-  ^{:doc "Internal helper for copy"
-    :private true
-    :arglists '([input output opts])}
-  do-copy
-  (fn [input output opts]
-    [(or (stream-type input)  (if (rFile?  input) :File) (type input))
-     (or (stream-type output) (if (rFile? output) :File) (type output))]))
+(defmulti do-copy
+  (fn [input output opts] [(dispatch-key input) (dispatch-key output)]))
 
 (defmethod do-copy [:InputStream :OutputStream] [input output _]
   (let [c (async/promise-chan)]
@@ -252,23 +316,28 @@
     c))
 
 (defmethod do-copy [:File :File] [input output opts]
-  (let [in  (FileInputStream input {:encoding ""})
-        out (FileOutputStream output (merge {:encoding ""} opts))]
+  (let [in  (make-input-stream input {:encoding ""})
+        out (make-output-stream output (merge {:encoding ""} opts))]
+    (do-copy in out opts)))
+
+(defmethod do-copy :default [input output opts]
+  (let [in  (make-input-stream input opts)
+        out (make-output-stream output opts)]
     (do-copy in out opts)))
 
 (defmethod do-copy [:File :OutputStream] [input output opts]
-  (let [in (FileInputStream input {:encoding ""})] ;;bin by default
+  (let [in (make-input-stream input {:encoding ""})] ;;bin by default
     (do-copy in output opts)))
 
 (defmethod do-copy [:InputStream :File] [input output opts]
-  (let [out (FileOutputStream output (merge {:encoding ""} opts))]
+  (let [out (make-output-stream output (merge {:encoding ""} opts))]
     (do-copy input out opts)))
 
-(defmethod do-copy [js/Buffer :OutputStream] [input output opts]
-  (do-copy (BufferReadStream input opts) output nil))
+(defmethod do-copy [:Buffer :OutputStream] [input output opts]
+  (do-copy (make-input-stream input opts) output nil))
 
-(defmethod do-copy [js/Buffer :File] [input output opts]
-  (do-copy (BufferReadStream input opts) output opts))
+(defmethod do-copy [:Buffer :File] [input output opts]
+  (do-copy (make-input-stream input opts) output opts))
 
 (defn copy
   "A repl/script convenience. Copies input to output.
