@@ -12,7 +12,7 @@
    See doc for cljs-node-io.proc/child for opts.
    If key is provided, msgs below are prefixed as [key msg]
      [:error [js/Error]]
-     [:disconnect nil]
+     [:disconnect]
      [:message [#js{} ?handle]]
      [:exit [?code ?signal]]
      [:close [?code ?signal]]
@@ -59,7 +59,7 @@
                           (let [d [:message [msg sendHandle]]]
                             (put! proc-ch (if-not key d (conj [key] d) )))))
          (.on "disconnect" (fn []
-                             (let [d [:disconnect nil]]
+                             (let [d [:disconnect]]
                                (put! proc-ch (if-not key d (conj [key] d))))))))
      out)))
 

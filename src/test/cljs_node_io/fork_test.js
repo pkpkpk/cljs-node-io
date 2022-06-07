@@ -3,7 +3,7 @@ process.stdin.on("data",
   (chunk) => {
     var msg = chunk.toString("utf8");
     if (msg == "exit"){ // for after calling process.disconnect()
-      process.exit();
+      process.exit(42);
     } else {
       process.stdout.write(msg);
     }
@@ -33,7 +33,7 @@ process.on("message",
 process.on("uncaughtException",
   (err) => {
     process.send(["uncaughtException", {stack: err.stack, msg: err.message}]);
-    process.exit();
+    process.exit(1);
   });
 
 //fail safe

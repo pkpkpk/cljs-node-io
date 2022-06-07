@@ -1,80 +1,62 @@
 (ns cljs-node-io.spawn-tests
-  (:require-macros [cljs.core.async.macros :refer [go go-loop]])
-  (:require [cljs.test :refer [deftest is testing run-tests are use-fixtures async]]
-            [cljs.core.async :as casync :refer [<! put! take! chan close!]]
-            [cljs-node-io.spawn :refer [fork cp->ch]]
-            [cljs-node-io.async-test-helpers
-             :refer [emit mock-stream readable-test-xf mock-readable-inputs
-                     writable-test-xf]]))
+  (:require [cljs.test :refer [deftest is testing use-fixtures async]]
+            [cljs.core.async :as casync :refer [go <! put! take! chan]]
+            [cljs-node-io.spawn :refer [fork cp->ch]]))
 
 (def EventEmitter (.-EventEmitter (js/require "events")))
 
-(defn mock-proc []
-  (let [o (EventEmitter.)
-        stderr (mock-stream readable-test-xf)
-        stdout (mock-stream readable-test-xf)
-        stdin  (mock-stream writable-test-xf)
-        write (fn [[k val]]
-                (case k
-                  :stderr (.write stderr val)
-                  :stdout (.write stdout val)
-                  :stdin (.write stdin val)
-                  (emit o k val)))]
-    (set! o.stdout stdout)
-    (set! o.stderr stderr)
-    (set! o.stdin stdin)
-    (set! o.send true)
-    (set! o.write write)
-    o))
-
-(def mock-stdio-inputs
-  (concat
-   (mapv #(conj [:stderr] %) mock-readable-inputs)
-   (mapv #(conj [:stdout] %) mock-readable-inputs)))
-
-(def proc-exits
-  #{[:exit [:code :signal]]
-    [:close [:code :signal]]
-    [:stdin  [:close [false]]] [:stdin  [:finish nil]]
-    [:stdout [:close [false]]] [:stdout [:end nil]]
-    [:stderr [:close [false]]] [:stderr [:end nil]]})
-
 (deftest cp->ch-test
+  "This tests the spawn/cp->ch function's ability to attach listeners to
+   ChildProcess events and forward them appropriately"
   (async done
     (go
-      (testing "cp->-ch"
-        (let [p (mock-proc)
-              out (cp->ch p)
-              e [:error [(js/Error. "some error")]]]
-          (testing "stdout, stderr :: 'error' & 'data'"
-            (doseq [msg mock-stdio-inputs]
-              (.write p msg)
-              (is (= msg (<! out)))))
-          (testing "proc, stdin :: 'error'"
-            (.write p e)
-            (is (= e (<! out)))
-            (let [msg (conj [:stdin] e)]
-              (.write p msg)
-              (is (= msg (<! out)))))
-          (testing "proc :: 'disconnect', 'message' "
-            (doseq [msg [[:disconnect nil] [:message [:msg nil]]]]
-              (.write p msg)
-              (is (= msg (<! out)))))
-          (testing "proc close semantics"
-            (.write p [:stdout [:close [false]]]) ;kill stdout
-            (.write p [:stderr [:close [false]]]) ;kill stderr
-            (.write p [:exit [:code :signal]]) ;proc exit a
-            (.write p [:close [:code :signal]]) ;proc exit b
-            (.write p [:stdin [:close [false]]]) ; kill stdin
-            (let [exit-set (atom proc-exits)]
-              (dotimes [_ (count @exit-set)]
-                (let [exit (<! out)
-                      m? (if (@exit-set exit) (swap! exit-set disj exit))]
-                  (is (some? m?))))
-              (is (empty? @exit-set))
-              (is (nil? (<! out)))))))
+     (let [p (let [p (EventEmitter.)]
+               (set! (.-stdin p) (EventEmitter.))
+               (set! (.-stdout p) (EventEmitter.))
+               (set! (.-stderr p) (EventEmitter.))
+               (set! (.-send p) true)
+               p)
+           out (cp->ch p)]
+       (testing "stdio"
+         (testing "stdout :: 'data' 'error' 'end' 'close'"
+           (.emit (.-stdout p) "data" "some-data")
+           (is (= [:stdout [:data ["some-data"]]] (<! out)))
+           (.emit (.-stdout p) "error" ::an-error)
+           (is (= [:stdout [:error [::an-error]]] (<! out)))
+           (.emit (.-stdout p) "end")
+           (is (= [:stdout [:end nil]] (<! out)))
+           (.emit (.-stdout p) "close")
+           (is (= [:stdout [:close nil]] (<! out))))
+         (testing "stderr :: 'data' 'error' 'end' 'close'"
+           (.emit (.-stderr p) "data" "some-data")
+           (is (= [:stderr [:data ["some-data"]]] (<! out)))
+           (.emit (.-stderr p) "error" ::an-error)
+           (is (= [:stderr [:error [::an-error]]] (<! out)))
+           (.emit (.-stderr p) "end")
+           (is (= [:stderr [:end nil]] (<! out)))
+           (.emit (.-stderr p) "close")
+           (is (= [:stderr [:close nil]] (<! out))))
+         (testing "stdin :: 'error' 'finish' 'close'"
+           (.emit (.-stdin p) "error" ::an-error)
+           (is (= [:stdin [:error [::an-error]]] (<! out)))
+           (.emit (.-stdin p) "finish")
+           (is (= [:stdin [:finish nil]] (<! out)))
+           (.emit (.-stdin p) "close")
+           (is (= [:stdin [:close nil]] (<! out)))))
+       (testing "process :: 'error', 'message', 'disconnect', 'close', 'exit'"
+         (.emit p "error" ::an-error)
+         (is (= [:error [::an-error]] (<! out)))
+         (.emit p "message" "this is a msg!")
+         (is (= [:message ["this is a msg!" nil]] (<! out)))
+         (.emit p "disconnect")
+         (is (= [:disconnect] (<! out)))
+         (.emit p "close" :code :signal)
+         (is (= [:close [:code :signal]] (<! out)))
+         (.emit p "exit" :code :signal)
+         (is (= [:exit [:code :signal]] (<! out)))
+         (testing "exit conditions have been met, chan shuts down"
+           (nil? (<! out)))))
       (done))))
-
 
 (defn intercept-send
   "serverside ChildProcess events & stream errors cannot be induced by client
@@ -99,7 +81,8 @@
 
 (defonce PS (atom nil))
 
-(deftest fork-CP-test ;uncaughtError in child is not tested
+;; TODO uncaughtError in child is not tested
+(deftest fork-CP-test
   (async done
    (go
     (let [p "src/test/cljs_node_io/fork_test.js"
@@ -119,7 +102,7 @@
           (let [msg [:message ["hello world!" nil]]]
             (is (= [nil] (<! (send msg))))
             (is (= msg (js->clj (<! CP)))))
-          (let [msg [:disconnect nil]]
+          (let [msg [:disconnect]]
             (is (:connected CP))
             (is (= [nil] (<! (send msg))))
             (is (= msg (js->clj (<! CP))))
@@ -127,19 +110,19 @@
       (testing "proc shutdown"
         (is (.write (.-stdin ps) "exit"))
         (.end (.-stdin ps))
-        (let [end-set (atom #{[:stdin [:close [false]]]
-                              [:stdout [:close [false]]]
-                              [:stderr [:close [false]]]
-                              [:stdin [:finish nil]]
-                              [:stderr [:end nil]]
-                              [:stdout [:end nil]]
-                              [:exit [0 nil]]
-                              [:close [0 nil]]})]
-          (dotimes [_ (count @end-set)] ;nondet ordering
-            (let [end (<! CP)
-                  t (if (@end-set end)(do (swap! end-set disj end) true))]
-              (is t)))
-          (is (= @end-set #{}))
+        (let [expected-end-events #{[:stdin [:finish nil]]
+                                    [:stdin [:close [false]]]
+
+                                    [:stdout [:close [false]]]
+                                    [:stdout [:end nil]]
+
+                                    [:stderr [:close [false]]]
+                                    [:stderr [:end nil]]
+
+                                    [:exit [42 nil]]
+                                    [:close [42 nil]]}
+              output (<! (cljs.core.async/into [] CP))]
+          (is (= (set output) expected-end-events))
           (is (nil? (<! CP)))
           (done)))))))
 
