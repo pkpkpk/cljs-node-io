@@ -2,6 +2,7 @@
   (:require [cljs.test :refer-macros [deftest is testing run-tests are]]
             [clojure.string :as s :refer [starts-with?]]
             [cljs-node-io.file :refer [File setReadable* setWritable* setExecutable*]]
+            [cljs-node-io.fs :as fs]
             [cljs-node-io.core :refer [spit slurp]]))
 
 (def os (js/require "os"))
@@ -115,3 +116,17 @@
     73 (setExecutable* 9 true false)
      9 (setExecutable* 9 false true)
      0 (setExecutable* 9 false false)))
+
+(deftest rename-test
+  (let [foo (createTempFile "foo")
+        _(spit foo "buen dia")
+        orig-path (.getPath foo)
+        bar (createTempFile "bar")]
+    (is (true? (fs/fexists? orig-path)))
+    (is (= "buen dia" (slurp foo)))
+    (is (not= (.getPath foo) (.getPath bar)))
+    (is (true? (.renameTo foo bar)))
+    (is (thrown? js/Error (slurp orig-path)))
+    (is (= (.getPath foo) (.getPath bar)))
+    (is (false? (fs/fexists? orig-path)))
+    (is (= "buen dia" (slurp bar)))))

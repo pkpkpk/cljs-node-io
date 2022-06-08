@@ -4,6 +4,8 @@
   (:import goog.Uri))
 
 (def fs (js/require "fs"))
+(def os (js/require "os"))
+(def path (js/require "path"))
 
 (defn setReadable*
   "@param {!number} mode : the file's existing mode
@@ -162,11 +164,14 @@
           dirs (get-non-dirs p)]
       (try-true (doseq [d dirs] (iofs/mkdir d)))))
   (renameTo ^boolean [this dest]
-    (assert (string? dest) "destination must be a string")
-    (try-true
-      (iofs/rename pathstring dest)
-      (iofs/unlink pathstring)
-      (set! pathstring dest)))
+    (if-not (.exists this)
+      false
+      (let [dest (if (instance? File dest)
+                   (.getPath dest)
+                   dest)]
+        (try-true
+          (iofs/rename pathstring dest)
+          (set! pathstring dest)))))
   (stats [_] (iofs/stat pathstring))
   (toString [_]  pathstring)
   (toURI [f] (Uri. (str "file:" pathstring))))
