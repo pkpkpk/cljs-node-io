@@ -21,33 +21,6 @@
    (let [tmpd (or dir (.tmpdir os))]
      (File. (str tmpd (.-sep path) prefix (or suffix ".tmp"))))))
 
-(defn BufferWriteStream
-  "Creates WritableStream to a buffer. The buffer is formed from concatenated
-   chunks passed to write method. cb is called with the buffer on the 'finish' event.
-   'finish' must be triggered to recieve buffer
-   @return {!stream.Writable}"
-  ([cb] (BufferWriteStream cb nil))
-  ([cb opts]
-   (let [data  #js[]
-         buf   (atom nil)
-         write (fn [chunk _ callback]
-                 (.push data chunk)
-                 (callback))
-         strm  (new stream.Writable (clj->js (merge opts {:write write})))
-         _     (set! (.-buf strm) data)
-         _     (.on strm "finish"
-                    (fn []
-                      (let [b (js/Buffer.concat data)]
-                        (reset! buf b)
-                        (cb b))))]
-     (specify! strm
-               Object
-               ; (destroy [this] )
-               (toString [_] (if @buf (.toString @buf)))
-               (toBuffer [_] @buf)))))
-
-;;==============================================================================
-
 (defn readable? [o]
   (instance? stream.Readable o))
 
@@ -102,8 +75,12 @@
       (is (thrown? js/Error (io/input-stream s)))
       (is (writable? (io/output-stream s)))
       (.close s)))
-  ;;buffer, typed arrays
-  )
+  (testing "buffers"
+    (let [b (js/Buffer.from #js[0 1 2 3])]
+      (is (readable? (io/reader b)))
+      (is (thrown? js/Error (io/writer b)))
+      (is (readable? (io/input-stream b)))
+      (is (thrown? js/Error (io/output-stream b))))))
 
 ;;==============================================================================
 
@@ -201,41 +178,13 @@
     (delete-file (file tmp "test-make-parents" "child"))
     (delete-file (file tmp "test-make-parents"))))
 
-(defn bytes-should-equal [buffer-1 buffer-2]
-  (is (and (Buffer? buffer-1) (Buffer? buffer-2)))
-  (is (= (into []  (array-seq buffer-1)) (into [] (array-seq buffer-2)))))
-
-;;==============================================================================
-
-; (defn data-fixture
-;   "in memory fixture data for tests"
-;   [src-enc]
-;   (let [s  (apply str (concat "a" (repeat 10 "\u226a\ud83d\ude03")))
-;         i  (js/Buffer. s src-enc)
-;         ch (chan)
-;         o  (BufferWriteStream (fn [b] (put! ch b)) )]
-;     {:s s :input-buffer i :o o :ch ch}))
-
-; buffers convert strings to different encodings via the toString method
-; for new Buffer(str, enc), enc identifies the str params encoding, ex:
-;   buf = new Buffer('7468697320697320612074c3a97374', 'hex')
-;   buf.toString("utf8") ;=> this is a tést
-
-; (deftest test-copy-encodings
-;   (async done
-;    (go
-;     (doseq [enc [ "utf8" "utf-8" "utf16le" "utf-16le" "ucs2" "ucs-2"]]
-;       (testing (str "from inputstream " enc " to output UTF-8")
-;         (let [{:keys [s input-buffer o ch]} (data-fixture enc)]
-;           (is (nil? (<! (copy input-buffer o :encoding "utf8"))))
-;           (let [expected (js/Buffer. (.toString input-buffer))
-;                 output-buffer (<! ch)]
-;             (bytes-should-equal expected output-buffer))))
-;       (testing (str "from inputstream UTF-8 to output-stream  " enc)
-;         (let [{:keys [o s ch input-buffer]} (data-fixture "utf8")]
-;           (println "copying " input-buffer " to " o)
-;           (is (nil? (<! (copy input-buffer o :encoding enc))))
-;           (let [expected (js/Buffer. (.toString (js/Buffer. s) enc))
-;                 output-buffer (<! ch)]
-;             (bytes-should-equal expected output-buffer )))))
-;     (done))))
+(deftest acopy-buffer-test
+  (async done
+    (go
+     (testing "coerce buffer to readable for piping to file "
+       (let [output-path "copydst"
+             output-file (createTempFile output-path)
+             input (js/Buffer.from (into-array (range 0 255)))]
+         (is (= [nil] (<! (io/acopy input output-file))))
+         (is (= input (slurp output-file :encoding "")))))
+     (done))))

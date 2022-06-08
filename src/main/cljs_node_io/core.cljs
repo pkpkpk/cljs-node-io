@@ -1,7 +1,8 @@
 (ns cljs-node-io.core
-  (:require [cljs.core.async :as async :refer [put! take! chan <! pipe alts!]]
+  (:require [cljs.core.async :as async :refer [put! take! promise-chan close!]]
             [cljs.core.async.impl.protocols :refer [Channel]]
-            [cljs-node-io.file :refer [File]])
+            [cljs-node-io.file :refer [File]]
+            [cljs-node-io.fs :as iofs])
   (:import goog.Uri))
 
 (def fs (js/require "fs"))
@@ -17,8 +18,8 @@
 
 (def buffer? Buffer?)
 
-(extend-protocol IEquiv
-  js/Buffer
+(extend-type js/Buffer
+  IEquiv
   (-equiv [this o]
     (if (identical? this o)
       true
@@ -49,7 +50,6 @@
 ;;==============================================================================
 
 (defprotocol Coercions
-  "Coerce between various 'resource-namish' things."
   (as-file [x] "Coerce argument to a file.")
   (as-url [x] "Coerce argument to a URL."))
 
@@ -147,12 +147,14 @@
 
 (defn readable
   "Tries to create a stream.Readable from obj. Supports iterables & array-likes
-   in addition to those types supported by IOFactory"
+   in addition to those types supported by IOFactory
+   @param {*} obj
+   @return {!stream.Readable}"
   ([obj] (readable {}))
   ([obj opts]
    (cond
      (goog.isArrayLike obj)
-     (make-input-stream (js/Buffer.from obj) opts)
+     (make-input-stream ^js/Buffer (js/Buffer.from obj) opts)
 
      (js-iterable? obj)
      (stream.Readable.from obj (clj->js opts))
@@ -161,6 +163,9 @@
      (make-input-stream obj opts))))
 
 (defn writable
+  "Tries to create a stream.Writable from obj
+   @param {*} obj
+   @return {!stream.Writable}"
   ([obj] (writable {}))
   ([obj opts]
    (make-output-stream obj opts)))
@@ -281,80 +286,32 @@
   (when-let [parent (.getParentFile (apply file f more))]
     (.mkdirs parent)))
 
-(defn ^boolean input-stream?
-  "@param {*} obj object to test
-   @return {!boolean} is object an input-stream?"
-  [obj]
-  (instance? stream.Readable obj))
-
-(defn ^boolean output-stream?
-  "@param {*} obj object to test
-   @return {!boolean} is object an input-stream?"
-  [obj]
-  (instance? stream.Readable obj))
-
-(defn- dispatch-key [obj]
-  (cond
-    (input-stream? obj)
-    :InputStream
-    (output-stream? obj)
-    :OutputStream
-    (buffer? obj)
-    :Buffer
-    (instance? File obj)
-    :File
-    true
-    (type obj)))
-
-(defmulti do-copy
-  (fn [input output opts] [(dispatch-key input) (dispatch-key output)]))
-
-(defmethod do-copy [:InputStream :OutputStream] [input output _]
-  (let [c (async/promise-chan)]
-    (.on output "finish" #(async/close! c))
-    (.pipe input output)
-    c))
-
-(defmethod do-copy [:File :File] [input output opts]
-  (let [in  (make-input-stream input {:encoding ""})
-        out (make-output-stream output (merge {:encoding ""} opts))]
-    (do-copy in out opts)))
-
-(defmethod do-copy :default [input output opts]
-  (let [in  (make-input-stream input opts)
-        out (make-output-stream output opts)]
-    (do-copy in out opts)))
-
-(defmethod do-copy [:File :OutputStream] [input output opts]
-  (let [in (make-input-stream input {:encoding ""})] ;;bin by default
-    (do-copy in output opts)))
-
-(defmethod do-copy [:InputStream :File] [input output opts]
-  (let [out (make-output-stream output (merge {:encoding ""} opts))]
-    (do-copy input out opts)))
-
-(defmethod do-copy [:Buffer :OutputStream] [input output opts]
-  (do-copy (make-input-stream input opts) output nil))
-
-(defmethod do-copy [:Buffer :File] [input output opts]
-  (do-copy (make-input-stream input opts) output opts))
-
 (defn copy
-  "A repl/script convenience. Copies input to output.
-   Input may be an InputStream, cljs-node-io.File, Buffer, or string(file path).
-   Output may be an String(file), OutputStream or cljs-node-io.File.
-    + Unlike JVM, strings are coerced to files.
-      - If you have a big string, use a buffer.
-      - By default no encoding ops occur
-    + Options are passed to the output stream.
-      - :encoding = destination encoding to use
-        ex: (copy 'foo.txt' 'bar.txt' :encoding 'utf8')
-    + Returns a chan thats closes when output finishes writing
-      - use to asynchronously chain a series of calls.
-      - Will still throw! For more sophisticated error handling,
-        use the underlying streams manually
-   @return {!Channel}"
+  "Synchronously copies input to output..
+   Only supports files and strings/buffers as filepaths
+   @param {(string, File, Buffer)} input
+   @param {(string, File, Buffer)} output
+   @return {nil} throws on error"
   [input output & opts]
-  (let [input  (if (string? input) (as-file input) input)
-        output (if (string? output) (as-file output) output)]
-    (do-copy input output (when opts (apply hash-map opts)))))
+  (assert (or (instance? File input) (string? input) (buffer? input)))
+  (assert (or (instance? File output) (string? output) (buffer? output)))
+  (iofs/copy-file input output))
+
+(defn acopy
+  "Copies input to output via streams asynchronously.
+   + Unlike JVM, strings interpreted as filespaths
+   + Options are passed to the output stream.
+   @param {(string, File, Buffer, Readable)} input
+   @param {(string, File, Buffer, Readable)} output
+   @return {!Channel} yielding [?err]"
+  [input output & opts]
+  (let [opts (when opts (apply hash-map opts))
+        out (promise-chan)
+        input (make-input-stream input nil)
+        output (make-output-stream output opts)]
+    (stream.pipeline input output
+      (fn [?err]
+        (if (nil? ?err)
+          (put! out [nil])
+          (put! out [?err]))))
+    out))

@@ -640,6 +640,27 @@
   (assert (string? pathstr))
   (with-chan (.truncate fs pathstr len)))
 
+(defn copy-file
+  "Synchronously copy file from src to dst. By default dst is overwritten.
+   {@link https://nodejs.org/api/fs.html#fscopyfilesyncsrc-dest-mode}
+   @param {(string|buffer.Buffer|URL)} src
+   @param {(string|buffer.Buffer|URL)} dst"
+  ([src dst]
+   (copy-file src dst 0))
+  ([src dst mode]
+   (fs.copyFileSync src dst mode)))
+
+(defn acopy-file
+  "Asynchronously copy file from src to dst. By default dst is overwritten.
+   {@link https://nodejs.org/api/fs.html#fscopyfilesrc-dest-mode-callback}
+   @param {(string|buffer.Buffer|URL)} src
+   @param {(string|buffer.Buffer|URL)} dst
+   @return {!Channel} promise-chan receiving [?err]"
+  ([src dst]
+   (acopy-file src dst 0))
+  ([src dst mode]
+   (with-chan (fs.copyFile src dst mode))))
+
 ;; /writes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; read+write Files
