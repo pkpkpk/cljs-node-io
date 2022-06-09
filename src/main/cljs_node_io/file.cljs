@@ -7,6 +7,11 @@
 (def os (js/require "os"))
 (def path (js/require "path"))
 
+(def separatorChar (.-sep path))
+(def separator (.-sep path))
+(def pathSeparatorChar (.-delimiter path))
+(def pathSeparator (.-delimiter path))
+
 (defn setReadable*
   "@param {!number} mode : the file's existing mode
    @param {!boolean} readable : add or remove read permission
@@ -175,3 +180,10 @@
   (stats [_] (iofs/stat pathstring))
   (toString [_]  pathstring)
   (toURI [f] (Uri. (str "file:" pathstring))))
+
+(defn createTempFile
+  ([prefix] (createTempFile prefix nil nil))
+  ([prefix suffix] (createTempFile prefix suffix nil))
+  ([prefix suffix dir]
+   (let [tmpd (or dir (.tmpdir os))]
+     (File. (str tmpd (.-sep path) prefix (or suffix ".tmp"))))))
