@@ -1,6 +1,6 @@
 (ns cljs-node-io.fs-tests
   (:require [cljs.test :refer [deftest is testing  use-fixtures async]]
-            [cljs.core.async :refer [<! put! take! chan go promise-chan]]
+            [cljs.core.async :refer [<! put! take! chan go close! promise-chan timeout]]
             [cljs-node-io.fs :as iofs]))
 
 (def os (js/require "os"))
@@ -63,40 +63,6 @@
 
 (defn ecode [[e]] (.-code e))
 
-(deftest bad-types
-  (doseq [o (into #{} (remove #(js/Buffer.isBuffer %)) (disj others ""))]
-    (is (thrown? js/Error (iofs/armdir o)))
-    (is (thrown? js/Error (iofs/arm-r o)))
-    (is (thrown? js/Error (iofs/arm o)))
-    (is (thrown? js/Error (iofs/aunlink o)))
-    (is (thrown? js/Error (iofs/arename "" o)))
-    (is (thrown? js/Error (iofs/arename o ""))))
-  (doseq [o (disj others "")]
-    ;path
-    (is (thrown? js/Error (iofs/absolute? o)))
-    (is (thrown? js/Error (iofs/dirname o)))
-    (is (thrown? js/Error (iofs/basename o)))
-    (is (thrown? js/Error (iofs/ext o)))
-    (is (thrown? js/Error (iofs/resolve-path o)))
-    ;sync
-    (is (thrown? js/Error (iofs/dir? o)))
-    (is (thrown? js/Error (iofs/file? o)))
-    (is (thrown? js/Error (iofs/fexists? o)))
-    (is (thrown? js/Error (iofs/readdir o)))
-    (is (thrown? js/Error (iofs/unlink o)))
-    (is (thrown? js/Error (iofs/rmdir o)))
-    (is (thrown? js/Error (iofs/rm o)))
-    (is (thrown? js/Error (iofs/rm-r o)))
-    (is (thrown? js/Error (iofs/rename "foo" o)))
-    (is (thrown? js/Error (iofs/rename o "foo")))
-    (is (thrown? js/Error (iofs/writeFile o "foo" nil)))
-    ;async
-    (is (thrown? js/Error (iofs/adir? o)))
-    (is (thrown? js/Error (iofs/afile? o)))
-    (is (thrown? js/Error (iofs/afexists? o)))
-    (is (thrown? js/Error (iofs/areaddir o)))))
-
-
 (deftest sync-fs-reads-and-path
   (testing "file?, dir?, fexists? absolute?"
     (is (every? iofs/absolute? all-paths))
@@ -124,8 +90,8 @@
     (testing "afile?, adir?, afexists?"
       (let [f (first file-paths)
             d (first dirs)]
-        (is (true?  (<! (iofs/afexists? d))))
-        (is (true?  (<! (iofs/afexists? f))))
+        (is (true?  (<! (iofs/aexists? d))))
+        (is (true?  (<! (iofs/aexists? f))))
         (is (true?  (<! (iofs/afile? f))))
         (is (false? (<! (iofs/afile? d))))
         (is (true?  (<! (iofs/adir? d))))
@@ -196,43 +162,70 @@
      (is (= "ENOENT" (ecode (<! (iofs/arm (last file-paths))))) "arm on a non-existing file should return [err]"))
    (done))))
 
-(deftest async-writes-2
+(deftest arename-test
+  (async done
+    (go
+     (testing "arename"
+       (let [d (first dirs)
+             a (first file-paths)
+             b (path.join d "foo")]
+         (is (= "ENOENT" (ecode (<! (iofs/arename b a )))) "trying to rename a non-existing file should throw")
+         (is (= "ENOENT" (ecode (<! (iofs/arename a "" )))) "trying to rename to a empty string should throw")
+         (is (boolean ((set (iofs/readdir d)) (iofs/basename a))))
+         (is (= [nil] (<! (iofs/arename a b))) "arename should return [nil]")
+         (is (boolean ((set (iofs/readdir d)) (iofs/basename b))))
+         (iofs/rename b a)))
+     (done))))
+
+(deftest arm-r-test
+  (async done
+    (go
+      (testing "arm-r"
+        (is (every? true? (map iofs/exists? all-paths)))
+        (is (= "ENOENT"  (ecode (<! (iofs/arm-r "")))))
+        (is (= [nil] (<! (iofs/arm-r root))))
+        (is (every? false? (map iofs/exists? all-paths))))
+      (done))))
+
+(defn next-tick []
+  (let [out (chan)]
+    (js/process.nextTick #(close! out))
+    out))
+
+(deftest touch-test
+  (async done
+    (go
+     (let [fpath "/tmp/touch-test"
+           _ (iofs/writeFile fpath "only this string" nil)
+           control-time (.getTime (:mtime (iofs/stat fpath)))]
+       (= [nil] (<! (iofs/atouch fpath)))
+       (is (< control-time (.getTime (:mtime (iofs/stat fpath)))))
+       (is (= "only this string"  (iofs/readFile fpath "utf8"))))
+    (done))))
+
+(deftest watch-test
  (async done
   (go
-   (testing "arename"
-     (let [d (first dirs)
-           a (first file-paths)
-           b (path.join d "foo")]
-       (is (= "ENOENT" (ecode (<! (iofs/arename b a )))) "trying to rename a non-existing file should throw")
-       (is (= "ENOENT" (ecode (<! (iofs/arename a "" )))) "trying to rename to a empty string should throw")
-       (is (boolean ((set (iofs/readdir d)) (iofs/basename a))))
-       (is (= [nil] (<! (iofs/arename a b))) "arename should return [nil]")
-       (is (boolean ((set (iofs/readdir d)) (iofs/basename b))))
-       (iofs/rename b a)))
-   (testing "watch"
-     (testing "watch file"
-       (let [f (first file-paths)
-             w (iofs/watch f)]
-         (<! (iofs/atouch f))
-         (is (= [f [:change]] (<! w)))
-         (.close w)
-         (is (= [f [:close]] (<! w)))))
-     (testing "watch dir"
-       (let [d (first dirs)
-             f (first file-paths)
-             _  (<! (iofs/arm f))
-             w (iofs/watch d)]
-         (<! (iofs/atouch f))
-         (is (= [d [:rename]] (<! w)))
-         (<! (iofs/atouch f))
-         (is (= [d [:change]] (<! w)))
-         (.close w)
-         (is (= [d [:close]] (<! w))))))
-   (testing "arm-r"
-     (is (every? true? (map iofs/fexists? all-paths)))
-     (is (= "ENOENT"  (ecode (<! (iofs/arm-r "")))))
-     (is (= [nil] (<! (iofs/arm-r root))))
-     (is (every? false? (map iofs/fexists? all-paths))))
+    (testing "watch file"
+      (let [fpath "/tmp/watch-test"
+            _ (iofs/writeFile fpath "" nil)
+            watch (iofs/watch fpath)]
+        (is [nil] (<! (iofs/atouch fpath)))
+        (is (= [fpath [:change]] (<! watch)))
+        (.close watch)
+        (is (= [fpath [:close]] (<! watch)))))
+    (testing "watch dir"
+      (let [d (first dirs)
+            f (first file-paths)
+            _  (<! (iofs/arm f))
+            w (iofs/watch d)]
+        (is (= [nil ](<! (iofs/atouch f))))
+        (is (= [d [:rename]] (<! w)))
+        (is (= [nil](<! (iofs/atouch f))))
+        (is (= [d [:change]] (<! w)))
+        (.close w)
+        (is (= [d [:close]] (<! w)))))
+
    (done))))
 
 (use-fixtures :each {:before setup :after teardown})

@@ -18,6 +18,11 @@
      (~@form ~cb)
      ~'c))
 
+(defmacro with-promise [sym & body]
+  `(let [~sym (cljs.core.async/promise-chan)]
+     ~@body
+     ~sym))
+
 (defmacro with-chan
   "Wraps an async call in a channel. Form arg should be a node interop sexp but
    lacking the trailing callback argument. Return channels always receive vectors,

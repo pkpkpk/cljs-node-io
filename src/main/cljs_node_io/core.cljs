@@ -309,9 +309,5 @@
         out (promise-chan)
         input (make-input-stream input nil)
         output (make-output-stream output opts)]
-    (stream.pipeline input output
-      (fn [?err]
-        (if (nil? ?err)
-          (put! out [nil])
-          (put! out [?err]))))
+    (stream.pipeline input output #(put! out [%]))
     out))
