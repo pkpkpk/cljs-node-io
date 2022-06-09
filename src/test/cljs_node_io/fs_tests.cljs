@@ -1,7 +1,6 @@
 (ns cljs-node-io.fs-tests
-  (:require-macros [cljs.core.async.macros :refer [go]])
-  (:require [cljs.test :refer [deftest is testing run-tests are use-fixtures async]]
-            [cljs.core.async :refer [<! put! take! chan] :as async]
+  (:require [cljs.test :refer [deftest is testing  use-fixtures async]]
+            [cljs.core.async :refer [<! put! take! chan go promise-chan]]
             [cljs-node-io.fs :as iofs]))
 
 (def os (js/require "os"))
@@ -26,7 +25,7 @@
 (def dirs       (into [] (comp (filter #(= (:type %) :dir)) (map :p)) dtree))
 (def root (:p (first dtree)))
 (def all-paths  (into [] (concat file-paths (reverse dirs))))
-(def others #{42 #js[] #js{} #() (js/Buffer. #js[]) nil "" js/NaN})
+(def others #{42 #js[] #js{} #() (js/Buffer.from #js[]) nil "" js/NaN})
 
 
 (defn teardown []

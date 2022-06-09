@@ -117,7 +117,7 @@
 
 (deftest test-spit-and-slurp
   (let [f             (createTempFile "spit_slurp_unicode" "test")
-        ascii-content (js/Buffer. #js[0x62 0x75 0x66 0x66 0x65 0x72])
+        ascii-content (js/Buffer.from #js[0x62 0x75 0x66 0x66 0x65 0x72])
         uni-content   (apply str (concat "a" (repeat 500 "\u226a\ud83d\ude03")))]
     (is (= false (.exists f)))
     ;ascii + bin
@@ -132,7 +132,7 @@
 
 (deftest test-async-spit-and-slurp
   (let [f             (createTempFile "aspit_aslurp" "test")
-        ascii-content (js/Buffer. #js[0x62 0x75 0x66 0x66 0x65 0x72])
+        ascii-content (js/Buffer.from #js[0x62 0x75 0x66 0x66 0x65 0x72])
         uni-content   (apply str (concat "a" (repeat 500 "\u226a\ud83d\ude03")))]
     (async done
       (go
