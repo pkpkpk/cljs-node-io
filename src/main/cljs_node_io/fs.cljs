@@ -1,5 +1,5 @@
 (ns cljs-node-io.fs "A wrapper around node's fs module."
-  (:require-macros [cljs-node-io.macros :refer [try-true with-chan with-bool-chan]]
+  (:require-macros [cljs-node-io.macros :refer [try-true with-chan with-bool-chan with-promise]]
                    [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :as async :refer [put! take! close! promise-chan chan]]
             [cljs.core.async.impl.protocols :as impl :refer [Channel]]))
@@ -809,3 +809,118 @@
     (doto r
       (.on "line" (fn [line] (put! out [nil line]))))
     out))
+
+;;==============================================================================
+;; File Descriptors
+
+(defn ^number open
+  "Synchronously open a file-descriptor
+   {@link https://nodejs.org/api/fs.html#fsopenpath-flags-mode-callback}
+   @param {!string} pathstr
+   @return {!Number} integer file-descriptor"
+  ([pathstr]
+   (fs.openSync pathstr "r"))
+  ([pathstr flags]
+   (fs.openSync pathstr flags))
+  ([pathstr flags mode]
+   (fs.openSync pathstr flags mode)))
+
+(defn aopen
+  "Asynchronously open a file-descriptor
+   {@link https://nodejs.org/api/fs.html#fsopenpath-flags-mode-callback}
+   @param {!string} pathstr
+   @return {!Channel} promise-chan receiving [?err ?fd]"
+  ([pathstr]
+   (with-chan (fs.open pathstr "r")))
+  ([pathstr flags]
+   (with-chan (fs.open pathstr flags)))
+  ([pathstr flags mode]
+   (with-chan (fs.open pathstr flags mode))))
+
+(defn close
+  "Synchronously close a file-descriptor
+   @param{Number} fd :: the file descriptor to close
+   @return{nil} throws on error"
+  [fd]
+  (assert (and (number? fd) (js/Number.isInteger fd)))
+  (fs.closeSync fd))
+
+(defn aclose
+  "Asynchronously close a file-descriptor
+   @param{Number} fd :: the file descriptor to close
+   @return{Channel} yielding [?err]"
+  [fd]
+  (with-chan (fs.close fd)))
+
+;;==============================================================================
+;; Lock Files
+
+(defrecord LockFile [lock-file-path locked? release-f]
+  Object
+  (isValid [this] @locked?)
+  (release [this] (release-f))
+  (close [this] (release-f)))
+
+(defn- lock-path
+  [pathstr]
+  (str pathstr ".LOCK"))
+
+(defn lock-file
+  "Attempts to synchronously open a lock-file exclusively. This prevents
+   future openings until the holding lock has been released, thereby can
+   use to prevent reads and writes within a process.
+   If a lock is already held, will throw
+   @param{string} pathstr :: the file you want to lock
+   @return{LockFile} record with .release() method to unlock the file"
+  [pathstr]
+  (let [lock-file-path (lock-path pathstr)
+        lock-fd (try
+                  (open lock-file-path "wx+")
+                  (catch js/Error e
+                    (throw (js/Error. (str "Failed to acquire lock for path: '" pathstr "':\n" (.-message e))))))
+        locked? (atom true)
+        release #(when ^boolean @locked?
+                   (fs.closeSync lock-fd)
+                   (fs.unlinkSync lock-file-path)
+                   (reset! locked? false))]
+    (LockFile. lock-file-path locked? release)))
+
+(defrecord AsyncLockFile [lock-file-path locked? release-f]
+  Object
+  (isValid [this] @locked?)
+  (release [this] (release-f)) ;; chan<?err>
+  (close [this] (release-f))) ;; chan<?err>
+
+(defn alock-file
+  "Attempts to asynchronously open a lock-file exclusively. This prevents
+   future openings until the holding lock has been released, thereby can
+   use to prevent reads and writes within a process.
+   A yielded err indicates a failure to obtain a lock, & AsyncLockFile is a
+   record with .release() method to unlock the file, returning a promise-chan
+   yielding [?err]
+   @param{string} pathstr :: the file you want to lock
+   @return{Channel} yielding [?err ?AsyncLockFile]"
+  [pathstr]
+  (with-promise out
+    (let [lock-file-path (lock-path pathstr)]
+      (fs.open lock-file-path "wx+"
+        (fn [?err lock-fd]
+          (if (some? ?err)
+            (put! out [?err])
+            (let [locked? (atom true)
+                  release (fn []
+                            (with-promise out
+                              (if (not @locked?)
+                                (put! out [nil])
+                                (fs.close lock-fd
+                                  (fn [?err]
+                                    (if (some? ?err)
+                                      (put! out  [?err])
+                                      (fs.unlink lock-file-path
+                                        (fn [?err]
+                                          (if (some? ?err)
+                                            (put! out [?err])
+                                            (do
+                                              (reset! locked? false)
+                                              (put! out [nil])))))))))))]
+             (put! out [nil (AsyncLockFile. lock-file-path locked? release)]))))))))

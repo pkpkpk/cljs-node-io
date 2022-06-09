@@ -5,6 +5,7 @@
             [cljs-node-io.file-tests]
             [cljs-node-io.fs :refer [fexists?]]
             [cljs-node-io.fs-tests]
+            [cljs-node-io.lock-file-tests]
             [cljs-node-io.spawn-tests]))
 
 (nodejs/enable-util-print!)
@@ -18,6 +19,7 @@
     (cljs.test/run-tests
      'cljs-node-io.core-tests
      'cljs-node-io.fs-tests
+     'cljs-node-io.lock-file-tests
      'cljs-node-io.file-tests
      'cljs-node-io.spawn-tests
      'cljs-node-io.async-tests)))
