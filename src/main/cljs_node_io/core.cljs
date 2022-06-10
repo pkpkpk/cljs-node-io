@@ -145,61 +145,6 @@
       (make-output-stream (.getPath x) x)
       (default-make-output-stream x opts))))
 
-(defn readable
-  "Tries to create a stream.Readable from obj. Supports iterables & array-likes
-   in addition to those types supported by IOFactory
-   @param {*} obj
-   @return {!stream.Readable}"
-  ([obj] (readable {}))
-  ([obj opts]
-   (cond
-     (goog.isArrayLike obj)
-     (make-input-stream ^js/Buffer (js/Buffer.from obj) opts)
-
-     (js-iterable? obj)
-     (stream.Readable.from obj (clj->js opts))
-
-     true
-     (make-input-stream obj opts))))
-
-(defn writable
-  "Tries to create a stream.Writable from obj
-   @param {*} obj
-   @return {!stream.Writable}"
-  ([obj] (writable {}))
-  ([obj opts]
-   (make-output-stream obj opts)))
-
-(defn as-relative-path
-  "a relative path, else IllegalArgumentException.
-   @param {(string|IFile|Uri)} x
-   @return {!string}"
-  [x]
-  (let [f (as-file x)]
-    (if (.isAbsolute f)
-      (throw (js/Error. (str "IllegalArgumentException: " f " is not a relative path")))
-      (.getPath f))))
-
-(defn file
-  "Returns a reified file, passing each arg to as-file.  Multiple-arg
-   versions treat the first argument as parent and subsequent args as
-   children relative to the parent. Use in place of File constructor
-   @return {!IFile}"
-  ([arg]
-   (as-file arg))
-  ([parent child]
-   (File. (filepath (as-file parent) (as-relative-path child))))
-  ([parent child & more]
-   (reduce file (file parent child) more)))
-
-(defn delete-file
-  "Delete file f. Raise an exception if it fails unless silently is true.
-   @return {!boolean}"
-  [f & [silently]]
-  (or (.delete (file f))
-      silently
-      (throw (js/Error. (str "Couldn't delete " f)))))
-
 (defn reader
   "For all streams it defers back to the stream. Note: stream objects are event driven.
      + buffers => BufferReadStream
@@ -234,6 +179,63 @@
    @return {!IOutputStream}"
   [x & opts]
   (make-output-stream x (when opts (apply hash-map opts))))
+
+(defn readable
+  "Tries to create a stream.Readable from obj. Supports iterables & array-likes
+   in addition to those types supported by IOFactory
+   @param {*} obj
+   @return {!stream.Readable}"
+  ([obj] (readable obj {}))
+  ([obj opts]
+   (cond
+     (goog.isArrayLike obj)
+     (make-input-stream ^js/Buffer (js/Buffer.from obj) opts)
+
+     (js-iterable? obj)
+     (stream.Readable.from obj (clj->js opts))
+
+     true
+     (make-input-stream obj opts))))
+
+(defn writable
+  "Tries to create a stream.Writable from obj
+   @param {*} obj
+   @return {!stream.Writable}"
+  ([obj] (writable obj {}))
+  ([obj opts]
+   (make-output-stream obj opts)))
+
+;;==============================================================================
+
+(defn as-relative-path
+  "a relative path, else IllegalArgumentException.
+   @param {(string|IFile|Uri)} x
+   @return {!string}"
+  [x]
+  (let [f (as-file x)]
+    (if (.isAbsolute f)
+      (throw (js/Error. (str "IllegalArgumentException: " f " is not a relative path")))
+      (.getPath f))))
+
+(defn file
+  "Returns a reified file, passing each arg to as-file.  Multiple-arg
+   versions treat the first argument as parent and subsequent args as
+   children relative to the parent. Use in place of File constructor
+   @return {!IFile}"
+  ([arg]
+   (as-file arg))
+  ([parent child]
+   (File. (filepath (as-file parent) (as-relative-path child))))
+  ([parent child & more]
+   (reduce file (file parent child) more)))
+
+(defn delete-file
+  "Delete file f. Raise an exception if it fails unless silently is true.
+   @return {!boolean}"
+  [f & [silently]]
+  (or (.delete (file f))
+      silently
+      (throw (js/Error. (str "Couldn't delete " f)))))
 
 (defn slurp
   "Returns a string synchronously. Unlike JVM, does not use FileInputStream.

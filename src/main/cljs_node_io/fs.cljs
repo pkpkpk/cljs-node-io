@@ -34,11 +34,10 @@
    @param {!(string|Buffer|URL)} pathstr
    @return {!Channel} promise-chan receiving [?err ?edn-stats]"
   [pathstr]
-  (let [out (promise-chan)]
+  (with-promise out
     (.stat fs pathstr
        (fn [err stats]
-         (put! out (if err [err] [nil (stat->clj stats)]))))
-    out))
+         (put! out (if err [err] [nil (stat->clj stats)]))))))
 
 (defn lstat
   "Synchronous lstat identical to stat(), except that if path is a symbolic link,
@@ -53,11 +52,10 @@
    @param {!(string|Buffer|URL)} pathstr
    @return {!Channel} promise-chan receiving [?err ?edn-stats]"
   [pathstr]
-  (let [out (promise-chan)]
+  (with-promise out
     (.lstat fs pathstr
        (fn [err stats]
-         (put! out (if err [err] [nil (stat->clj stats)]))))
-    out))
+         (put! out (if err [err] [nil (stat->clj stats)]))))))
 
 (defn- bita->int
   "@param {!Array<!Number>} bita :: an array of 1s an 0s
@@ -503,50 +501,6 @@
   [pathstr atime mtime]
   (with-chan (.lutimes fs pathstr atime mtime)))
 
-(defn mkdir
-  "Synchronously create a directory
-   {@link https://nodejs.org/api/fs.html#fsmkdirsyncpath-options}
-   @param {!(string|Buffer|URL)} pathstr :: path of directory to create
-   @param {?IMap} opts
-     :recursive (boolean) -> the first directory path created.
-     :mode (string|number)
-   @return {nil} or throws"
-  ([pathstr] (.mkdirSync fs pathstr))
-  ([pathstr opts] (.mkdirSync fs pathstr (clj->js opts))))
-
-(defn amkdir
-  "Asynchronously create a directory
-   {@link https://nodejs.org/api/fs.html#fsmkdirpath-options-callback}
-   @param {!(string|Buffer|URL)} pathstr :: path of directory to create
-   @param {?IMap} opts
-    :recursive (boolean) -> the first directory path created.
-    :mode (string|number)
-   @return {!Channel} promise-chan receiving [?err]"
-  ([pathstr] (with-chan (.mkdir fs pathstr)))
-  ([pathstr opts] (with-chan (.mkdir fs pathstr (clj->js opts)))))
-
-(defn rmdir
-  "Synchronously remove a directory.
-   {@link https://nodejs.org/api/fs.html#fsrmdirsyncpath-options}
-   @param {!(string|Buffer|URL)} pathstr :: path of directory to remove
-   @param {?IMap} opts
-     :maxRetries (number)
-     :retryDelay (number)
-   @return {nil} or throws"
-  ([pathstr](.rmdirSync fs pathstr))
-  ([pathstr opts](.rmdirSync fs pathstr (clj->js opts))))
-
-(defn armdir
-  "Asynchronously remove a directory
-   {@link https://nodejs.org/api/fs.html#fsrmdirpath-options-callback}
-   @param {!(string|Buffer|URL)} pathstr :: path of directory to remove
-   @param {?IMap} opts
-     :maxRetries (number)
-     :retryDelay (number)
-   @return {!Channel} promise-chan receiving [?err]"
-  ([pathstr](with-chan (.rmdir fs pathstr)))
-  ([pathstr opts](with-chan (.rmdir fs pathstr (clj->js opts)))))
-
 (defn link
   "Synchronously creates a new link from the src to dst
    Will not overwrite newpath if it exists.
@@ -607,6 +561,50 @@
   (assert (string? pathstr))
   (with-chan (.unlink fs pathstr)))
 
+(defn mkdir
+  "Synchronously create a directory
+   {@link https://nodejs.org/api/fs.html#fsmkdirsyncpath-options}
+   @param {!(string|Buffer|URL)} pathstr :: path of directory to create
+   @param {?IMap} opts
+     :recursive (boolean) -> the first directory path created.
+     :mode (string|number)
+   @return {nil} or throws"
+  ([pathstr] (.mkdirSync fs pathstr))
+  ([pathstr opts] (.mkdirSync fs pathstr (clj->js opts))))
+
+(defn amkdir
+  "Asynchronously create a directory
+   {@link https://nodejs.org/api/fs.html#fsmkdirpath-options-callback}
+   @param {!(string|Buffer|URL)} pathstr :: path of directory to create
+   @param {?IMap} opts
+    :recursive (boolean) -> the first directory path created.
+    :mode (string|number)
+   @return {!Channel} promise-chan receiving [?err]"
+  ([pathstr] (with-chan (.mkdir fs pathstr)))
+  ([pathstr opts] (with-chan (.mkdir fs pathstr (clj->js opts)))))
+
+(defn rmdir
+  "Synchronously remove a directory.
+   {@link https://nodejs.org/api/fs.html#fsrmdirsyncpath-options}
+   @param {!(string|Buffer|URL)} pathstr :: path of directory to remove
+   @param {?IMap} opts
+     :maxRetries (number)
+     :retryDelay (number)
+   @return {nil} or throws"
+  ([pathstr](.rmdirSync fs pathstr))
+  ([pathstr opts](.rmdirSync fs pathstr (clj->js opts))))
+
+(defn armdir
+  "Asynchronously remove a directory
+   {@link https://nodejs.org/api/fs.html#fsrmdirpath-options-callback}
+   @param {!(string|Buffer|URL)} pathstr :: path of directory to remove
+   @param {?IMap} opts
+     :maxRetries (number)
+     :retryDelay (number)
+   @return {!Channel} promise-chan receiving [?err]"
+  ([pathstr](with-chan (.rmdir fs pathstr)))
+  ([pathstr opts](with-chan (.rmdir fs pathstr (clj->js opts)))))
+
 (defn rm
   "Synchronously delete the file or directory path
    @param {!string} pathstr :: can be file or directory
@@ -627,14 +625,14 @@
 
 (defn rm-r
   "Synchronous recursive delete. Throws when doesnt exist
-   @param {!(string|Buffer|URL)} pathstr :: path to a file/dir to recursively delete.
+   @param {!(string|Buffer|URL)} pathstr :: file/dir to recursively delete.
    @return {nil}"
   [pathstr]
   (crawl pathstr rm))
 
 (defn rm-rf
   "Synchronous recursive delete. Ignores paths that do not exist.
-   @param {!(string|Buffer|URL)} pathstr :: path to a file/dir to recursively delete.
+   @param {!(string|Buffer|URL)} pathstr :: file/dir to recursively delete.
    @return {nil}"
   [pathstr]
   (when (exists? pathstr)
@@ -729,6 +727,34 @@
   ([pathstr len]
    (with-chan (.truncate fs pathstr len))))
 
+(defn touch
+  "Creates a file if non-existent
+   @param {!string} pathstr
+   @return {nil}"
+  [pathstr]
+  (try
+    (let [t (js/Date.)]
+      (fs.utimesSync pathstr t t))
+    (catch js/Error _
+      (fs.closeSync (fs.openSync pathstr "w")))))
+
+(defn atouch
+  "creates a file if non-existent
+   @param {!string} pathstr
+   @return {!Channel} promise-chan receiving [?err]"
+  [pathstr]
+  (with-promise out
+    (let [t (js/Date.)]
+      (fs.utimes pathstr t t
+        (fn [err]
+          (if (nil? err)
+            (put! out [nil])
+            (fs.open pathstr "w"
+              (fn [err fd]
+                (if err
+                  (put! out [err])
+                  (fs.close fd (fn [err] (put! out [err]))))))))))))
+
 (defn copy-file
   "Synchronously copy file from src to dst. By default dst is overwritten.
    {@link https://nodejs.org/api/fs.html#fscopyfilesyncsrc-dest-mode}
@@ -758,7 +784,7 @@
   "@param {!string} pathstr :: the file path to read
    @param {!string} enc :: encoding , if \"\" (an explicit empty string), => raw buffer
    @return {(buffer.Buffer|string)} or throw"
-  [pathstr enc] (.readFileSync fs pathstr enc)) ;;TODO rework enc
+  [pathstr enc] (.readFileSync fs pathstr enc))
 
 (defn areadFile
   "@param {!string} pathstr
@@ -795,39 +821,220 @@
                     "mode"     (or (:mode opts) 438)
                     "encoding" (or (:encoding opts) "utf8")})))
 
-(defn touch
-  "creates a file if non-existent, writes blank string to an existing
-   @param {!string} pathstr
-   @return {nil}"
-  [pathstr]
-  (try
-    (let [t (js/Date.)]
-      (fs.utimesSync pathstr t t))
-    (catch js/Error _
-      (fs.closeSync (fs.openSync pathstr "w")))))
+;; /read+write Files
+;;==============================================================================
+;; File Descriptors
 
-(defn atouch
-  "creates a file if non-existent, writes blank string to an existing
+(defn ^number open
+  "Synchronously open a file-descriptor
+   {@link https://nodejs.org/api/fs.html#fsopenpath-flags-mode-callback}
    @param {!string} pathstr
+   @return {!Number} integer file-descriptor"
+  ([pathstr]
+   (fs.openSync pathstr "r"))
+  ([pathstr flags]
+   (fs.openSync pathstr flags))
+  ([pathstr flags mode]
+   (fs.openSync pathstr flags mode)))
+
+(defn aopen
+  "Asynchronously open a file-descriptor
+   {@link https://nodejs.org/api/fs.html#fsopenpath-flags-mode-callback}
+   @param {!string} pathstr
+   @return {!Channel} promise-chan receiving [?err ?fd]"
+  ([pathstr]
+   (with-chan (fs.open pathstr "r")))
+  ([pathstr flags]
+   (with-chan (fs.open pathstr flags)))
+  ([pathstr flags mode]
+   (with-chan (fs.open pathstr flags mode))))
+
+(defn close
+  "Synchronously close a file-descriptor
+   {@link https://nodejs.org/api/fs.html#fsclosesyncfd}
+   @param{Number} fd :: the file descriptor to close
+   @return{nil} throws on error"
+  [fd]
+  (assert (and (number? fd) (js/Number.isInteger fd)))
+  (fs.closeSync fd))
+
+(defn aclose
+  "Asynchronously close a file-descriptor
+   {@link https://nodejs.org/api/fs.html#fsclosefd-callback}
+   @param{Number} fd :: the file descriptor to close
+   @return{Channel} yielding [?err]"
+  [fd]
+  (with-chan (fs.close fd)))
+
+(defn ^number read
+  "Synchronously read data from the fd into the specified buffer
+   {@link https://nodejs.org/api/fs.html#fsreadsyncfd-buffer-offset-length-position}
+   Can pass arguments individually or as a map:
+     :buffer (Buffer|ArrayBuffer) - where data will be written
+     :offset (Number) - where to start writing in the buffer
+     :length (Number) - how many bytes to read from fd
+     :pos (Number|Bigint) - Where to begin reading. if -1 reads from current-pos
+   @return{!Number} number of bytes read"
+  ([fd opts]
+   (let [buf (:buffer opts)]
+     (assert (js/Buffer.isBuffer buf) ":buffer entry needed to read from a fd")
+     (read fd (:buffer opts) opts)))
+  ([fd buffer opts]
+   (let [{:keys [offset length position]} opts
+         offset (or offset 0)
+         length (or length (.-byteLength buffer))
+         position (or position 0)]
+     (read fd buffer offset length position)))
+  ([fd buffer offset length position]
+   (.readSync fs fd buffer offset length position)))
+
+(defn aread
+  "Asynchronously read data from the fd into the specified buffer
+   {@link https://nodejs.org/api/fs.html#fsreadfd-buffer-offset-length-position-callback}
+   Can pass arguments individually or as a map:
+     :buffer (Buffer|ArrayBuffer) - where data will be written
+     :offset (Number) - where to start writing in the buffer
+     :length (Number) - how many bytes to read from fd
+     :pos (Number|Bigint) - Where to begin reading. if -1 reads from current-pos
+   @return{!Channel} yielding [?err bytes-read buffer]"
+  ([fd opts]
+   (let [buf (:buffer opts)]
+     (assert (js/Buffer.isBuffer buf) ":buffer entry needed to read from a fd")
+     (aread fd (:buffer opts) opts)))
+  ([fd buffer opts]
+   (let [{:keys [offset length position]} opts
+         offset (or offset 0)
+         length (or length (.-byteLength buffer))
+         position (or position 0)]
+     (aread fd buffer offset length position)))
+  ([fd buffer offset length position]
+   (with-chan (.read fs fd buffer offset length position))))
+
+(defn ^number write
+  "Synchronously write data from the buffer to the fd
+   {@link https://nodejs.org/api/fs.html#fswritesyncfd-buffer-offset-length-position}
+   Can pass arguments individually or as a map:
+     :buffer (Buffer|ArrayBuffer) - data to be written
+     :offset (Number) - where to start reading in the buffer
+     :length (Number) - how many bytes to read
+     :pos (Number|Bigint) - where to begin writing in the fd
+   @return{!Number} number of bytes written"
+  ([fd opts]
+   (let [buf (:buffer opts)]
+     (assert (js/Buffer.isBuffer buf) ":buffer entry needed to read from a fd")
+     (write fd (:buffer opts) opts)))
+  ([fd buffer opts]
+   (let [{:keys [offset length position]} opts
+         offset (or offset 0)
+         length (or length (- (.-byteLength buffer) offset))
+         position (or position 0)]
+     (write fd buffer offset length position)))
+  ([fd buffer offset length position]
+   (.writeSync fs fd buffer offset length position)))
+
+(defn awrite
+  "Asynchronously write data from the buffer to the fd
+   {@link https://nodejs.org/api/fs.html#fswritesyncfd-buffer-offset-length-position}
+   Can pass arguments individually or as a map:
+     :buffer (Buffer|ArrayBuffer) - data to be written
+     :offset (Number) - where to start reading in the buffer
+     :length (Number) - how many bytes to read
+     :pos (Number|Bigint) - where to begin writing in the fd
+   @return{!Channel} yielding [?err bytes-written buffer]"
+  ([fd opts]
+   (let [buf (:buffer opts)]
+     (assert (js/Buffer.isBuffer buf) ":buffer entry needed to read from a fd")
+     (awrite fd (:buffer opts) opts)))
+  ([fd buffer opts]
+   (let [{:keys [offset length position]} opts
+         offset (or offset 0)
+         length (or length (- (.-byteLength buffer) offset))
+         position (or position 0)]
+     (awrite fd buffer offset length position)))
+  ([fd buffer offset length position]
+   (with-chan (.write fs fd buffer offset length position))))
+
+(defn fsync
+  "Synchronously flush to storage
+   {@link https://nodejs.org/api/fs.html#fsfstatsyncfd-options}
+   @param{!Number} fd
+   @return{nil}"
+  [fd]
+  (.fsyncSync fs fd))
+
+(defn afsync
+  "Asynchronously flush to storage
+   {@link https://nodejs.org/api/fs.html#fsfsyncfd-callback}
+   @param{!Number} fd
+   @return{nil}"
+  [fd]
+  (with-chan (.fsync fs fd)))
+
+(defn fstat
+  "Synchronously retrieve a stats map from the file descriptor
+   {@link https://nodejs.org/api/fs.html#fsfstatsyncfd-options}
+   @param{!Number} fd
+   @param{!IMap} edn-stats"
+  [fd]
+  (stat->clj (.fstatSync fd)))
+
+(defn afstat
+  "Asynchronously retrieve a stats map from the file descriptor
+   {@link https://nodejs.org/api/fs.html#fsfstatfd-options-callback}
+   @param{!Number} fd
+   @param{!Channel} yielding [?err edn-stats]"
+  [fd]
+  (with-promise out
+    (.fstat fs fd
+      (fn [err stats]
+        (put! out (if err [err] [nil (stat->clj stats)]))))))
+
+(defn ftruncate
+  "Synchronous ftruncate
+   {@link https://nodejs.org/api/fs.html#fsftruncatesyncfd-len}
+   @param {!Number} fd
+   @param {?Number} len
+   @return {nil}"
+  ([fd]
+   (.ftruncateSync fs fd))
+  ([fd len]
+   (.ftruncateSync fs fd len)))
+
+(defn aftruncate
+  "Asynchronous ftruncate
+   {@link https://nodejs.org/api/fs.html#fsftruncatefd-len-callback}
+   @param {!Number} fd
+   @param {?Number} len
    @return {!Channel} promise-chan receiving [?err]"
+  ([fd]
+   (with-chan (.ftruncate fs fd)))
+  ([fd len]
+   (with-chan (.ftruncate fs fd len))))
+
+;; /fd
+;;==============================================================================
+
+(def rl (js/require "readline"))
+
+(defn readline
+  "A simple file line reader.
+   @param {!string} pathstr
+   @return {!Channel} chan receiving [?err ?line] until file is consumed,
+   and then the channel closes."
   [pathstr]
-  (let [out (promise-chan)
-        t (js/Date.)]
-    (fs.utimes pathstr t t
-      (fn [err]
-        (if (nil? err)
-          (put! out [nil])
-          (fs.open pathstr "w"
-            (fn [err fd]
-              (if err
-                (put! out [err])
-                (fs.close fd (fn [err] (put! out [err])))))))))
+  (let [out (chan 10)
+        in (fs.createReadStream pathstr)
+        _(set! (.-in out) in)
+        r (rl.createInterface #js{:input in :crlfDelay js/Infinity})]
+    (doto in
+          (.on "error" (fn [e] (put! out [e])))
+          (.on "close" #(close! out)))
+    (doto r
+          (.on "line" (fn [line] (put! out [nil line]))))
     out))
 
-;; /read+write Files
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;==============================================================================
 ;; watch
-
 
 (defn watcher->ch
   ([FSWatcher out-ch] (watcher->ch FSWatcher out-ch nil))
@@ -895,69 +1102,7 @@
   [pathstr]
   (fs.unwatchFile pathstr))
 
-;;==============================================================================
-
-(def rl (js/require "readline"))
-
-(defn readline
-  "A simple file line reader.
-   @param {!string} pathstr
-   @return {!Channel} chan receiving [?err ?line] until file is consumed,
-   and then the channel closes."
-  [pathstr]
-  (let [out (chan 10)
-        in (fs.createReadStream pathstr)
-        _(set! (.-in out) in)
-        r (rl.createInterface #js{:input in :crlfDelay js/Infinity})]
-    (doto in
-      (.on "error" (fn [e] (put! out [e])))
-      (.on "close" #(close! out)))
-    (doto r
-      (.on "line" (fn [line] (put! out [nil line]))))
-    out))
-
-;;==============================================================================
-;; File Descriptors
-
-(defn ^number open
-  "Synchronously open a file-descriptor
-   {@link https://nodejs.org/api/fs.html#fsopenpath-flags-mode-callback}
-   @param {!string} pathstr
-   @return {!Number} integer file-descriptor"
-  ([pathstr]
-   (fs.openSync pathstr "r"))
-  ([pathstr flags]
-   (fs.openSync pathstr flags))
-  ([pathstr flags mode]
-   (fs.openSync pathstr flags mode)))
-
-(defn aopen
-  "Asynchronously open a file-descriptor
-   {@link https://nodejs.org/api/fs.html#fsopenpath-flags-mode-callback}
-   @param {!string} pathstr
-   @return {!Channel} promise-chan receiving [?err ?fd]"
-  ([pathstr]
-   (with-chan (fs.open pathstr "r")))
-  ([pathstr flags]
-   (with-chan (fs.open pathstr flags)))
-  ([pathstr flags mode]
-   (with-chan (fs.open pathstr flags mode))))
-
-(defn close
-  "Synchronously close a file-descriptor
-   @param{Number} fd :: the file descriptor to close
-   @return{nil} throws on error"
-  [fd]
-  (assert (and (number? fd) (js/Number.isInteger fd)))
-  (fs.closeSync fd))
-
-(defn aclose
-  "Asynchronously close a file-descriptor
-   @param{Number} fd :: the file descriptor to close
-   @return{Channel} yielding [?err]"
-  [fd]
-  (with-chan (fs.close fd)))
-
+;; /watch
 ;;==============================================================================
 ;; Lock Files
 
