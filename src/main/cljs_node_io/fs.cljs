@@ -616,18 +616,14 @@
     (rmdir pathstr)
     (unlink pathstr)))
 
-(defn arm
-  "Asynchronously delete the file or directory path
-   @param {!(string|Buffer|URL)} pathstr
-   @return {!Channel} promise-chan receiving [?err]"
+(defn rm-f
+  "Synchronously delete the file or directory path
+   Ignores paths that do not exist.
+   @param {!string} pathstr :: can be file or directory
+   @return {nil} or throws"
   [pathstr]
-  (let [c (promise-chan)
-        dc (adir? pathstr)]
-    (take! dc
-      (fn [d?]
-        (take! (if d? (armdir pathstr) (aunlink pathstr))
-          (fn [ev] (put! c ev)))))
-    c))
+  (when (exists? pathstr)
+    (rm pathstr)))
 
 (defn rm-r
   "Synchronous recursive delete. Throws when doesnt exist
@@ -636,8 +632,40 @@
   [pathstr]
   (crawl pathstr rm))
 
+(defn rm-rf
+  "Synchronous recursive delete. Ignores paths that do not exist.
+   @param {!(string|Buffer|URL)} pathstr :: path to a file/dir to recursively delete.
+   @return {nil}"
+  [pathstr]
+  (when (exists? pathstr)
+    (crawl pathstr rm)))
+
+(defn arm
+  "Asynchronously delete the file or directory path
+   @param {!(string|Buffer|URL)} pathstr
+   @return {!Channel} promise-chan receiving [?err]"
+  [pathstr]
+  (with-promise out
+    (take! (adir? pathstr)
+      (fn [d?]
+        (take! (if d? (armdir pathstr) (aunlink pathstr))
+          (fn [ev] (put! out ev)))))))
+
+(defn arm-f
+  "Asynchronously delete the file or directory path
+   Ignores paths that do not exist.
+   @param {!(string|Buffer|URL)} pathstr
+   @return {!Channel} promise-chan receiving [?err]"
+  [pathstr]
+  (with-promise out
+    (take! (aexists? pathstr)
+      (fn [yes?]
+        (if ^boolean yes?
+          (take! (arm pathstr) #(put! out %))
+          (put! out [nil]))))))
+
 (defn arm-r
-  "Asynchronous recursive delete.
+  "Asynchronous recursive delete. Ignores paths that do not exist.
    Crawls in order provided by readdir and makes unlink/rmdir calls sequentially
    after the previous has completed. Breaks on any err which is returned as [err]
    Returns err on does not exist.
@@ -645,6 +673,21 @@
    @return {!Channel} promise-chan receiving [?err]"
   [pathstr]
   (acrawl pathstr arm))
+
+(defn arm-rf
+  "Asynchronous recursive delete. Ignores paths that do not exist.
+   Crawls in order provided by readdir and makes unlink/rmdir calls sequentially
+   after the previous has completed. Breaks on any err which is returned as [err]
+   Returns err on does not exist.
+   @param {!(string|Buffer|URL)} pathstr
+   @return {!Channel} promise-chan receiving [?err]"
+  [pathstr]
+  (with-promise out
+    (take! (aexists? pathstr)
+      (fn [yes?]
+        (if ^boolean yes?
+          (take! (acrawl pathstr arm) #(put! out %))
+          (put! out [nil]))))))
 
 (defn rename
   "Synchronously rename a file.

@@ -184,7 +184,19 @@
         (is (every? true? (map iofs/exists? all-paths)))
         (is (= "ENOENT"  (ecode (<! (iofs/arm-r "")))))
         (is (= [nil] (<! (iofs/arm-r root))))
+        (is (instance? js/Error (first (<! (iofs/arm-r root)))))
         (is (every? false? (map iofs/exists? all-paths))))
+      (done))))
+
+(deftest arm-rf-test
+  (async done
+    (go
+      (testing "arm-rf"
+        (is (every? true? (map iofs/exists? all-paths)))
+        (is (= [nil]  (<! (iofs/arm-rf ""))))
+        (is (= [nil]  (<! (iofs/arm-rf root))) "first try something is there")
+        (is (every? false? (map iofs/exists? all-paths)))
+        (is (= [nil]  (<! (iofs/arm-rf root))) "second try nothing is there"))
       (done))))
 
 (defn next-tick []
