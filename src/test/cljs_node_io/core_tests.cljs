@@ -14,6 +14,8 @@
 (def stream (js/require "stream"))
 (def os (js/require "os"))
 
+(defn tmp-name [s])
+
 (defn createTempFile
   ([prefix] (createTempFile prefix nil nil))
   ([prefix suffix] (createTempFile prefix suffix nil))
@@ -28,59 +30,61 @@
   (instance? stream.Writable o))
 
 (deftest IOFactory-test
-  (spit (createTempFile "foo") "")
-  (testing "nil"
-    (is (thrown? js/Error (io/reader nil)))
-    (is (thrown? js/Error (io/writer nil)))
-    (is (thrown? js/Error (io/input-stream nil)))
-    (is (thrown? js/Error (io/output-stream nil))))
-  (testing "string"
-    (is (readable? (io/reader "foo")))
-    (is (writable? (io/writer "foo")))
-    (is (readable? (io/input-stream "foo")))
-    (is (writable? (io/output-stream "foo"))))
-  (testing "file"
-    (is (readable? (io/reader (io/file "foo"))))
-    (is (writable? (io/writer (io/file "foo"))))
-    (is (readable? (io/input-stream (io/file "foo"))))
-    (is (writable? (io/output-stream (io/file "foo")))))
-  (testing "stream.Readable"
-    (is (readable? (io/reader (new stream.Readable))))
-    (is (thrown? js/Error (io/writer (new stream.Readable))))
-    (is (readable? (io/input-stream (new stream.Readable))))
-    (is (thrown? js/Error (io/output-stream (new stream.Readable)))))
-  (testing "stream.Writable"
-    (is (thrown? js/Error (io/reader (new stream.Writable))))
-    (is (writable? (io/writer (new stream.Writable))))
-    (is (thrown? js/Error (io/input-stream (new stream.Writable))))
-    (is (writable? (io/output-stream (new stream.Writable)))))
-  (testing "stream.Duplex"
-    (let [s (new stream.Duplex)]
-      (is (and (readable? s) (writable? s)))
-      (is (identical? s (io/reader s)))
-      (is (identical? s (io/writer s)))
-      (is (identical? s (io/input-stream s)))
-      (is (identical? s (io/output-stream s)))))
-  (testing "fs.ReadStream"
-    (let [s (new fs.ReadStream "foo")]
-      (is (and (readable? (io/reader s)) (identical? s (io/reader s))))
-      (is (thrown? js/Error (io/writer s)))
-      (is (readable? (io/input-stream s)))
-      (is (thrown? js/Error (io/output-stream s)))
-      (.close s)))
-  (testing "fs.WriteStream"
-    (let [s (new fs.createWriteStream "foo")]
-      (is (thrown? js/Error (io/reader s)))
-      (is (and (writable? (io/writer s)) (identical? s (io/writer s))))
-      (is (thrown? js/Error (io/input-stream s)))
-      (is (writable? (io/output-stream s)))
-      (.close s)))
-  (testing "buffers"
-    (let [b (js/Buffer.from #js[0 1 2 3])]
-      (is (readable? (io/reader b)))
-      (is (thrown? js/Error (io/writer b)))
-      (is (readable? (io/input-stream b)))
-      (is (thrown? js/Error (io/output-stream b))))))
+  (let [test-file (createTempFile "foo")
+        test-path (.getPath test-file)]
+    (spit test-file "")
+    (testing "nil"
+      (is (thrown? js/Error (io/reader nil)))
+      (is (thrown? js/Error (io/writer nil)))
+      (is (thrown? js/Error (io/input-stream nil)))
+      (is (thrown? js/Error (io/output-stream nil))))
+    (testing "string"
+      (is (readable? (io/reader test-path)))
+      (is (writable? (io/writer test-path)))
+      (is (readable? (io/input-stream test-path)))
+      (is (writable? (io/output-stream test-path))))
+    (testing "file"
+      (is (readable? (io/reader (io/file test-path))))
+      (is (writable? (io/writer (io/file test-path))))
+      (is (readable? (io/input-stream (io/file test-path))))
+      (is (writable? (io/output-stream (io/file test-path)))))
+    (testing "stream.Readable"
+      (is (readable? (io/reader (new stream.Readable))))
+      (is (thrown? js/Error (io/writer (new stream.Readable))))
+      (is (readable? (io/input-stream (new stream.Readable))))
+      (is (thrown? js/Error (io/output-stream (new stream.Readable)))))
+    (testing "stream.Writable"
+      (is (thrown? js/Error (io/reader (new stream.Writable))))
+      (is (writable? (io/writer (new stream.Writable))))
+      (is (thrown? js/Error (io/input-stream (new stream.Writable))))
+      (is (writable? (io/output-stream (new stream.Writable)))))
+    (testing "stream.Duplex"
+      (let [s (new stream.Duplex)]
+        (is (and (readable? s) (writable? s)))
+        (is (identical? s (io/reader s)))
+        (is (identical? s (io/writer s)))
+        (is (identical? s (io/input-stream s)))
+        (is (identical? s (io/output-stream s)))))
+    (testing "fs.ReadStream"
+      (let [s (new fs.ReadStream test-path)]
+        (is (and (readable? (io/reader s)) (identical? s (io/reader s))))
+        (is (thrown? js/Error (io/writer s)))
+        (is (readable? (io/input-stream s)))
+        (is (thrown? js/Error (io/output-stream s)))
+        (.close s)))
+    (testing "fs.WriteStream"
+      (let [s (new fs.createWriteStream test-path)]
+        (is (thrown? js/Error (io/reader s)))
+        (is (and (writable? (io/writer s)) (identical? s (io/writer s))))
+        (is (thrown? js/Error (io/input-stream s)))
+        (is (writable? (io/output-stream s)))
+        (.close s)))
+    (testing "buffers"
+      (let [b (js/Buffer.from #js[0 1 2 3])]
+        (is (readable? (io/reader b)))
+        (is (thrown? js/Error (io/writer b)))
+        (is (readable? (io/input-stream b)))
+        (is (thrown? js/Error (io/output-stream b)))))))
 
 ;;==============================================================================
 
