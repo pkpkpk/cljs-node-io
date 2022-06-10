@@ -32,7 +32,7 @@
 (defn astat
   "Asynchronous stat
    @param {!(string|Buffer|URL)} pathstr
-   @return {!Channel} promise-chan receiving [?err ?edn-stats]"
+   @return {!Channel} yielding [?err ?edn-stats]"
   [pathstr]
   (with-promise out
     (.stat fs pathstr
@@ -50,7 +50,7 @@
 (defn alstat
   "Asynchronous lstat
    @param {!(string|Buffer|URL)} pathstr
-   @return {!Channel} promise-chan receiving [?err ?edn-stats]"
+   @return {!Channel} yielding [?err ?edn-stats]"
   [pathstr]
   (with-promise out
     (.lstat fs pathstr
@@ -111,7 +111,7 @@
 (defn adir?
   "Asynchronous directory predicate.
    @param {!(string|Buffer|URL)} pathstr
-   @return {!Channel} promise-chan receiving boolean"
+   @return {!Channel} yielding boolean"
   [pathstr]
   (let [out (promise-chan)]
     (.stat fs pathstr
@@ -134,7 +134,7 @@
 (defn afile?
   "Asynchronous file predicate.
    @param {!(string|Buffer|URL)} pathstr
-   @return {!Channel} promise-chan receiving boolean"
+   @return {!Channel} yielding boolean"
   [pathstr]
   (let [out (promise-chan)]
     (.lstat fs pathstr
@@ -161,7 +161,7 @@
 (defn aexists?
   "Asynchronously test if a file or directory exists
    @param {!(string|Buffer|URL)} pathstr
-   @return {!Channel} promise-chan receiving boolean"
+   @return {!Channel} yielding boolean"
   [pathstr]
   (with-bool-chan (.access fs pathstr (.-F_OK fs))))
 
@@ -177,7 +177,7 @@
 (defn areadable?
   "Asynchronously test if a file is readable to the process
    @param {!(string|Buffer|URL)} pathstr
-   @return {!Channel} promise-chan receiving boolean"
+   @return {!Channel} yielding boolean"
   [pathstr]
   (with-bool-chan (.access fs pathstr (.-R_OK fs))))
 
@@ -191,7 +191,7 @@
 (defn awritable?
   "Asynchronously test if a file is writable to the process
    @param {!(string|Buffer|URL)} pathstr :: path to test for process write permission
-   @return {!Channel} promise-chan receiving boolean"
+   @return {!Channel} yielding boolean"
   [pathstr]
   (with-bool-chan (.access fs pathstr (.-W_OK fs))))
 
@@ -206,7 +206,7 @@
 (defn aexecutable?
   "Asynchronously test if a file is executable to the process
    @param {!(string|Buffer|URL)} pathstr :: path to test for process execute permission
-   @return {!Channel} promise-chan receiving boolean"
+   @return {!Channel} yielding boolean"
   [pathstr]
   (if-not (= "win32" (.-platform js/process))
     (with-bool-chan (.access fs pathstr (.-X_OK fs)))
@@ -225,7 +225,7 @@
 (defn asymlink?
   "Asynchronously test if path is a symbolic link
    @param {!(string|Buffer|URL)} pathstr :: path to test
-   @return {!Channel} promise-chan receiving boolean"
+   @return {!Channel} yielding boolean"
   [pathstr]
   (let [c (promise-chan)
         stat-ch (alstat pathstr)]
@@ -288,7 +288,7 @@
    Computes the canonical pathname by resolving ., .., and symbolic links.
    {@link https://nodejs.org/api/fs.html#fsrealpathpath-options-callback}
    @param {!(string|Buffer|URL)} pathstr
-   @return {!Channel} promise-chan recieving [?err ?resolvedPathstr]"
+   @return {!Channel} yielding [?err ?resolvedPathstr]"
   [pathstr]
   (with-chan (.realpath fs pathstr)))
 
@@ -306,7 +306,7 @@
    Reads the contents of the symbolic link referred to by path.
    {@link https://nodejs.org/api/fs.html#fsreadlinkpath-options-callback}
    @param {!(string|Buffer|URL)} pathstr :: the symbolic link to read
-   @return {!Channel} promise-chan receiving [?err ?linkstring]"
+   @return {!Channel} yielding [?err ?linkstring]"
   [pathstr]
   (with-chan (.readlink fs pathstr)))
 
@@ -330,8 +330,7 @@
      :encoding (string) -> defaults to 'utf8'
      :withFileTypes (bool) -> return fs.Dirent objects instead of strings. see
        {@link https://nodejs.org/api/fs.html#class-fsdirent}
-   @return {!Channel} promise-chan receiving [?err, ?Vector<string|fs.Dirent>]
-    where strings are representing directory content"
+   @return {!Channel} yielding [?err, ?Vector<string|fs.Dirent>]"
   ([dirpath]
    (with-chan (.readdir fs dirpath) vec))
   ([dirpath opts]
@@ -364,7 +363,7 @@
 
    @param {!string} root :: where to start the crawl. A file simply returns (af root)
    @param {!function<string>} af :: async function called on both files & directories
-   @return {!Channel} a promise channel yielding a short circuited [err] or [nil ok].
+   @return {!Channel} yields a short circuited [err] or [nil ok].
    This depends on the user following the result chan conventions."
   [root af]
   (assert (string? root))
@@ -395,7 +394,7 @@
    {@link https://nodejs.org/api/fs.html#fsfchmodsyncfd-mode}
    @param {!(string|Buffer|URL)} pathstr
    @param {!Number} mode :: must be an integer
-   @return {nil} or throws"
+   @return {nil}"
   [pathstr mode]
   (.chmodSync fs pathstr mode))
 
@@ -404,7 +403,7 @@
    {@link https://nodejs.org/api/fs.html#fschmodpath-mode-callback}
    @param {!(string|Buffer|URL)} pathstr
    @param {!Number} mode :: must be an integer
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [pathstr mode]
   (with-chan (.chmod fs pathstr mode)))
 
@@ -424,7 +423,7 @@
    @param {!(string|Buffer|URL)} pathstr
    @param {!Number} uid
    @param {!Number} gid
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [pathstr uid gid]
   (with-chan (.chown fs pathstr uid gid)))
 
@@ -434,7 +433,7 @@
    @param {!(string|Buffer|URL)} pathstr
    @param {!Number} uid
    @param {!Number} gid
-   @return {nil} or throws"
+   @return {nil}"
   [pathstr uid gid]
   (.lchownSync fs pathstr uid gid))
 
@@ -444,7 +443,7 @@
    @param {!(string|Buffer|URL)} pathstr
    @param {!Number} uid
    @param {!Number} gid
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [pathstr uid gid]
   (with-chan (.lchown fs pathstr uid gid)))
 
@@ -470,7 +469,7 @@
    @param {!(string|Buffer|URL)} pathstr
    @param {(string|Number)} atime
    @param {(string|Number)} mtime
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [pathstr atime mtime]
   (assert (string? pathstr))
   (with-chan (.utimes fs pathstr atime mtime)))
@@ -497,7 +496,7 @@
    @param {!(string|Buffer|URL)} pathstr
    @param {(string|Number)} atime
    @param {(string|Number)} mtime
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [pathstr atime mtime]
   (with-chan (.lutimes fs pathstr atime mtime)))
 
@@ -507,7 +506,7 @@
    {@link https://nodejs.org/api/fs.html#fslinksyncexistingpath-newpath}
    @param {!(string|Buffer|URL)} src
    @param {!(string|Buffer|URL)} dst
-   @return {nil} or throws"
+   @return {nil}"
   [src dst]
   (.linkSync fs src dst))
 
@@ -517,7 +516,7 @@
    {@link https://nodejs.org/api/fs.html#fslinkexistingpath-newpath-callback}
    @param {!(string|Buffer|URL)} src
    @param {!(string|Buffer|URL)} dst
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [src dst]
   (with-chan (.link fs src dst)))
 
@@ -527,7 +526,7 @@
    @param {!(string|Buffer|URL)} target :: what gets pointed to
    @param {!(string|Buffer|URL)} pathstr :: the new symbolic link that points to target
    @param {?string} link-type ::'file' or 'dir'
-   @return {nil} or throws"
+   @return {nil}"
   ([target pathstr] (.symlinkSync fs target pathstr))
   ([target pathstr link-type] (.symlinkSync fs target pathstr link-type)))
 
@@ -537,7 +536,7 @@
    @param {!(string|Buffer|URL)} targetstr :: what gets pointed to
    @param {!(string|Buffer|URL)} pathstr :: the new symbolic link that points to target
    @param {?string} link-type ::'file' or 'dir'
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   ([targetstr pathstr]
    (with-chan (.symlink fs
     targetstr pathstr)))
@@ -548,7 +547,7 @@
   "Synchronously unlink a file.
    {@link https://nodejs.org/api/fs.html#fsunlinksyncpath}
    @param {!(string|Buffer|URL)} pathstr :: path of file to unlink
-   @return {nil} or throws"
+   @return {nil}"
   [pathstr]
   (.unlinkSync fs pathstr))
 
@@ -556,7 +555,7 @@
   "Asynchronously unlink a file
    {@link https://nodejs.org/api/fs.html#fsunlinkpath-callback}
    @param {!(string|Buffer|URL)} pathstr :: path of file to unlink
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [pathstr]
   (assert (string? pathstr))
   (with-chan (.unlink fs pathstr)))
@@ -567,8 +566,8 @@
    @param {!(string|Buffer|URL)} pathstr :: path of directory to create
    @param {?IMap} opts
      :recursive (boolean) -> the first directory path created.
-     :mode (string|number)
-   @return {nil} or throws"
+     :mode (string|Number)
+   @return {nil}"
   ([pathstr] (.mkdirSync fs pathstr))
   ([pathstr opts] (.mkdirSync fs pathstr (clj->js opts))))
 
@@ -579,7 +578,7 @@
    @param {?IMap} opts
     :recursive (boolean) -> the first directory path created.
     :mode (string|number)
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   ([pathstr] (with-chan (.mkdir fs pathstr)))
   ([pathstr opts] (with-chan (.mkdir fs pathstr (clj->js opts)))))
 
@@ -590,7 +589,7 @@
    @param {?IMap} opts
      :maxRetries (number)
      :retryDelay (number)
-   @return {nil} or throws"
+   @return {nil}"
   ([pathstr](.rmdirSync fs pathstr))
   ([pathstr opts](.rmdirSync fs pathstr (clj->js opts))))
 
@@ -601,14 +600,14 @@
    @param {?IMap} opts
      :maxRetries (number)
      :retryDelay (number)
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   ([pathstr](with-chan (.rmdir fs pathstr)))
   ([pathstr opts](with-chan (.rmdir fs pathstr (clj->js opts)))))
 
 (defn rm
   "Synchronously delete the file or directory path
    @param {!string} pathstr :: can be file or directory
-   @return {nil} or throws"
+   @return {nil}"
   [pathstr]
   (if (dir? pathstr)
     (rmdir pathstr)
@@ -618,7 +617,7 @@
   "Synchronously delete the file or directory path
    Ignores paths that do not exist.
    @param {!string} pathstr :: can be file or directory
-   @return {nil} or throws"
+   @return {nil}"
   [pathstr]
   (when (exists? pathstr)
     (rm pathstr)))
@@ -641,7 +640,7 @@
 (defn arm
   "Asynchronously delete the file or directory path
    @param {!(string|Buffer|URL)} pathstr
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [pathstr]
   (with-promise out
     (take! (adir? pathstr)
@@ -653,7 +652,7 @@
   "Asynchronously delete the file or directory path
    Ignores paths that do not exist.
    @param {!(string|Buffer|URL)} pathstr
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [pathstr]
   (with-promise out
     (take! (aexists? pathstr)
@@ -668,7 +667,7 @@
    after the previous has completed. Breaks on any err which is returned as [err]
    Returns err on does not exist.
    @param {!(string|Buffer|URL)} pathstr
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [pathstr]
   (acrawl pathstr arm))
 
@@ -678,7 +677,7 @@
    after the previous has completed. Breaks on any err which is returned as [err]
    Returns err on does not exist.
    @param {!(string|Buffer|URL)} pathstr
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [pathstr]
   (with-promise out
     (take! (aexists? pathstr)
@@ -701,7 +700,7 @@
    {@link https://nodejs.org/api/fs.html#fsrenameoldpath-newpath-callback}
    @param {!(string|Buffer|URL)} oldpathstr :: file to rename
    @param {!(string|Buffer|URL)} newpathstr :: what to rename it to
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [oldpathstr newpathstr]
   (with-chan (.rename fs oldpathstr newpathstr)))
 
@@ -710,7 +709,7 @@
    {@link https://nodejs.org/api/fs.html#fstruncatesyncpath-len}
    @param {!(string|Buffer|URL)} pathstr
    @param {?number} length
-   @return {nil} or throws"
+   @return {nil}"
   ([pathstr]
    (.truncateSync fs pathstr))
   ([pathstr length]
@@ -721,7 +720,7 @@
    {@link https://nodejs.org/api/fs.html#fstruncatepath-len-callback}
    @param {!(string|Buffer|URL)} pathstr
    @param {?number} len
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   ([pathstr]
    (with-chan (.truncate fs pathstr)))
   ([pathstr len]
@@ -741,7 +740,7 @@
 (defn atouch
   "creates a file if non-existent
    @param {!string} pathstr
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   [pathstr]
   (with-promise out
     (let [t (js/Date.)]
@@ -759,7 +758,8 @@
   "Synchronously copy file from src to dst. By default dst is overwritten.
    {@link https://nodejs.org/api/fs.html#fscopyfilesyncsrc-dest-mode}
    @param {(string|buffer.Buffer|URL)} src
-   @param {(string|buffer.Buffer|URL)} dst"
+   @param {(string|buffer.Buffer|URL)} dst
+   @return {nil}"
   ([src dst]
    (copy-file src dst 0))
   ([src dst mode]
@@ -770,7 +770,7 @@
    {@link https://nodejs.org/api/fs.html#fscopyfilesrc-dest-mode-callback}
    @param {(string|buffer.Buffer|URL)} src
    @param {(string|buffer.Buffer|URL)} dst
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   ([src dst]
    (acopy-file src dst 0))
   ([src dst mode]
@@ -783,13 +783,13 @@
 (defn readFile
   "@param {!string} pathstr :: the file path to read
    @param {!string} enc :: encoding , if \"\" (an explicit empty string), => raw buffer
-   @return {(buffer.Buffer|string)} or throw"
+   @return {(buffer.Buffer|string)}"
   [pathstr enc] (.readFileSync fs pathstr enc))
 
 (defn areadFile
   "@param {!string} pathstr
    @param {!string} enc :: if \"\" (an explicit empty string) => raw buffer
-   @return {!Channel} promise-chan receiving [?err ?(str|Buffer)] on successful read"
+   @return {!Channel} yielding [?err (str|Buffer)]"
   [pathstr enc]
   (with-chan (.readFile fs pathstr enc)))
 
@@ -800,7 +800,7 @@
    @param {?IMap} opts :: {:encoding {string}, :append {boolean}, :flags {string}, :mode {int}}
     - flags override append
     - :encoding defaults to utf8
-   @return {nil} or throws"
+   @return {nil}"
   [pathstr content opts]
   (.writeFileSync fs pathstr content
                   #js{"flag"     (or (:flags opts) (if (:append opts) "a" "w"))
@@ -841,7 +841,7 @@
   "Asynchronously open a file-descriptor
    {@link https://nodejs.org/api/fs.html#fsopenpath-flags-mode-callback}
    @param {!string} pathstr
-   @return {!Channel} promise-chan receiving [?err ?fd]"
+   @return {!Channel} yielding [?err ?fd]"
   ([pathstr]
    (with-chan (fs.open pathstr "r")))
   ([pathstr flags]
@@ -852,8 +852,8 @@
 (defn close
   "Synchronously close a file-descriptor
    {@link https://nodejs.org/api/fs.html#fsclosesyncfd}
-   @param{Number} fd :: the file descriptor to close
-   @return{nil} throws on error"
+   @param {Number} fd :: the file descriptor to close
+   @return {nil}"
   [fd]
   (assert (and (number? fd) (js/Number.isInteger fd)))
   (fs.closeSync fd))
@@ -861,8 +861,8 @@
 (defn aclose
   "Asynchronously close a file-descriptor
    {@link https://nodejs.org/api/fs.html#fsclosefd-callback}
-   @param{Number} fd :: the file descriptor to close
-   @return{Channel} yielding [?err]"
+   @param {Number} fd :: the file descriptor to close
+   @return {Channel} yielding [?err]"
   [fd]
   (with-chan (fs.close fd)))
 
@@ -874,7 +874,7 @@
      :offset (Number) - where to start writing in the buffer
      :length (Number) - how many bytes to read from fd
      :pos (Number|Bigint) - Where to begin reading. if -1 reads from current-pos
-   @return{!Number} number of bytes read"
+   @return {!Number} number of bytes read"
   ([fd opts]
    (let [buf (:buffer opts)]
      (assert (js/Buffer.isBuffer buf) ":buffer entry needed to read from a fd")
@@ -896,7 +896,7 @@
      :offset (Number) - where to start writing in the buffer
      :length (Number) - how many bytes to read from fd
      :pos (Number|Bigint) - Where to begin reading. if -1 reads from current-pos
-   @return{!Channel} yielding [?err bytes-read buffer]"
+   @return {!Channel} yielding [?err bytes-read buffer]"
   ([fd opts]
    (let [buf (:buffer opts)]
      (assert (js/Buffer.isBuffer buf) ":buffer entry needed to read from a fd")
@@ -918,7 +918,7 @@
      :offset (Number) - where to start reading in the buffer
      :length (Number) - how many bytes to read
      :pos (Number|Bigint) - where to begin writing in the fd
-   @return{!Number} number of bytes written"
+   @return {!Number} number of bytes written"
   ([fd opts]
    (let [buf (:buffer opts)]
      (assert (js/Buffer.isBuffer buf) ":buffer entry needed to read from a fd")
@@ -940,7 +940,7 @@
      :offset (Number) - where to start reading in the buffer
      :length (Number) - how many bytes to read
      :pos (Number|Bigint) - where to begin writing in the fd
-   @return{!Channel} yielding [?err bytes-written buffer]"
+   @return {!Channel} yielding [?err bytes-written buffer]"
   ([fd opts]
    (let [buf (:buffer opts)]
      (assert (js/Buffer.isBuffer buf) ":buffer entry needed to read from a fd")
@@ -957,32 +957,32 @@
 (defn fsync
   "Synchronously flush to storage
    {@link https://nodejs.org/api/fs.html#fsfstatsyncfd-options}
-   @param{!Number} fd
-   @return{nil}"
+   @param {!Number} fd
+   @return {nil}"
   [fd]
   (.fsyncSync fs fd))
 
 (defn afsync
   "Asynchronously flush to storage
    {@link https://nodejs.org/api/fs.html#fsfsyncfd-callback}
-   @param{!Number} fd
-   @return{nil}"
+   @param {!Number} fd
+   @return {Channel} yielding [?err]"
   [fd]
   (with-chan (.fsync fs fd)))
 
 (defn fstat
   "Synchronously retrieve a stats map from the file descriptor
    {@link https://nodejs.org/api/fs.html#fsfstatsyncfd-options}
-   @param{!Number} fd
-   @param{!IMap} edn-stats"
+   @param {!Number} fd
+   @param {!IMap} edn-stats"
   [fd]
   (stat->clj (.fstatSync fd)))
 
 (defn afstat
   "Asynchronously retrieve a stats map from the file descriptor
    {@link https://nodejs.org/api/fs.html#fsfstatfd-options-callback}
-   @param{!Number} fd
-   @param{!Channel} yielding [?err edn-stats]"
+   @param {!Number} fd
+   @param {!Channel} yielding [?err edn-stats]"
   [fd]
   (with-promise out
     (.fstat fs fd
@@ -1005,7 +1005,7 @@
    {@link https://nodejs.org/api/fs.html#fsftruncatefd-len-callback}
    @param {!Number} fd
    @param {?Number} len
-   @return {!Channel} promise-chan receiving [?err]"
+   @return {!Channel} yielding [?err]"
   ([fd]
    (with-chan (.ftruncate fs fd)))
   ([fd len]
@@ -1082,7 +1082,7 @@
      :peristent {boolean} (true) :: whether the process should continue as long as files are being watched.
      :interval {number} (5007) :: polling interval in msecs
      :buf-or-n {(impl/Buffer|number)} (10) :: channel buffer
-   @return {!Channel} <= [filename [current fs.stat, previous fs.stat]]"
+   @return {!Channel} yielding [filename [current fs.stat, previous fs.stat]]"
   ([filename] (watchFile filename nil))
   ([filename opts]
    (let [defaults {:interval 5007
@@ -1112,7 +1112,7 @@
   (release [this] (release-f))
   (close [this] (release-f)))
 
-(defn- lock-path
+(defn lock-path
   [pathstr]
   (str pathstr ".LOCK"))
 
@@ -1121,8 +1121,8 @@
    future openings until the holding lock has been released, thereby can
    use to prevent reads and writes within a process.
    If a lock is already held, will throw
-   @param{string} pathstr :: the file you want to lock
-   @return{LockFile} record with .release() method to unlock the file"
+   @param {string} pathstr :: the file you want to lock
+   @return {LockFile} record with .release() method to unlock the file"
   [pathstr]
   (let [lock-file-path (lock-path pathstr)
         lock-fd (try
@@ -1149,8 +1149,8 @@
    A yielded err indicates a failure to obtain a lock, & AsyncLockFile is a
    record with .release() method to unlock the file, returning a promise-chan
    yielding [?err]
-   @param{string} pathstr :: the file you want to lock
-   @return{Channel} yielding [?err ?AsyncLockFile]"
+   @param {string} pathstr :: the file you want to lock
+   @return {Channel} yielding [?err ?AsyncLockFile]"
   [pathstr]
   (with-promise out
     (let [lock-file-path (lock-path pathstr)]

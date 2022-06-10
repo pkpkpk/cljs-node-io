@@ -68,29 +68,24 @@
   (as-file [u]
     (if (= "file" (.getScheme u))
       (as-file (.getPath u))
-      (throw (js/Error. (str "IllegalArgumentException : Uri's must have file protocol: " u))))))
+      (throw (js/Error. (str "Uri's must have file protocol: " u))))))
 
 ;;==============================================================================
 
 (defprotocol IOFactory
-  "Factory functions that create various node I/O stream types, on top of anything that can
-   be unequivocally converted to the requested kind of stream.
-   Common options include
-     :encoding  string name of encoding to use, e.g. \"UTF-8\".
-   Callers should generally prefer the higher level API provided by
-   reader, writer, input-stream, and output-stream."
-  (make-reader [x opts] "Defers back to the InputStream")
-  (make-writer [x opts] "Defers back to the OutputStream")
-  (make-input-stream [x opts] "Creates a buffered InputStream. See also IOFactory docs.")
-  (make-output-stream [x opts] "Creates a buffered OutputStream. See also IOFactory docs."))
+  "Attempts to create a native node stream."
+  (make-reader [x opts] "create stream.Readable")
+  (make-writer [x opts] "create stream.Writable")
+  (make-input-stream [x opts] "create stream.Readable")
+  (make-output-stream [x opts] "create stream.Writable"))
 
 (defn- default-make-input-stream
   [x opts]
-  (throw (js/Error. (str "Cannot open <" (pr-str x) "> as an InputStream."))))
+  (throw (js/Error. (str "Cannot open <" (pr-str x) "> as stream.Readable"))))
 
 (defn- default-make-output-stream
   [x opts]
-  (throw (js/Error. (str "Cannot open <" (pr-str x) "> as an OutputStream."))))
+  (throw (js/Error. (str "Cannot open <" (pr-str x) "> as stream.Writable"))))
 
 (extend-protocol IOFactory
   nil
@@ -146,43 +141,53 @@
       (default-make-output-stream x opts))))
 
 (defn reader
-  "For all streams it defers back to the stream. Note: stream objects are event driven.
-     + buffers => BufferReadStream
-     + files + strings => FileInputStream
-     + goog.Uri's are treated as local files. No other protocols are supported at this time.
-   @return {!IInputStream}"
+  "Attempt to create a native stream.Readable.
+   {@link https://nodejs.org/api/stream.html#class-streamreadable}
+   Note that node streams are event driven.
+     + stream.Readable => itself
+     + buffers => stream.Readable
+     + files + strings + goog.Uri => fs.ReadStream
+   @return {!stream.Readable}"
   [x & opts]
   (make-reader x (when opts (apply hash-map opts))))
 
 (defn writer
-  "For all streams it defers back to the stream. Note: stream objects are event driven.
-    + Files & Strings become FileOutputStreams.
-    + goog.Uri's are treated as local files. No other protocols are supported at this time.
-   @return {!IOutputStream}"
+  "Attempt to create a native stream.Writable.
+   {@link https://nodejs.org/api/stream.html#class-streamwritable}
+   Note that node streams are event driven.
+     + stream.Writable => itself
+     + buffers => stream.Writable
+     + files + strings + goog.Uri => fs.WriteStream
+   @return {!stream.Writable}"
   [x & opts]
   (make-writer x (when opts (apply hash-map opts))))
 
 (defn input-stream
-  "For all streams it defers back to the stream. Note: stream objects are event driven.
-    + buffers => BufferReadStream
-    + files + strings => FileInputStream
-    + goog.Uri's are treated as local files. No other protocols are supported at this time.
-   @return {!IInputStream}"
+  "Attempt to create a native stream.Readable.
+   {@link https://nodejs.org/api/stream.html#class-streamreadable}
+   Note that node streams are event driven.
+     + stream.Readable => itself
+     + buffers => stream.Readable
+     + files + strings + goog.Uri => fs.ReadStream
+   @return {!stream.Readable}"
   [x & opts]
   (make-input-stream x (when opts (apply hash-map opts))))
 
 (defn output-stream
-  "For all streams it defers back to the stream. Note: stream objects are event driven.
-   + Files & Strings become FileOutputStreams.
-   + goog.Uri's are treated as local files. No other protocols are supported at
-   this time.
-   @return {!IOutputStream}"
+  "Attempt to create a native stream.Writable.
+   {@link https://nodejs.org/api/stream.html#class-streamwritable}
+   Note that node streams are event driven.
+     + stream.Writable => itself
+     + buffers => stream.Writable
+     + files + strings + goog.Uri => fs.WriteStream
+   @return {!stream.Writable}"
   [x & opts]
   (make-output-stream x (when opts (apply hash-map opts))))
 
 (defn readable
   "Tries to create a stream.Readable from obj. Supports iterables & array-likes
    in addition to those types supported by IOFactory
+   {@link https://nodejs.org/api/stream.html#class-streamreadable}
    @param {*} obj
    @return {!stream.Readable}"
   ([obj] (readable obj {}))
