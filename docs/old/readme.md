@@ -1,1 +1,0 @@
-These docs are mostly correct but will not be maintained. An automatic solution is in the pipeline with more examples.
