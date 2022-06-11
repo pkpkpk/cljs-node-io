@@ -13,6 +13,7 @@
 (def path (js/require "path"))
 (def stream (js/require "stream"))
 (def os (js/require "os"))
+(def net (js/require "net"))
 
 (defn tmp-name [s])
 
@@ -59,8 +60,10 @@
       (is (thrown? js/Error (io/input-stream (new stream.Writable))))
       (is (writable? (io/output-stream (new stream.Writable)))))
     (testing "stream.Duplex"
-      (let [s (new stream.Duplex)]
-        (is (and (readable? s) (writable? s)))
+      (let [s (new net.Socket)]
+        (is (and (instance? stream.Duplex s)
+                 (readable? s)
+                 (writable? s)))
         (is (identical? s (io/reader s)))
         (is (identical? s (io/writer s)))
         (is (identical? s (io/input-stream s)))
