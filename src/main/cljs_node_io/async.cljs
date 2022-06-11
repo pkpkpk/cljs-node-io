@@ -156,17 +156,15 @@
   ([rstream out-ch] (readable-onto-ch rstream out-ch nil))
   ([rstream out-ch events] ;ie ["close"]
    (if events (assert (and (coll? events) (every? string? events))))
-   (let [close? (some #(= "close" %) events)
-         exits (atom (into #{} (if close? ["close" "end"] ["end"])))
+   (let [exits (atom (into #{} (if (some #(= "close" %) events) ["close" "end"] ["end"])))
          exit-cb (fn [ev]
-                   (swap! exits disj ev)
-                   (if (empty? @exits) (close! out-ch)))
-         common ["data" "error" "end"]
-         events (into #{} (if-not events common (concat common events)))]
-     (doseq [ev events]
-       (if (@exits ev)
-         (event-onto-ch rstream out-ch ev exit-cb)
-         (event-onto-ch rstream out-ch ev)))
+                   (when (empty? (swap! exits disj ev))
+                     (close! out-ch)))
+         common-events ["data" "error" "end"]]
+     (doseq [event (set (concat common-events events))]
+       (if (@exits event)
+         (event-onto-ch rstream out-ch event exit-cb)
+         (event-onto-ch rstream out-ch event)))
      out-ch)))
 
 (defn writable-onto-ch
@@ -187,14 +185,13 @@
    (let [close? (some #(= "close" %) events)
          exits (atom (into #{} (if close? ["close" "finish"] ["finish"])))
          exit-cb (fn [ev]
-                   (swap! exits disj ev)
-                   (if (empty? @exits) (close! out-ch)))
-         common ["finish" "error" "drain"]
-         events (into #{} (if-not events common (concat common events)))]
-     (doseq [ev events]
-       (if (@exits ev)
-         (event-onto-ch wstream out-ch ev exit-cb)
-         (event-onto-ch wstream out-ch ev)))
+                   (when (empty? (swap! exits disj ev))
+                     (close! out-ch)))
+         common-events ["finish" "error" "drain"]]
+     (doseq [event (set (concat common-events events))]
+       (if (@exits event)
+         (event-onto-ch wstream out-ch event exit-cb)
+         (event-onto-ch wstream out-ch event)))
      out-ch)))
 
 (defn sock->ch

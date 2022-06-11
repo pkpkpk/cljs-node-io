@@ -17,7 +17,7 @@
       (doseq [[k v] env]
         (goog.object.set ENV k v))
       (assoc opts :env ENV))
-    opts))
+    (assoc opts "env" (js/Object.create js/process.env))))
 
 (defn exec
   "@return {(buffer.Buffer|String)} the stdout from the command"
@@ -35,7 +35,7 @@
    @param {!IMap} options :: see https://nodejs.org/api/child_process.html#child_process_child_process_exec_command_options_callback
    @return {!PortedChildProcess} :: childprocess implementing readport.
      - This allows sync access to CP properties and methods
-     - channel yields [Error {string|Buffer} {string|Buffer}]"
+     - channel yields [Error stderr{string|Buffer} stdout{string|Buffer}]"
   ([cmdstr](aexec cmdstr {}))
   ([cmdstr opts]
    (let [out (promise-chan)
@@ -101,4 +101,3 @@
   (let [args (apply array args)
         opts (checked-env (merge {:silent true :stdio "pipe"} opts))]
     (childproc.fork modulePath args (clj->js opts))))
-
