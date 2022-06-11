@@ -1,6 +1,8 @@
 (ns cljs-node-io.build
   (:require [clojure.tools.build.api :as b]
-            [org.corfield.build :as bb]))
+            [org.corfield.build :as bb]
+            [cljs.build.api :as api]
+            [cljs.util]))
 
 ; https://github.com/seancorfield/build-clj
 
@@ -42,3 +44,20 @@
   (-> opts
     (assoc :lib lib :version version)
     (bb/deploy)))
+
+(def simple
+  {:target :nodejs
+   :optimizations :simple
+   :verbose true
+   :externs ["node_externs.js"]
+   :main 'cljs-node-io.runner
+   :parallel-build true
+   :static-fns true
+   :optimize-constants true
+   :language-in :ecmascript-2015
+   :output-to "simple.js"
+   :closure-warnings
+   {:check-types :warning
+    :undefined-names :off
+    :externs-validation :off
+    :missing-properties :off}})
