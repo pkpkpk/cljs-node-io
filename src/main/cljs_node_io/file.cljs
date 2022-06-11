@@ -100,12 +100,12 @@
     (-write writer "#object [cljs-node-io.File")
     (-write writer (str "  "  (.getPath this)  " ]")))
   Object
-  (read [this](iofs/readFile pathstring "utf8"))
-  (read [this enc](iofs/readFile pathstring enc))
-  (aread [this](iofs/areadFile pathstring "utf8"))
-  (aread [this enc](iofs/areadFile pathstring enc))
-  (write [this content opts] (iofs/writeFile pathstring content opts))
-  (awrite [this content opts] (iofs/awriteFile pathstring content opts))
+  (read [this](iofs/read-file pathstring "utf8"))
+  (read [this enc](iofs/read-file pathstring enc))
+  (aread [this](iofs/aread-file pathstring "utf8"))
+  (aread [this enc](iofs/aread-file pathstring enc))
+  (write [this content opts] (iofs/write-file pathstring content opts))
+  (awrite [this content opts] (iofs/awrite-file pathstring content opts))
   (canRead ^boolean [this] (iofs/readable? pathstring)) ;untested
   (canWrite ^boolean [this] (iofs/writable? pathstring)) ;untested
   (canExecute ^boolean [this] (iofs/executable? pathstring)) ;untested

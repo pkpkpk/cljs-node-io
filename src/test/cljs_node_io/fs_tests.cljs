@@ -126,7 +126,7 @@
     (is (all-errors? iofs/mkdir (rest dirs)) "mkdir with non-existent parent should throw")
     (is (every? nil? (map iofs/mkdir dirs)) "mkdir should return nil")
     (is (all-errors? iofs/mkdir dirs) "mkdir on an existing dir should throw")
-    (is (every? nil? (map (fn [p] (iofs/writeFile p "" nil)) file-paths)) "writeFile should return nil")
+    (is (every? nil? (map (fn [p] (iofs/write-file p "" nil)) file-paths)) "writeFile should return nil")
     (is (nil? (iofs/rm-r root)) "rm-r returns nil")
     (is (thrown? js/Error (iofs/rm-r root)) "rm-r throws when given non-existing path"))
   (testing "empty string IO errors"
@@ -136,7 +136,7 @@
     (is (thrown? js/Error (iofs/rm-r "")))
     (is (thrown? js/Error (iofs/rename (first file-paths) "")))
     (is (thrown? js/Error (iofs/rename "" "foo")))
-    (is (thrown? js/Error (iofs/writeFile "" "" nil)))))
+    (is (thrown? js/Error (iofs/write-file "" "" nil)))))
 
 (deftest async-writes-1
  (async done
@@ -153,11 +153,11 @@
      (is (= [nil] (<! (iofs/arm (second (reverse dirs))))) "arm success on a dir should return [nil]")
      (is (= "ENOENT" (ecode (<! (iofs/arm (second (reverse dirs)))))) "arm on a non-existing dir should return [err]")
      (is (= "ENOENT" (ecode (<! (iofs/amkdir (last dirs)))))  "amkdir with non-existent parent should return [err]")
-     (is (= "ENOENT" (ecode (<! (iofs/awriteFile (last file-paths) "" nil)))) "awriteFile with no parent dir should return [err]")
+     (is (= "ENOENT" (ecode (<! (iofs/awrite-file (last file-paths) "" nil)))) "awriteFile with no parent dir should return [err]")
      (is (= [nil] (<! (iofs/amkdir (second (reverse dirs))))) "amkdir success should return [nil]")
      (is (= [nil] (<! (iofs/amkdir (last dirs)))) "amkdir success should return [nil]")
      (is (= "EEXIST" (ecode (<! (iofs/amkdir (last dirs))))) "amkdir on an existing directory should return [err]")
-     (is (= [nil] (<! (iofs/awriteFile (last file-paths) "" nil))) "awriteFile success should return [nil]")
+     (is (= [nil] (<! (iofs/awrite-file (last file-paths) "" nil))) "awriteFile success should return [nil]")
      (is (= [nil] (<! (iofs/arm (last file-paths)))) "arm success on a file should return [nil]")
      (is (= "ENOENT" (ecode (<! (iofs/arm (last file-paths))))) "arm on a non-existing file should return [err]"))
    (done))))
@@ -208,11 +208,11 @@
   (async done
     (go
      (let [fpath "/tmp/touch-test"
-           _ (iofs/writeFile fpath "only this string" nil)
+           _ (iofs/write-file fpath "only this string" nil)
            control-time (.getTime (:mtime (iofs/stat fpath)))]
        (= [nil] (<! (iofs/atouch fpath)))
        (is (< control-time (.getTime (:mtime (iofs/stat fpath)))))
-       (is (= "only this string"  (iofs/readFile fpath "utf8"))))
+       (is (= "only this string"  (iofs/read-file fpath "utf8"))))
     (done))))
 
 (deftest watch-test
@@ -220,7 +220,7 @@
   (go
     (testing "watch file"
       (let [fpath "/tmp/watch-test"
-            _ (iofs/writeFile fpath "" nil)
+            _ (iofs/write-file fpath "" nil)
             watch (iofs/watch fpath)]
         (is [nil] (<! (iofs/atouch fpath)))
         (is (= [fpath [:change]] (<! watch)))

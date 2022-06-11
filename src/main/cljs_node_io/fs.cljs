@@ -775,20 +775,20 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; read+write Files
 
-(defn readFile
+(defn read-file
   "@param {!string} pathstr :: the file path to read
    @param {!string} enc :: encoding , if \"\" (an explicit empty string), => raw buffer
    @return {(buffer.Buffer|string)}"
   [pathstr enc] (.readFileSync fs pathstr enc))
 
-(defn areadFile
+(defn aread-file
   "@param {!string} pathstr
    @param {!string} enc :: if \"\" (an explicit empty string) => raw buffer
    @return {!Channel} yielding [?err (str|Buffer)]"
   [pathstr enc]
   (with-chan (.readFile fs pathstr enc)))
 
-(defn writeFile
+(defn write-file
   "synchronously writes content to file represented by pathstring.
    @param {!string} pathstr :: file to write to
    @param {(string|buffer.Buffer)} content :: if buffer, :encoding is ignored
@@ -802,7 +802,7 @@
                       "mode"     (or (:mode opts)  438)
                       "encoding" (or (:encoding opts) "utf8")}))
 
-(defn awriteFile
+(defn awrite-file
   "Asynchronously write to a file.
    @param {!string} pathstring : file to write to
    @param {(string|buffer.Buffer)} content : if buffer, :encoding is ignored

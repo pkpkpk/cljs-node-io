@@ -18,7 +18,7 @@
     (let [[?err lock :as res] (<! (fs/alock-file pathstr))]
       (if ?err
         res
-        (let [[?err :as res] (<! (fs/awriteFile pathstr content nil))]
+        (let [[?err :as res] (<! (fs/awrite-file pathstr content nil))]
           (if ?err
             res
             (<! (.release lock))))))))
@@ -51,7 +51,7 @@
 (defn guarded-write
   [pathstr content]
   (let [lock (fs/lock-file pathstr)]
-    (fs/writeFile pathstr content nil)
+    (fs/write-file pathstr content nil)
     (.release lock)))
 
 (deftest LockFile-test
