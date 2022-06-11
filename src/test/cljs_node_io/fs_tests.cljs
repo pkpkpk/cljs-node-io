@@ -237,7 +237,57 @@
         (is (= [d [:change]] (<! w)))
         (.close w)
         (is (= [d [:close]] (<! w)))))
+    (done))))
 
-   (done))))
+(deftest sync-crawl-test
+  (testing "visits each"
+    (let [seen (atom [])
+          f (fn [p] (swap! seen conj p))]
+      (iofs/crawl root f)
+      (is (= (set @seen) (set all-paths)))))
+  (testing "bails early"
+    (let [seen (atom #{})
+          f (fn [p]
+              (swap! seen conj p)
+              (if (= p "/tmp/D/d0/dd0/ddd0/ffff0.foo.bar")
+                (throw (js/Error "bailed"))
+                (iofs/rm p)))
+          e (try
+              (iofs/crawl root f)
+              (catch js/Error e e))]
+      (is (Error? e))
+      (is (= "bailed" (.-message e)))
+      (is (= (last @seen) "/tmp/D/d0/dd0/ddd0/ffff0.foo.bar") "last seen")
+      (is (< (count @seen) (count all-paths)))
+      (is (iofs/exists? "/tmp/D/d0/dd0/ddd0")))))
+
+(deftest acrawl-test
+  (async done
+    (let [seen (atom [])
+          visit (fn [p]
+                  (let [out (promise-chan)]
+                    (swap! seen conj p)
+                    (put! out [nil])
+                    out))
+          bail  (fn [p]
+                  (let [out (promise-chan)]
+                    (swap! seen conj p)
+                    (if (= p "/tmp/D/d0/dd0/ddd0/ffff0.foo.bar")
+                      (put! out [ (js/Error "bailed")])
+                      (take! (iofs/arm p) #(put! out %)))
+                    out))]
+     (go
+        (testing "visits each"
+          (is (= [nil] (<! (iofs/acrawl root visit))))
+          (is (= (set @seen) (set all-paths))))
+        (testing "bails early"
+          (reset! seen [])
+          (let [[err] (<! (iofs/acrawl root bail))]
+            (is (Error? err))
+            (is (= "bailed" (.-message err)))
+            (is (= (last @seen) "/tmp/D/d0/dd0/ddd0/ffff0.foo.bar") "last seen")
+            (is (< (count @seen) (count all-paths)))
+            (is (iofs/exists? "/tmp/D/d0/dd0/ddd0"))))
+      (done)))))
 
 (use-fixtures :each {:before setup :after teardown})

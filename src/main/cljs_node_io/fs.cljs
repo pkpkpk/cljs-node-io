@@ -337,14 +337,13 @@
    (with-chan (.readdir fs dirpath (clj->js opts)) vec)))
 
 (defn crawl
-  "Depth-first recursive crawl through a directory tree, calling the supplied
+  "Synchronous depth-first recursive crawl through a directory tree, calling the supplied
    side-effecting function on every node. This function will throw if your supplied
    f throws on any node.
    @param {!string} root :: where to start the crawl. A file simply returns (f root)
    @param {!function<string>} f :: function called on both files & directories
    returns value of (f top-level-root)"
   [root f]
-  (assert (string? root))
   (assert (fn? f))
   (if (file? root)
     (f root)
@@ -366,24 +365,20 @@
    @return {!Channel} yields a short circuited [err] or [nil ok].
    This depends on the user following the result chan conventions."
   [root af]
-  (assert (string? root))
   (assert (fn? af))
-  (let [out (promise-chan)]
-    (go
-     (if (<! (afile? root))
-       (>! out (<! (af root)))
-       (let [[err names :as res] (<! (areaddir root))]
-         (if err
-           (>! out res)
-           (do
-             (loop [children (mapv (partial resolve-path root) names)]
-               (if (seq children)
+  (go
+   (if (<! (afile? root))
+     (<! (af root))
+     (let [[err names :as res] (<! (areaddir root))]
+       (if err
+         res
+         (or (loop [children (mapv (partial resolve-path root) names)]
+               (when (seq children)
                  (let [[err :as res] (<! (acrawl (first children) af))]
                    (if err
-                     (>! out res)
+                     res
                      (recur (next children))))))
-             (>! out (<! (af root))))))))
-    out))
+             (<! (af root))))))))
 
 ;; /path utilities + reads
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
