@@ -1,5 +1,5 @@
 (ns cljs-node-io.core
-  (:require [cljs.core.async :as async :refer [put! take! promise-chan close!]]
+  (:require [cljs.core.async :as async :refer [put! take! promise-chan close! go-loop]]
             [cljs.core.async.impl.protocols :refer [Channel]]
             [cljs-node-io.file :refer [File]]
             [cljs-node-io.fs :as iofs])
@@ -278,12 +278,12 @@
     (.awrite f (str content) opts)))
 
 (defn file-seq
-  "taken from clojurescript/examples/nodels.cljs"
-  [dir]
-  (tree-seq
-    (fn [f] (.isDirectory (file f) ))
-    (fn [d] (map #(.join path d %) (.list (file d))))
-    dir))
+  "A tree seq on cljs-node-io.Files
+   @return {LazySeq<File>}"
+  ([dir]
+   (if-not (instance? File dir)
+     (file-seq (as-file dir))
+     (tree-seq #(.isDirectory %) #(.listFiles %) dir))))
 
 (defn make-parents
   "Given the same arg(s) as for file, creates all parent directories of
