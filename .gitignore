@@ -1,5 +1,4 @@
 /classes/
-dev/
 /lib/
 /node_modules/
 /target/
@@ -16,3 +15,5 @@ pom.xml.asc
 package.json
 *.diff
 .cpcache
+out
+.cljs*

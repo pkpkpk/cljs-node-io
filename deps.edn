@@ -3,4 +3,7 @@
         org.clojure/clojurescript {:mvn/version  "1.11.54"}
         org.clojure/core.async {:mvn/version "1.5.648"}}
  :aliases {:test {:extra-paths ["src/test"]
-                  :main-opts ["-m" "cljs.main" "-t" "node" "-o" "runner.js" "-c" "cljs-node-io.runner"]}}}
+                  :main-opts ["-m" "cljs.main" "-t" "node"  "-m" "cljs-node-io.runner"]}
+           :build  {:extra-paths ["src/dev"]
+                    :ns-default cljs-node-io.build
+                    :deps {io.github.seancorfield/build-clj {:git/tag "v0.8.2" :git/sha "0ffdb4c"}}}}}
