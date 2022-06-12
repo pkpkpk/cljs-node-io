@@ -1,6 +1,7 @@
 (ns cljs-node-io.build
   (:require [clojure.tools.build.api :as b]
             [org.corfield.build :as bb]
+            [clojure.java.io :as io]
             [clojure.pprint :refer [pprint]]
             [cljs.build.api :as api]
             [cljs.util]))
@@ -17,17 +18,27 @@
   ([] (b/delete {:path "target"}))
   ([_] (b/delete {:path "target"})))
 
+
+(defn build-externs []
+  (let [target-file (io/file "target" "externs" "cljs_node_io.ext.js")]
+    (io/make-parents target-file)
+    (spit target-file "")
+    (doseq [file (.listFiles (io/file "externs"))]
+      (spit target-file (slurp file) :append true))))
+
 (defn jar
-  [opts]
-  (-> opts
-    (assoc :class-dir nil
-           :src-pom "./template/pom.xml"
-           :lib lib
-           :version version
-           :basis basis
-           :jar-file jar-file
-           :src-dirs ["src/main"])
-    bb/jar))
+  ([] (jar nil))
+  ([opts]
+   (build-externs)
+   (-> opts
+     (assoc :class-dir nil
+            :src-pom "./template/pom.xml"
+            :lib lib
+            :version version
+            :basis basis
+            :jar-file jar-file
+            :src-dirs ["src/main" "target/externs"])
+     bb/jar)))
 
 (defn ci "Run the CI pipeline of tests (and build the JAR)." [opts]
   (-> opts
@@ -45,23 +56,6 @@
   (-> opts
     (assoc :lib lib :version version)
     (bb/deploy)))
-
-(def simple
-  {:target :nodejs
-   :optimizations :simple
-   :verbose true
-   :externs ["node_externs.js"]
-   :main 'cljs-node-io.runner
-   :parallel-build true
-   :static-fns true
-   :optimize-constants true
-   :language-in :ecmascript-2015
-   :output-to "simple.js"
-   :closure-warnings
-   {:check-types :warning
-    :undefined-names :off
-    :externs-validation :off
-    :missing-properties :off}})
 
 (def advanced
   {:externs ["externs/events.js"
