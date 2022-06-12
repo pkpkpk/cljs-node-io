@@ -520,23 +520,23 @@
    {@link https://nodejs.org/api/fs.html#fssymlinksynctarget-path-type}
    @param {!(string|Buffer|URL)} target :: what gets pointed to
    @param {!(string|Buffer|URL)} pathstr :: the new symbolic link that points to target
-   @param {?string} link-type ::'file' or 'dir'
+   @param {?string} link_type ::'file' or 'dir'
    @return {nil}"
   ([target pathstr] (.symlinkSync fs target pathstr))
-  ([target pathstr link-type] (.symlinkSync fs target pathstr link-type)))
+  ([target pathstr link_type] (.symlinkSync fs target pathstr link_type)))
 
 (defn asymlink
   "Synchronous symlink.
    {@link https://nodejs.org/api/fs.html#fssymlinktarget-path-type-callback}
    @param {!(string|Buffer|URL)} targetstr :: what gets pointed to
    @param {!(string|Buffer|URL)} pathstr :: the new symbolic link that points to target
-   @param {?string} link-type ::'file' or 'dir'
+   @param {?string} link_type ::'file' or 'dir'
    @return {!Channel} yielding [?err]"
   ([targetstr pathstr]
    (with-chan (.symlink fs
     targetstr pathstr)))
-  ([targetstr pathstr link-type]
-   (with-chan (.symlink fs targetstr pathstr link-type))))
+  ([targetstr pathstr link_type]
+   (with-chan (.symlink fs targetstr pathstr link_type))))
 
 (defn unlink
   "Synchronously unlink a file.
@@ -969,7 +969,7 @@
   "Synchronously retrieve a stats map from the file descriptor
    {@link https://nodejs.org/api/fs.html#fsfstatsyncfd-options}
    @param {!Number} fd
-   @param {!IMap} edn-stats"
+   @return {!IMap} edn stats"
   [fd]
   (stat->clj (.fstatSync fd)))
 

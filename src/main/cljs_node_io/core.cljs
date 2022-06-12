@@ -23,10 +23,9 @@
   (-equiv [this o]
     (if (identical? this o)
       true
-      (try
+      (if ^boolean (js/Buffer.isBuffer o)
         (.equals this o)
-        (catch js/Error _
-          false)))))
+        false))))
 
 (defn filepath
   "This is needed to mock the java.io.File constructor.

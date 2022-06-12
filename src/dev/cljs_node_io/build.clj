@@ -1,12 +1,13 @@
 (ns cljs-node-io.build
   (:require [clojure.tools.build.api :as b]
             [org.corfield.build :as bb]
+            [clojure.pprint :refer [pprint]]
             [cljs.build.api :as api]
             [cljs.util]))
 
 ; https://github.com/seancorfield/build-clj
 
-(def lib 'pkpkpk/cljs-node-io)
+(def lib 'com.github.pkpkpk/cljs-node-io)
 
 (def version (format "2.0.%s" (b/git-count-revs nil)))
 (def basis (b/create-basis {:project "deps.edn"}))
@@ -61,3 +62,24 @@
     :undefined-names :off
     :externs-validation :off
     :missing-properties :off}})
+
+(def advanced
+  {:externs ["externs/events.js"
+             "externs/stream.js"
+             "externs/buffer.js"
+             "externs/fs.js"
+             "externs/path.js"
+             "externs/os.js"
+             "externs/process.js"
+             "externs/net.js"
+             "externs/child_process.js"],
+   :static-fns true,
+   ; :pseudo-names true
+   :optimize-constants true,
+   :optimizations :advanced,
+   :parallel-build true,
+   ; :verbose true,
+   :output-to "out/advanced.js",
+   :target :nodejs,
+   :main 'cljs-node-io.runner,
+   :language-in :ecmascript-2015})

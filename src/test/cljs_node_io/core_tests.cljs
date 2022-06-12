@@ -191,6 +191,7 @@
      (testing "coerce buffer to readable for piping to file "
        (let [output-path "copydst"
              output-file (createTempFile output-path)
+             _(io/delete-file output-file true)
              input (js/Buffer.from (into-array (range 0 255)))]
          (is (= [nil] (<! (io/acopy input output-file))))
          (is (= input (slurp output-file :encoding "")))))
