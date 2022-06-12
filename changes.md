@@ -27,3 +27,17 @@
  + people keep searching for "readline" so I added a primitive `cljs-node-io.fs/readline`.
  + fix watcher to use key
  + misc decrufting
+
+### 2.0.332
++ `IOFactory`, `io/reader`, `io/writer`, `io/input-stream`, `io/output-stream` etc all return native streams whenever they can
++ `io/readable` & `io/writable` defer to IOFactory but are friendlier names for node devs. Additionally, `io/readable` will create a stream an iterables
++ `io/copy` assumes args are files or string file-paths and uses native copyFileSync. It returns nil and throws on error. `io/acopy` uses IOFactory to create and then pipe streams, returns ch<?err>
++ `io/file-seq` now returns files, was string names previously
++ `fs/stat` & variants now return edn automatically, not fs.stat
++ `fs/lchmod` removed, deprecated in native fs
++ notable new stuff in `cljs-node-io.fs`
+  - `fs/exists?` instead of `fs/fexists?`
+  - `fs/crawl` run a fn on every entry in a directory
+  - `fs/lock-file` provides lock-files for simple advisory locking
+  - `fs/rm-rf` recursively delete a dir and ignore if missing.
++ externs are packaged in the jar as `cljs_node_io.ext.js`

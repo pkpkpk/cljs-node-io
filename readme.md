@@ -1,20 +1,18 @@
-# `[cljs-node-io "1.1.2"]`
-## `cljs-node-io {:mvn/version "1.1.2"}`
+# `com.github.pkpkpk/cljs-node-io {:mvn/version "2.0.332"}`
 
-[![Clojars Project](https://img.shields.io/clojars/v/cljs-node-io.svg)](https://clojars.org/cljs-node-io)
+[![Clojars Project](https://img.shields.io/clojars/v/com.github.pkpkpk/cljs-node-io.svg)](https://clojars.org/com.github.pkpkpk/cljs-node-io)
 
 This is a port of clojure.java.io to clojurescript, in a way that makes sense for nodejs. The goal is to make the clojure programmer feel right at home, so most everything has the same signatures and semantics as their jvm counterparts. However many things necessarily work differently internally, and with some consequence. You can [read about the differences here](#differences-from-clojure)
 
 #### Also included:
   + reified files with same api as java
   + slurp + spit
-  + wrappers over node streams, child processes
+  + async helpers, wrappers over child processes
   + convenience functions to make your scripting and repl'ing experience more pleasant
-  + ~~compiled with [andare](https://github.com/mfikes/andare) so that~~ all the core async is bootstrap friendly
 
 <hr>
 
-#### In your repl session & scripts
+#### Be synchronous in your repl sessions & scripts
 
 ```clojure
 (require '[cljs-node-io.core :as io :refer [slurp spit]])
@@ -27,15 +25,15 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
 
 ```
 
-#### In your app
+#### Write your app asynchronously
 
 ```clojure
 ;; write asynchronously using core.async
 (go
-  (let [[err] (<! (io/aspit "data.edn" data))]
-    (if-not err
-      (println "you've successfully written to 'data.edn'")
-      (println "there was an error writing: " err))))
+  (let [[?err] (<! (io/aspit "data.edn" data :append true))]
+    (if (some? ?err)
+      (println "there was an error writing: " (.-message ?err))
+      (println "successfully appended to 'data.edn'"))))
 
 ;; read asynchronously using core.async
 (go
@@ -45,28 +43,62 @@ This is a port of clojure.java.io to clojurescript, in a way that makes sense fo
       (handle-error err))))
 
 ```
+
+#### Use files just as you would on JVM
+
+```clojure
+(def file (io/file "data.edn"))
+
+(io/delete-file file true)
+
+(.exists file) ;=> false
+
+(spit file data)
+
+(.stats file) ;=> {:mtime #inst"2022-06-10T23:26:00.558-00:00", :isFIFO false, ...}
+
+(def parent (.getParentFile file))
+
+(filter #(.equals file %) (io/file-seq parent))
+
+```
+
+#### easy subprocesses
+
+```clojure
+(require '[cljs-node-io.proc :as proc])
+
+;; Warning! dont hot reload shell calls!
+
+;; blocks the main thread
+(proc/exec "pgrep java" {:encoding "utf8"})
+
+;; does not block the thread
+(let [[?err json] (<! (proc/aexec "rg -e foo --json" {:encoding "utf8"}))]
+  (if (some? err)
+    (handle-err ?err)
+    (search-results (js/JSON.parse json))))
+
+```
+
 <hr>
 
-In the nodejs fs module, functions are asynchronous by default, and their synchronous versions have names with a `Sync` suffix. In *cljs-node-io*, functions are synchronous by default, and async versions have an `a` prefix.  For example, `cljs-node-io.core/slurp` is synchronous (just as jvm), whereas `cljs-node-io.core/aslurp` runs asynchronously. This convention simply saves you some thought cycles at the repl. Note that most of the time (scripting...) synchronous functions are fine and getting order guarantees from async code is not worth the hassle
+#### Async vs Sync naming conventions
+In NodeJS, functions are async by default, and their synchronous versions have names with a `Sync` suffix. In *cljs-node-io*, functions are synchronous by default, and async versions have an `a` prefix.  For example, `cljs-node-io.core/slurp` is synchronous (just as jvm), whereas `cljs-node-io.core/aslurp` runs asynchronously. `a` prefixed functions always return channels.
+
+This convention simply saves you some thought cycles at the repl. Note that most of the time (scripting...) synchronous functions are fine and getting order guarantees from async code is not worth the hassle.
 
 #### IO Operations & Error Handling
   - all functions should throw at the call-site if given the wrong type.
   - Sync IO ops *will* throw on IO exceptions. Error handling is up to the user
   - in asynchronous functions, IO exceptions will be part of the channel yield. The convention here is to mimic *nodeback* style callbacks with channels yielding `[?err]` or `[?err ?data]` depending on the operation
-```clojure
-(go
- (let [[err data] (<! afn)]
-   (if-not err
-     (handle-result data)
-     (handle-error err))))
-```
-
- - for successful ops, errors will be nil. This lets you destructure the result and *branch on err*
- - note this is not transactional... some side effects may have occured despite an error
+  - for successful ops, errors will be nil. This lets you destructure the result and *branch on err*
+  - note this is not transactional... some side effects may have occured despite an error
 
 ##### Predicates
   - Sync predicates do not throw on op errors, they catch the error and return false
   - Async predicates return chans that receive false on err. These channels only receive booleans.
+
 
 <hr>
 
@@ -84,24 +116,25 @@ read more [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking/)
 (def sc (fs/astat "/tmp/world"))
 
 (go
-  (let [[err] (<! rc)]
-    (if-not err
-      (let [[err st] (<! sc)]
-        (if-not err
-          (println (js/JSON.stringify st))
-          (throw err)))
-      (throw err))))
+  (let [[?err] (<! rc)]
+    (if (some? err)
+      (handle-err err)
+      (let [[?err stats] (<! sc)]
+        (if (some? ?err)
+           (handle-err ?err)
+           (handle-stats stats))))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; GOOD!  chain the calls together
 (go
-  (let [[err] (<! (fs/arename "/tmp/hello" "/tmp/world"))]
-    (if-not err
-      (let [[err st] (<! (fs/astat "/tmp/world"))]
-        (if-not err
-          (println (js/JSON.stringify st))
-          (throw err)))
-      (throw err))))
+  (let [[?err] (<! (fs/arename "/tmp/hello" "/tmp/world"))]
+    (if (some? ?err)
+      (handle-err ?err)
+      (let [[?err stats] (<! (fs/astat "/tmp/world"))]
+        (if (some? err)
+           (handle-err err)
+           (handle-stats stats)))))))
 ```
+
 
 <hr>
 
@@ -116,4 +149,3 @@ read more [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking/)
   + no URL type, just goog.net.Uri
   + javascript does not have a character type
   + no java-style char/byte arrays, just nodejs buffers
-
