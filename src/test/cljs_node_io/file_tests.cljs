@@ -3,10 +3,11 @@
             [clojure.string :as s :refer [starts-with?]]
             [cljs-node-io.file :refer [File setReadable* setWritable* setExecutable*]]
             [cljs-node-io.fs :as fs]
-            [cljs-node-io.core :refer [spit slurp]]))
+            [cljs-node-io.core :refer [spit slurp] :as io]))
 
 (def os (js/require "os"))
 (def path (js/require "path"))
+(def process (js/require "process"))
 
 (defn createTempFile
   ([prefix] (createTempFile prefix nil nil))
@@ -130,3 +131,29 @@
     (is (= (.getPath foo) (.getPath bar)))
     (is (false? (fs/fexists? orig-path)))
     (is (= "buen dia" (slurp bar)))))
+
+(defn tmp-path [& args]
+  (apply path.join (into-array (cons (.tmpdir os) args))))
+
+(defn abs-path [& args]
+  (apply path.join (into-array (conj args "tmp" (.cwd process)))))
+
+(deftest absolute-paths-test
+  (let [a (createTempFile "a")]
+    (is (= (.getAbsolutePath a) "/tmp/a.tmp")))
+  (testing "user provided absolute paths"
+    (let [child-path (tmp-path "grandparent" "parent" "child")
+          child (File. child-path)
+          parent (.getParentFile child)]
+      (is (true? (.isAbsolute child)))
+      (is (true? (.isAbsolute parent)))
+      (is (= (.getAbsolutePath parent) (tmp-path "grandparent" "parent")))))
+  (testing "derived absolute paths"
+    (let [local-tmp (fs/mkdir "tmp" {:recursive true})
+          child (File. (path.join "tmp" "grandparent" "parent" "child"))
+          parent (.getParentFile child)]
+      (is (false? (.isAbsolute child)))
+      (is (false? (.isAbsolute parent)))
+      (is (= (abs-path "grandparent" "parent" "child") (.getAbsolutePath child)))
+      (is (= (abs-path "grandparent" "parent") (.getAbsolutePath parent)))
+      (fs/rm-f local-tmp))))

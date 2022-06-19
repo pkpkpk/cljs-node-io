@@ -124,7 +124,7 @@
   (equals ^boolean [this that] (= this that))
   (exists ^boolean [_](iofs/fexists? pathstring))
   (getAbsoluteFile [this] (File. (.getAbsolutePath this)))
-  (getAbsolutePath [_] (iofs/realpath pathstring))
+  (getAbsolutePath [_] (.resolve path pathstring))
   (getCanonicalFile [this] (File. (.getCanonicalPath this)))
   (getCanonicalPath [_] (iofs/normalize-path pathstring))
   (getName [_] (iofs/basename pathstring))
