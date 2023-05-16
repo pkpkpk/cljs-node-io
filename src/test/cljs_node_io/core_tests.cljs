@@ -15,8 +15,6 @@
 (def os (js/require "os"))
 (def net (js/require "net"))
 
-(defn tmp-name [s])
-
 (defn createTempFile
   ([prefix] (createTempFile prefix nil nil))
   ([prefix suffix] (createTempFile prefix suffix nil))
@@ -25,10 +23,10 @@
      (File. (str tmpd (.-sep path) prefix (or suffix ".tmp"))))))
 
 (defn readable? [o]
-  (instance? stream.Readable o))
+  (instance? (.-Readable stream) o))
 
 (defn writable? [o]
-  (instance? stream.Writable o))
+  (instance? (.-Writable stream) o))
 
 (deftest IOFactory-test
   (let [test-file (createTempFile "foo")
@@ -50,18 +48,18 @@
       (is (readable? (io/input-stream (io/file test-path))))
       (is (writable? (io/output-stream (io/file test-path)))))
     (testing "stream.Readable"
-      (is (readable? (io/reader (new stream.Readable))))
-      (is (thrown? js/Error (io/writer (new stream.Readable))))
-      (is (readable? (io/input-stream (new stream.Readable))))
-      (is (thrown? js/Error (io/output-stream (new stream.Readable)))))
+      (is (readable? (io/reader (new (.-Readable stream)))))
+      (is (thrown? js/Error (io/writer (new (.-Readable stream)))))
+      (is (readable? (io/input-stream (new (.-Readable stream)))))
+      (is (thrown? js/Error (io/output-stream (new (.-Readable stream))))))
     (testing "stream.Writable"
-      (is (thrown? js/Error (io/reader (new stream.Writable))))
-      (is (writable? (io/writer (new stream.Writable))))
-      (is (thrown? js/Error (io/input-stream (new stream.Writable))))
-      (is (writable? (io/output-stream (new stream.Writable)))))
+      (is (thrown? js/Error (io/reader (new (.-Writable stream)))))
+      (is (writable? (io/writer (new (.-Writable stream)))))
+      (is (thrown? js/Error (io/input-stream (new (.-Writable stream)))))
+      (is (writable? (io/output-stream (new (.-Writable stream))))))
     (testing "stream.Duplex"
-      (let [s (new net.Socket)]
-        (is (and (instance? stream.Duplex s)
+      (let [s (new (.-Socket net))]
+        (is (and (instance? (.-Duplex stream) s)
                  (readable? s)
                  (writable? s)))
         (is (identical? s (io/reader s)))
@@ -69,21 +67,21 @@
         (is (identical? s (io/input-stream s)))
         (is (identical? s (io/output-stream s)))))
     (testing "fs.ReadStream"
-      (let [s (new fs.ReadStream test-path)]
+      (let [s (new (.-ReadStream fs) test-path)]
         (is (and (readable? (io/reader s)) (identical? s (io/reader s))))
         (is (thrown? js/Error (io/writer s)))
         (is (readable? (io/input-stream s)))
         (is (thrown? js/Error (io/output-stream s)))
         (.close s)))
     (testing "fs.WriteStream"
-      (let [s (new fs.createWriteStream test-path)]
+      (let [s (new (.-createWriteStream fs) test-path)]
         (is (thrown? js/Error (io/reader s)))
         (is (and (writable? (io/writer s)) (identical? s (io/writer s))))
         (is (thrown? js/Error (io/input-stream s)))
         (is (writable? (io/output-stream s)))
         (.close s)))
     (testing "buffers"
-      (let [b (js/Buffer.from #js[0 1 2 3])]
+      (let [b (.from js/Buffer #js[0 1 2 3])]
         (is (readable? (io/reader b)))
         (is (thrown? js/Error (io/writer b)))
         (is (readable? (io/input-stream b)))
@@ -93,9 +91,9 @@
 
 (deftest test-filepath
   (is (= (filepath "foo") "foo"))
-  (is (= (filepath "foo" "bar") (path.join "foo" "bar")))
+  (is (= (filepath "foo" "bar") (.join path "foo" "bar")))
   (is (= (filepath (Uri. "foo")) "foo"))
-  (is (= (filepath (File. "foo") "bar")) (path.join "foo" "bar"))
+  (is (= (filepath (File. "foo") "bar")) (.join path "foo" "bar"))
   (is (thrown? js/Error (filepath (File. "foo") (File. "bar")))))
 
 (deftest test-as-url ;note URL object is dropped
@@ -124,7 +122,7 @@
 
 (deftest test-spit-and-slurp
   (let [f             (createTempFile "spit_slurp_unicode" "test")
-        ascii-content (js/Buffer.from #js[0x62 0x75 0x66 0x66 0x65 0x72])
+        ascii-content (.from js/Buffer #js[0x62 0x75 0x66 0x66 0x65 0x72])
         uni-content   (apply str (concat "a" (repeat 500 "\u226a\ud83d\ude03")))]
     (io/delete-file f true)
     ;ascii + bin
@@ -139,7 +137,7 @@
 
 (deftest test-async-spit-and-slurp
   (let [f             (createTempFile "aspit_aslurp" "test")
-        ascii-content (js/Buffer.from #js[0x62 0x75 0x66 0x66 0x65 0x72])
+        ascii-content (.from js/Buffer #js[0x62 0x75 0x66 0x66 0x65 0x72])
         uni-content   (apply str (concat "a" (repeat 500 "\u226a\ud83d\ude03")))]
     (async done
       (go
@@ -192,7 +190,7 @@
        (let [output-path "copydst"
              output-file (createTempFile output-path)
              _(io/delete-file output-file true)
-             input (js/Buffer.from (into-array (range 0 255)))]
+             input (.from js/Buffer (into-array (range 0 255)))]
          (is (= [nil] (<! (io/acopy input output-file))))
          (is (= input (slurp output-file :encoding "")))))
      (done))))

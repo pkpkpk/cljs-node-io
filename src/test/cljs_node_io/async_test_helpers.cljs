@@ -9,7 +9,7 @@
   (.apply (.-emit this) this (into-array (cons (name evkw) val))))
 
 (defn mock-stream [xf]
-  (.setEncoding (new stream.Transform #js {"writableObjectMode" true "transform" xf}) "utf8"))
+  (.setEncoding (new (.-Transform stream) #js {"writableObjectMode" true "transform" xf}) "utf8"))
 
 (defn readable-test-xf
   "[:end nil] will kill, emit 'end'

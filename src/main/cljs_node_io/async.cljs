@@ -127,7 +127,7 @@
   ([emitter out event](event-onto-ch emitter out event nil))
   ([emitter out event cb]
    (assert (string? event))
-   (if-not (instance? stream.Readable emitter)
+   (if-not (instance? (.-Readable stream) emitter)
      (.on emitter event
         (fn [& vals]
           (put! out [(keyword event) (handle-vals event vals)]  #(if cb (cb)))))

@@ -3,8 +3,6 @@
   (:require [cljs-node-io.fs :as iofs])
   (:import goog.Uri))
 
-(def fs (js/require "fs"))
-(def os (js/require "os"))
 (def path (js/require "path"))
 
 (def separatorChar (.-sep path))
@@ -185,5 +183,5 @@
   ([prefix] (createTempFile prefix nil nil))
   ([prefix suffix] (createTempFile prefix suffix nil))
   ([prefix suffix dir]
-   (let [tmpd (or dir (.tmpdir os))]
+   (let [tmpd (or dir (.tmpdir (js/require "os")))]
      (File. (str tmpd (.-sep path) prefix (or suffix ".tmp"))))))

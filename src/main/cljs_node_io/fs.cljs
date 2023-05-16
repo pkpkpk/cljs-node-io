@@ -68,7 +68,7 @@
    @return {!Array<Number>}"
   [s]
   (let [mode (or (get s :mode)
-                 (goog.object.get s "mode"))
+                 (goog.object/get s "mode"))
         ownr (bit-and mode 256)
         ownw (bit-and mode 128)
         ownx (bit-and mode 64)
@@ -147,7 +147,7 @@
    @return {!boolean} is pathstr an absolute path"
   [pathstr]
   (assert (string? pathstr))
-  (path.isAbsolute pathstr))
+  (.isAbsolute path pathstr))
 
 (defn ^boolean exists?
   "Synchronously test if a file or directory exists
@@ -533,8 +533,7 @@
    @param {?string} link_type ::'file' or 'dir'
    @return {!Channel} yielding [?err]"
   ([targetstr pathstr]
-   (with-chan (.symlink fs
-    targetstr pathstr)))
+   (with-chan (.symlink fs targetstr pathstr)))
   ([targetstr pathstr link_type]
    (with-chan (.symlink fs targetstr pathstr link_type))))
 
@@ -728,9 +727,9 @@
   [pathstr]
   (try
     (let [t (js/Date.)]
-      (fs.utimesSync pathstr t t))
+      (.utimesSync fs pathstr t t))
     (catch js/Error _
-      (fs.closeSync (fs.openSync pathstr "w")))))
+      (.closeSync fs (.openSync fs pathstr "w")))))
 
 (defn atouch
   "creates a file if non-existent
@@ -739,15 +738,15 @@
   [pathstr]
   (with-promise out
     (let [t (js/Date.)]
-      (fs.utimes pathstr t t
+      (.utimes fs pathstr t t
         (fn [err]
           (if (nil? err)
             (put! out [nil])
-            (fs.open pathstr "w"
+            (.open fs pathstr "w"
               (fn [err fd]
                 (if err
                   (put! out [err])
-                  (fs.close fd (fn [err] (put! out [err]))))))))))))
+                  (.close fs fd (fn [err] (put! out [err]))))))))))))
 
 (defn copy-file
   "Synchronously copy file from src to dst. By default dst is overwritten.
@@ -758,7 +757,7 @@
   ([src dst]
    (copy-file src dst 0))
   ([src dst mode]
-   (fs.copyFileSync src dst mode)))
+   (.copyFileSync fs src dst mode)))
 
 (defn acopy-file
   "Asynchronously copy file from src to dst. By default dst is overwritten.
@@ -769,7 +768,7 @@
   ([src dst]
    (acopy-file src dst 0))
   ([src dst mode]
-   (with-chan (fs.copyFile src dst mode))))
+   (with-chan (.copyFile fs src dst mode))))
 
 ;; /writes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -826,11 +825,11 @@
    @param {!string} pathstr
    @return {!Number} integer file-descriptor"
   ([pathstr]
-   (fs.openSync pathstr "r"))
+   (.openSync fs pathstr "r"))
   ([pathstr flags]
-   (fs.openSync pathstr flags))
+   (.openSync fs pathstr flags))
   ([pathstr flags mode]
-   (fs.openSync pathstr flags mode)))
+   (.openSync fs pathstr flags mode)))
 
 (defn aopen
   "Asynchronously open a file-descriptor
@@ -838,11 +837,11 @@
    @param {!string} pathstr
    @return {!Channel} yielding [?err ?fd]"
   ([pathstr]
-   (with-chan (fs.open pathstr "r")))
+   (with-chan (.open fs pathstr "r")))
   ([pathstr flags]
-   (with-chan (fs.open pathstr flags)))
+   (with-chan (.open fs pathstr flags)))
   ([pathstr flags mode]
-   (with-chan (fs.open pathstr flags mode))))
+   (with-chan (.open fs pathstr flags mode))))
 
 (defn close
   "Synchronously close a file-descriptor
@@ -850,8 +849,8 @@
    @param {Number} fd :: the file descriptor to close
    @return {nil}"
   [fd]
-  (assert (and (number? fd) (js/Number.isInteger fd)))
-  (fs.closeSync fd))
+  (assert (and (number? fd) (.isInteger js/Number fd)))
+  (.closeSync fs fd))
 
 (defn aclose
   "Asynchronously close a file-descriptor
@@ -859,7 +858,7 @@
    @param {Number} fd :: the file descriptor to close
    @return {Channel} yielding [?err]"
   [fd]
-  (with-chan (fs.close fd)))
+  (with-chan (.close fs fd)))
 
 (defn ^number read
   "Synchronously read data from the fd into the specified buffer
@@ -872,7 +871,7 @@
    @return {!Number} number of bytes read"
   ([fd opts]
    (let [buf (:buffer opts)]
-     (assert (js/Buffer.isBuffer buf) ":buffer entry needed to read from a fd")
+     (assert (.isBuffer js/Buffer buf) ":buffer entry needed to read from a fd")
      (read fd (:buffer opts) opts)))
   ([fd buffer opts]
    (let [{:keys [offset length position]} opts
@@ -894,7 +893,7 @@
    @return {!Channel} yielding [?err bytes-read buffer]"
   ([fd opts]
    (let [buf (:buffer opts)]
-     (assert (js/Buffer.isBuffer buf) ":buffer entry needed to read from a fd")
+     (assert (.isBuffer js/Buffer buf) ":buffer entry needed to read from a fd")
      (aread fd (:buffer opts) opts)))
   ([fd buffer opts]
    (let [{:keys [offset length position]} opts
@@ -916,7 +915,7 @@
    @return {!Number} number of bytes written"
   ([fd opts]
    (let [buf (:buffer opts)]
-     (assert (js/Buffer.isBuffer buf) ":buffer entry needed to read from a fd")
+     (assert (.isBuffer js/Buffer buf) ":buffer entry needed to read from a fd")
      (write fd (:buffer opts) opts)))
   ([fd buffer opts]
    (let [{:keys [offset length position]} opts
@@ -938,7 +937,7 @@
    @return {!Channel} yielding [?err bytes-written buffer]"
   ([fd opts]
    (let [buf (:buffer opts)]
-     (assert (js/Buffer.isBuffer buf) ":buffer entry needed to read from a fd")
+     (assert (.isBuffer js/Buffer buf) ":buffer entry needed to read from a fd")
      (awrite fd (:buffer opts) opts)))
   ([fd buffer opts]
    (let [{:keys [offset length position]} opts
@@ -1018,9 +1017,9 @@
    and then the channel closes."
   [pathstr]
   (let [out (chan 10)
-        in (fs.createReadStream pathstr)
+        in (.createReadStream fs pathstr)
         _(set! (.-in out) in)
-        r (rl.createInterface #js{:input in :crlfDelay js/Infinity})]
+        r (.createInterface rl #js{:input in :crlfDelay js/Infinity})]
     (doto in
           (.on "error" (fn [e] (put! out [e])))
           (.on "close" #(close! out)))
@@ -1069,7 +1068,7 @@
           opts (merge defaults opts)
           key (or (get opts :key) filename)
           out (chan (get opts :buf-or-n) (map #(conj [key] %)))
-          w (fs.watch filename (clj->js opts))]
+          w (.watch fs filename (clj->js opts))]
       (->Watcher w (watcher->ch w out)))))
 
 (defn watchFile
@@ -1085,7 +1084,7 @@
                    :buf-or-n 10}
          {:keys [edn? buf-or-n] :as opts} (merge defaults opts)
          out (chan buf-or-n (map #(conj [filename] %)))
-         w (fs.watchFile filename (clj->js opts)
+         w (.watchFile fs filename (clj->js opts)
              (fn [curr prev]
                   (put! out [(stat->clj curr)(stat->clj prev)])))]
      out)))
@@ -1095,7 +1094,7 @@
    @param {!string} pathstr
    @return {nil}"
   [pathstr]
-  (fs.unwatchFile pathstr))
+  (.unwatchFile fs pathstr))
 
 ;; /watch
 ;;==============================================================================
@@ -1126,8 +1125,8 @@
                     (throw (js/Error. (str "Failed to acquire lock for path: '" pathstr "':\n" (.-message e))))))
         locked? (atom true)
         release #(when ^boolean @locked?
-                   (fs.closeSync lock-fd)
-                   (fs.unlinkSync lock-file-path)
+                   (.closeSync fs lock-fd)
+                   (.unlinkSync fs lock-file-path)
                    (reset! locked? false))]
     (LockFile. lock-file-path locked? release)))
 
@@ -1149,7 +1148,7 @@
   [pathstr]
   (with-promise out
     (let [lock-file-path (lock-path pathstr)]
-      (fs.open lock-file-path "wx+"
+      (.open fs lock-file-path "wx+"
         (fn [?err lock-fd]
           (if (some? ?err)
             (put! out [?err])
@@ -1158,11 +1157,11 @@
                             (with-promise out
                               (if (not @locked?)
                                 (put! out [nil])
-                                (fs.close lock-fd
+                                (.close fs lock-fd
                                   (fn [?err]
                                     (if (some? ?err)
                                       (put! out  [?err])
-                                      (fs.unlink lock-file-path
+                                      (.unlink fs lock-file-path
                                         (fn [?err]
                                           (if (some? ?err)
                                             (put! out [?err])

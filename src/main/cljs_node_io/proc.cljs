@@ -13,18 +13,18 @@
   [opts]
   (assert (map? opts))
   (if-let [env (get opts :env)]
-    (let [ENV (js/Object.create js/process.env)]
+    (let [ENV (.create js/Object js/process.env)]
       (doseq [[k v] env]
-        (goog.object.set ENV k v))
+        (goog.object/set ENV k v))
       (assoc opts :env ENV))
-    (assoc opts "env" (js/Object.create js/process.env))))
+    (assoc opts "env" (.create js/Object js/process.env))))
 
 (defn exec
   "@return {(buffer.Buffer|String)} the stdout from the command"
   ([cmdstr](exec cmdstr nil))
   ([cmdstr opts]
    (let [opts (checked-env (or opts {}))]
-     (childproc.execSync cmdstr (clj->js opts)))))
+     (.execSync childproc cmdstr (clj->js opts)))))
 
 (goog-typedef PortedChildProcess
   "@typedef {!child_process.ChildProcess}
@@ -42,7 +42,7 @@
          opts (checked-env (or opts {}))
          cb (fn [err stdout stderr]
               (put! out [err stdout stderr]))]
-     (specify! (childproc.exec cmdstr (clj->js opts) cb)
+     (specify! (.exec childproc cmdstr (clj->js opts) cb)
         impl/ReadPort
         (take! [_ handler] (impl/take! out handler))))))
 
@@ -53,7 +53,7 @@
    @return {(buffer.Buffer|String)}"
   [pathstr args opts]
   (let [opts (checked-env (or opts {}))]
-    (childproc.execFileSync pathstr (into-array args) (clj->js opts))))
+    (.execFileSync childproc pathstr (into-array args) (clj->js opts))))
 
 (defn aexecFile
   "@param {!string} pathstr :: the file to execute
@@ -66,7 +66,7 @@
   (let [out (promise-chan)
         opts (checked-env (or opts {}))
         cb (fn [err stdout stderr] (put! out [err stdout stderr]))]
-    (specify! (childproc.execFile pathstr (into-array args) (clj->js opts) cb)
+    (specify! (.execFile childproc pathstr (into-array args) (clj->js opts) cb)
       impl/ReadPort
       (take! [_ handler] (impl/take! out handler)))))
 
@@ -80,7 +80,7 @@
    @return {!Object}"
   [cmd args opts]
   (let [opts (checked-env (or opts {}))]
-    (childproc.spawnSync cmd (into-array args) (clj->js opts))))
+    (.spawnSync childproc cmd (into-array args) (clj->js opts))))
 
 ;; https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
 (defn spawn
@@ -90,7 +90,7 @@
    @return {!child_process.ChildProcess}"
   [cmd args opts]
   (let [opts (checked-env (or opts {}))]
-    (childproc.spawn cmd (into-array args) (clj->js opts))))
+    (.spawn childproc cmd (into-array args) (clj->js opts))))
 
 (defn fork
   "@param {!string} modulePath :: path to js file to run
@@ -100,4 +100,4 @@
   [modulePath args opts]
   (let [args (apply array args)
         opts (checked-env (merge {:silent true :stdio "pipe"} opts))]
-    (childproc.fork modulePath args (clj->js opts))))
+    (.fork childproc modulePath args (clj->js opts))))

@@ -10,43 +10,43 @@
 (def tmp ^{:doc "@type {string}"} (.tmpdir os))
 
 (def dtree
-  [{:type :dir :p (path.join tmp "D")}
-   {:type :fff :p (path.join tmp "D" "f0.txt") :ext ".txt"}
-   {:type :dir :p (path.join tmp "D" "d0")}
-   {:type :dir :p (path.join tmp "D" "d1")}
-   {:type :fff :p (path.join tmp "D" "d0" "d0f0.txt") :ext ".txt"}
-   {:type :fff :p (path.join tmp "D" "d1" "d1f0.ggg") :ext ".ggg"}
-   {:type :dir :p (path.join tmp "D" "d0" "dd0")}
-   {:type :dir :p (path.join tmp "D" "d0" "dd0" "ddd0")}
-   {:type :fff :p (path.join tmp "D" "d0" "dd0" "ddd0" "ffff0.foo.bar") :ext ".bar"}])
+  [{:type :dir :p (.join path tmp "D")}
+   {:type :fff :p (.join path tmp "D" "f0.txt") :ext ".txt"}
+   {:type :dir :p (.join path tmp "D" "d0")}
+   {:type :dir :p (.join path tmp "D" "d1")}
+   {:type :fff :p (.join path tmp "D" "d0" "d0f0.txt") :ext ".txt"}
+   {:type :fff :p (.join path tmp "D" "d1" "d1f0.ggg") :ext ".ggg"}
+   {:type :dir :p (.join path tmp "D" "d0" "dd0")}
+   {:type :dir :p (.join path tmp "D" "d0" "dd0" "ddd0")}
+   {:type :fff :p (.join path tmp "D" "d0" "dd0" "ddd0" "ffff0.foo.bar") :ext ".bar"}])
 
 (def file-paths (into [] (comp (remove #(= (:type %) :dir)) (map :p)) dtree))
 (def file-exts  (into [] (comp (remove #(= (:type %) :dir)) (map :ext)) dtree))
 (def dirs       (into [] (comp (filter #(= (:type %) :dir)) (map :p)) dtree))
 (def root (:p (first dtree)))
 (def all-paths  (into [] (concat file-paths (reverse dirs))))
-(def others #{42 #js[] #js{} #() (js/Buffer.from #js[]) nil "" js/NaN})
+(def others #{42 #js[] #js{} #() (.from js/Buffer #js[]) nil "" js/NaN})
 
 
 (defn teardown []
-  (let [f? (fn [p](try (.isFile (fs.statSync p)) (catch js/Error e false)))
-        d? (fn [p](try (.isDirectory (fs.statSync p)) (catch js/Error e false)))
-        rd (fn [dpath] (-> (fs.readdirSync dpath) array-seq))
+  (let [f? (fn [p](try (.isFile (.statSync fs p)) (catch js/Error e false)))
+        d? (fn [p](try (.isDirectory (.statSync fs p)) (catch js/Error e false)))
+        rd (fn [dpath] (-> (.readdirSync fs dpath) array-seq))
         rm (fn rm [p]
              (if (d? p)
                (do
                  (doseq [i (map (partial path.resolve p) (rd p))]
                    (rm i))
-                 (try (fs.rmdirSync p) (catch js/Errror e nil)))
-               (try (fs.unlinkSync p) (catch js/Error e nil))))]
+                 (try (.rmdirSync fs p) (catch js/Errror e nil)))
+               (try (.unlinkSync fs p) (catch js/Error e nil))))]
     (rm root)))
 
 (defn setup []
   (teardown)
   (doseq [{:keys [type p]} dtree]
     (if (= type :dir)
-      (fs.mkdirSync p)
-      (fs.writeFileSync p "utf8" ""))))
+      (.mkdirSync fs p)
+      (.writeFileSync fs p "utf8" ""))))
 
 (defn err-as-val
   "returns error object instead of throwing"
@@ -110,7 +110,7 @@
 (deftest sync-writes
   (testing "rename, writeFile"
     (let [a (first file-paths)
-          b (path.join (first dirs) "foo")]
+          b (.join path (first dirs) "foo")]
       (is (thrown? js/Error (iofs/rename b a )) "trying to rename a non-existing file should throw")
       (is (boolean ((set (iofs/readdir (first dirs))) (iofs/basename a))))
       (is (nil? (iofs/rename a b)) "rename should return nil")
@@ -168,7 +168,7 @@
      (testing "arename"
        (let [d (first dirs)
              a (first file-paths)
-             b (path.join d "foo")]
+             b (.join path d "foo")]
          (is (= "ENOENT" (ecode (<! (iofs/arename b a )))) "trying to rename a non-existing file should throw")
          (is (= "ENOENT" (ecode (<! (iofs/arename a "" )))) "trying to rename to a empty string should throw")
          (is (boolean ((set (iofs/readdir d)) (iofs/basename a))))
@@ -201,7 +201,7 @@
 
 (defn next-tick []
   (let [out (chan)]
-    (js/process.nextTick #(close! out))
+    (.nextTick js/process #(close! out))
     out))
 
 (deftest touch-test

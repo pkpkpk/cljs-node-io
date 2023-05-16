@@ -14,7 +14,7 @@
    @param {*} b
    @return {!boolean}"
   [b]
-  (js/Buffer.isBuffer b))
+  (.isBuffer js/Buffer b))
 
 (def buffer? Buffer?)
 
@@ -23,7 +23,7 @@
   (-equiv [this o]
     (if (identical? this o)
       true
-      (if ^boolean (js/Buffer.isBuffer o)
+      (if ^boolean (.isBuffer js/Buffer o)
         (.equals this o)
         false))))
 
@@ -37,8 +37,8 @@
    (condp = [(type a) (type b)]
      [Uri nil] (.getPath a)
      [js/String nil] a
-     [js/String js/String] (path.join a b)
-     [File js/String] (path.join (.getPath a) b)
+     [js/String js/String] (.join path a b)
+     [File js/String] (.join path (.getPath a) b)
      :else
      (throw
        (js/TypeError.
@@ -110,18 +110,18 @@
   string
   (make-reader [x opts] (make-input-stream x opts))
   (make-writer [x opts] (make-output-stream x opts))
-  (make-input-stream [x opts] (fs.createReadStream x (clj->js opts)))
-  (make-output-stream [x opts] (fs.createWriteStream x (clj->js opts)))
+  (make-input-stream [x opts] (.createReadStream fs x (clj->js opts)))
+  (make-output-stream [x opts] (.createWriteStream fs x (clj->js opts)))
   File
   (make-reader [x opts] (make-input-stream x opts))
   (make-writer [x opts] (make-output-stream x opts))
-  (make-input-stream [x opts] (fs.createReadStream (.getPath x) (clj->js opts)))
-  (make-output-stream [x opts] (fs.createWriteStream (.getPath x) (clj->js opts)))
+  (make-input-stream [x opts] (.createReadStream fs (.getPath x) (clj->js opts)))
+  (make-output-stream [x opts] (.createWriteStream fs (.getPath x) (clj->js opts)))
   js/Buffer
   (make-reader [x opts] (make-input-stream x opts))
   (make-writer [x opts] (make-output-stream x opts))
   (make-input-stream [x opts]
-    (let [rs (stream.Readable. (clj->js opts))]
+    (let [rs (new (.-Readable stream) (clj->js opts))]
       (set! (.-_read rs) (fn []))
       (.push rs x)
       (.push rs nil)
@@ -193,10 +193,10 @@
   ([obj opts]
    (cond
      (goog.isArrayLike obj)
-     (make-input-stream ^js/Buffer (js/Buffer.from obj) opts)
+     (make-input-stream ^js/Buffer (.from js/Buffer obj) opts)
 
      (js-iterable? obj)
-     (stream.Readable.from obj (clj->js opts))
+     (.from (.-Readable stream) obj (clj->js opts))
 
      true
      (make-input-stream obj opts))))
@@ -315,5 +315,5 @@
         out (promise-chan)
         input (make-input-stream input nil)
         output (make-output-stream output opts)]
-    (stream.pipeline input output #(put! out [%]))
+    (.pipeline stream input output #(put! out [%]))
     out))

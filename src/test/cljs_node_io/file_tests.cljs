@@ -150,7 +150,7 @@
       (is (= (.getAbsolutePath parent) (tmp-path "grandparent" "parent")))))
   (testing "derived absolute paths"
     (let [local-tmp (fs/mkdir "tmp" {:recursive true})
-          child (File. (path.join "tmp" "grandparent" "parent" "child"))
+          child (File. (.join path "tmp" "grandparent" "parent" "child"))
           parent (.getParentFile child)]
       (is (false? (.isAbsolute child)))
       (is (false? (.isAbsolute parent)))

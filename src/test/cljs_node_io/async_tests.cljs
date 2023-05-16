@@ -109,11 +109,7 @@
         (is (false? (admux mx in))))
       (done)))))
 
-
-(def stream (js/require "stream"))
 (def EventEmitter (.-EventEmitter (js/require "events")))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest events-test
   (async done
