@@ -260,21 +260,33 @@
 
 (defn spit
   "Writes content synchronously to file f.
-   :encoding {string} encoding to write the string. Ignored when content is a buffer
-   :append - {boolean} - if true add content to end of file
+   @param {(string|IFile|Uri)} p :: path to write to
+   @param {(string|buffer.Buffer)} content to write
+   Options:
+    :encoding {string} defaults to utf8. Ignored when content is a buffer
+    :append {bool} - add content to end of existing file.
+    :flags {string} - overrides :append when set
+    :mode {number} - set on newly created files
    @return {nil} or throws"
   [p content & options]
   (let [opts (apply hash-map options)
         f    (as-file p)]
-    (.write f (str content) opts)))
+    (.write f content opts)))
 
 (defn aspit
   "Async spit. Wait for result before writing again!
+   @param {(string|IFile|Uri)} p :: path to write to
+   @param {(string|buffer.Buffer)} content to write
+   Options:
+    :encoding {string} defaults to utf8. Ignored when content is a buffer
+    :append {bool} - add content to end of existing file.
+    :flags {string} - overrides :append when set
+    :mode {number} - set on newly created files
    @return {!Channel} recieves [?err]"
   [p content & options]
   (let [opts (apply hash-map options)
         f    (as-file p)]
-    (.awrite f (str content) opts)))
+    (.awrite f content opts)))
 
 (defn file-seq
   "A tree seq on cljs-node-io.Files

@@ -791,9 +791,11 @@
   "synchronously writes content to file represented by pathstring.
    @param {!string} pathstr :: file to write to
    @param {(string|buffer.Buffer)} content :: if buffer, :encoding is ignored
-   @param {?IMap} opts :: {:encoding {string}, :append {boolean}, :flags {string}, :mode {int}}
-    - flags override append
-    - :encoding defaults to utf8
+   @param {?IMap} opts:
+     :encoding {string} - defaults to utf8. use
+     :append {bool} - add content to existing file.
+     :flags {string} - overrides :append when set
+     :mode {int} - set on newly created files
    @return {nil}"
   [pathstr content opts]
   (.writeFileSync fs pathstr content
@@ -805,8 +807,11 @@
   "Asynchronously write to a file.
    @param {!string} pathstring : file to write to
    @param {(string|buffer.Buffer)} content : if buffer, :encoding is ignored
-   @param {?IMap} opts : :encoding {string}, :append {bool}, :flags {string}, :mode {int}
-    - flags override append
+   @param {?IMap} opts:
+     :encoding {string} - defaults to utf8. use
+     :append {bool} - add content to existing file.
+     :flags {string} - overrides :append when set
+     :mode {int} - set on newly created files
    @return {!Channel} promise-chan recieving [?err]"
   [pathstring content opts]
   (with-chan

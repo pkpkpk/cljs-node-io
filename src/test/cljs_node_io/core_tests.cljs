@@ -194,3 +194,22 @@
          (is (= [nil] (<! (io/acopy input output-file))))
          (is (= input (slurp output-file :encoding "")))))
      (done))))
+
+(deftest latin-encoding-test
+  (let [latin-bytes (.from js/Buffer #js[0xc3 0x28])]
+    (assert (= "Ã(" (.toString latin-bytes "latin1")))
+    (assert (not= "Ã(" (.toString latin-bytes "utf8")))
+    (let [output-file (createTempFile "latin_test.bin")]
+      (delete-file output-file true)
+      (testing "giving writeFile buffer"
+        (spit output-file latin-bytes)
+        (is (.equals latin-bytes (slurp output-file :encoding "")))
+        (is (= "Ã(" (slurp output-file :encoding "latin1"))))
+      (testing "giving writeFile buffer with wrong encoding is ignored"
+        (spit output-file latin-bytes :encoding "utf8")
+        (is (.equals latin-bytes (slurp output-file :encoding "")))
+        (is (= "Ã(" (slurp output-file :encoding "latin1"))))
+      (testing "string content is written with provided encoding"
+        (spit output-file "Ã(" :encoding "latin1")
+        (is (.equals latin-bytes (slurp output-file :encoding "")))
+        (is (= "Ã(" (slurp output-file :encoding "latin1")))))))
