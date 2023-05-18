@@ -27,7 +27,6 @@
 (def all-paths  (into [] (concat file-paths (reverse dirs))))
 (def others #{42 #js[] #js{} #() (.from js/Buffer #js[]) nil "" js/NaN})
 
-
 (defn teardown []
   (let [f? (fn [p](try (.isFile (.statSync fs p)) (catch js/Error e false)))
         d? (fn [p](try (.isDirectory (.statSync fs p)) (catch js/Error e false)))
@@ -35,9 +34,9 @@
         rm (fn rm [p]
              (if (d? p)
                (do
-                 (doseq [i (map (partial path.resolve p) (rd p))]
+                 (doseq [i (map (partial (.-resolve path) p) (rd p))]
                    (rm i))
-                 (try (.rmdirSync fs p) (catch js/Errror e nil)))
+                 (try (.rmdirSync fs p) (catch js/Error e nil)))
                (try (.unlinkSync fs p) (catch js/Error e nil))))]
     (rm root)))
 
@@ -48,11 +47,10 @@
       (.mkdirSync fs p)
       (.writeFileSync fs p "utf8" ""))))
 
-(defn err-as-val
-  "returns error object instead of throwing"
-  [f] (fn [item]
-     (try (f item)
-       (catch js/Error e e))))
+(defn err-as-val [f]
+  (fn [item]
+    (try (f item)
+      (catch js/Error e e))))
 
 (defn all-errors? [f coll]
   (assert (fn? f) "the 1st argument to all-errors must be a function")
