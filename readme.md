@@ -1,4 +1,4 @@
-# `com.github.pkpkpk/cljs-node-io {:mvn/version "2.0.332"}`
+# `com.github.pkpkpk/cljs-node-io {:mvn/version "2.0.339"}`
 
 [![Clojars Project](https://img.shields.io/clojars/v/com.github.pkpkpk/cljs-node-io.svg)](https://clojars.org/com.github.pkpkpk/cljs-node-io)
 
