@@ -1,0 +1,1 @@
+{:externs ["cljs_node_io/externs.js"]}

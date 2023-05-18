@@ -20,7 +20,7 @@
 
 
 (defn build-externs []
-  (let [target-file (io/file "target" "externs" "cljs_node_io.ext.js")]
+  (let [target-file (io/file "src" "main" "cljs_node_io" "externs.js")]
     (io/make-parents target-file)
     (spit target-file "")
     (doseq [file (.listFiles (io/file "externs"))]
@@ -29,7 +29,9 @@
 (defn jar
   ([] (jar nil))
   ([opts]
-   (build-externs)
+   ; (build-externs)
+   (io/make-parents (io/file "target/deps/deps.cljs"))
+   (spit (io/file "target/deps/deps.cljs") (slurp (io/file "src" "deps.cljs")))
    (-> opts
      (assoc :class-dir nil
             :src-pom "./template/pom.xml"
@@ -37,7 +39,7 @@
             :version version
             :basis basis
             :jar-file jar-file
-            :src-dirs ["src/main" "target/externs"])
+            :src-dirs ["src/main" "target/deps"])
      bb/jar)))
 
 (defn ci "Run the CI pipeline of tests (and build the JAR)." [opts]

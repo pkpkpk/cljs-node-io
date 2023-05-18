@@ -4,6 +4,13 @@
         org.clojure/core.async {:mvn/version "1.6.673"}}
  :aliases {:test {:extra-paths ["src/test"]
                   :main-opts ["-m" "cljs.main" "-t" "node"  "-m" "cljs-node-io.runner"]}
+           :adv {:extra-paths ["src/test"]
+                 :main-opts ["-m" "cljs.main"
+                             "-co" "{:externs [\"src/main/cljs_node_io/externs.js\"]}"
+                             "-o" "runner.min.js"
+                             "-O" "advanced"
+                             "-t" "node"
+                             "-c" "cljs-node-io.runner"]}
            :build  {:extra-paths ["src/dev"]
                     :ns-default cljs-node-io.build
                     :deps {io.github.seancorfield/build-clj {:git/tag "v0.8.2" :git/sha "0ffdb4c"}}}}}
